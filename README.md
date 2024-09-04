@@ -1,0 +1,2 @@
+# Smart-Learning-Platform-for-Early-Childhood-Education-SLPECE-
+Smart Learning Platform for Early Childhood Education (SLPECE)  This project develops a mobile app for children aged 3-8, featuring a 2D Animation Generator that animates children's drawings using CNN and reinforcement learning. The platform enhances learning in math, drawing, and cognitive skills through interactive, behavior-specific animations.
