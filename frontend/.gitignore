@@ -1,0 +1,45 @@
+# Dependency directories
+node_modules/
+
+# Android files
+/android/
+*.apk
+*.aar
+*.keystore
+
+# iOS files
+/ios/
+*.xcworkspace
+*.xcuserdata
+*.xcuserstate
+Pods/
+*.ipa
+*.dSYM
+
+# Expo files
+.expo/
+.expo-shared/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+expo-debug.log*
+
+# Build directories
+build/
+dist/
+.web-build/
+
+# Environment variables
+.env
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
