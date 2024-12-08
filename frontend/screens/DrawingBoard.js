@@ -1,4 +1,4 @@
-
+// src/screens/DrawingBoard.js
 import React, { useState, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, PanResponder } from 'react-native';
 import Svg, { Path } from 'react-native-svg';

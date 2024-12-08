@@ -1,4 +1,4 @@
-
+// src/components/Pen.js
 export default class Pen {
     constructor(strokes = []) {
       this.strokes = strokes;

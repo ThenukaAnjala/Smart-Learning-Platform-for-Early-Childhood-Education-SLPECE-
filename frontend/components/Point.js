@@ -1,4 +1,4 @@
-
+// src/components/Point.js
 export default class Point {
     constructor(x, y, time) {
       this.x = x;
