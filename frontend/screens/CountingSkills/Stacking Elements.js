@@ -153,17 +153,23 @@ const StackingElements = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#24bbed',
     },
     workspace: {
+        backgroundColor: '#24bbed',
         flex: 1,
-        backgroundColor: '#f0f0f0',
     },
     element: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
         backgroundColor: 'red',
-        borderRadius: 25,
+        borderRadius: 50,
         position: 'absolute',
+        shadowColor: '#000',
+        shadowOffset: { width: 5, height: 5 },
+        shadowOpacity: 0.8,
+        shadowRadius: 5,
+        elevation: 10,
     },
     stackText: {
         color: 'white',
