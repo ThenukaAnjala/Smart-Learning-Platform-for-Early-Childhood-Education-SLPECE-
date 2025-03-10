@@ -7,7 +7,16 @@ const HomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Text style={styles.title}>This is the Home Screen</Text>
       <Button title="Open Drawing Board" onPress={() => navigation.navigate('DrawingBoard')} />
+
+      <Text style={styles.title}>This is the Animal Discoverer Screen</Text>
+      <Button title="Open Animal Discoverer" onPress={() => navigation.navigate('AnimalDetectionScreen')} />
     </View>
+
+    
+
+
+
+
   );
 };
 

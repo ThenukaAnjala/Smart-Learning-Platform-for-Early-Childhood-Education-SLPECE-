@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
 import DrawingBoard from '../screens/DrawingBoard';
+import AnimalDetectionScreen from '../screens/AnimalDetectionScreen'
 
 const Stack = createStackNavigator();
 
@@ -14,6 +15,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Landing" component={LandingScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="DrawingBoard" component={DrawingBoard} />
+        <Stack.Screen name="AnimalDetectionScreen" component={AnimalDetectionScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
