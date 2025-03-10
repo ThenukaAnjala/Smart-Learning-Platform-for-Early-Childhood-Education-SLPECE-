@@ -6,6 +6,7 @@ import LandingScreen from '../screens/LandingScreen';
 import DrawingBoard from '../screens/DrawingBoard';
 import SmartCounter from '../screens/SmartCounter';
 import StackingElements from '../screens/CountingSkills/Stacking Elements';
+import ReverseCounting from '../screens/CountingSkills/Reverse Counting';
 
 const Stack = createStackNavigator();
 
@@ -18,6 +19,7 @@ const AppNavigator = () => {
         <Stack.Screen name="DrawingBoard" component={DrawingBoard} />
         <Stack.Screen name="SmartCounter" component={SmartCounter} />
         <Stack.Screen name="Stacking Elements" component={StackingElements} />
+        <Stack.Screen name="Reverse Counting" component={ReverseCounting} />
       </Stack.Navigator>
     </NavigationContainer>
   );
