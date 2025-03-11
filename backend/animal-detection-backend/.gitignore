@@ -18,3 +18,10 @@ build/
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+
+
+
+
+animal_recognition_model.pth
+  
