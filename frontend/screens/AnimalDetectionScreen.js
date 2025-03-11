@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import {
   Platform,
@@ -15,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
 import axios from 'axios';
+import * as ScreenOrientation from 'expo-screen-orientation'; // Import the library
 
 const AnimalDetectionScreen = () => {
   const [image, setImage] = useState(null);
@@ -24,6 +23,11 @@ const AnimalDetectionScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    // Lock to portrait when the screen mounts
+    const lockToPortrait = async () => {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    };
+
     const loadFontAndPermissions = async () => {
       await Font.loadAsync({
         Poppins: require('../assets/fonts/Poppins-Regular.ttf'),
@@ -40,14 +44,20 @@ const AnimalDetectionScreen = () => {
       }
     };
 
+    lockToPortrait();
     loadFontAndPermissions();
+
+    // Cleanup: Revert to landscape when the screen unmounts
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
+        .catch((error) => console.error('Error reverting to landscape:', error));
+    };
   }, []);
 
-  
   const getServerUrl = () => {
     return Platform.OS === 'android' && !__DEV__
       ? 'http://10.0.2.2:5000/predict' // Emulator
-      : 'http://192.168.1.46:5000/predict'; // Replace with your local IP for physical devices
+      : 'http://172.28.27.25:5000/predict'; // Your local IP
   };
 
   const uploadImage = async (uri) => {
@@ -69,16 +79,13 @@ const AnimalDetectionScreen = () => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        timeout: 10000, // Add timeout to avoid hanging
+        timeout: 10000,
       });
       console.log('Response:', response.data);
       setPrediction(response.data);
     } catch (error) {
       console.error('Upload Error:', error.message);
-      Alert.alert(
-        'Error',
-        error.response?.data?.error || 'Failed to connect to the server.'
-      );
+      Alert.alert('Error', error.response?.data?.error || 'Failed to connect to the server.');
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +95,7 @@ const AnimalDetectionScreen = () => {
     if (!hasPermission) return Alert.alert('Camera permission required.');
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [3, 4], // Portrait-friendly aspect ratio
       quality: 1,
     });
     if (!result.canceled) {
@@ -101,7 +108,7 @@ const AnimalDetectionScreen = () => {
     if (!hasPermission) return Alert.alert('Gallery permission required.');
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [3, 4], // Portrait-friendly aspect ratio
       quality: 1,
     });
     if (!result.canceled) {
@@ -170,14 +177,51 @@ const AnimalDetectionScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f0f0', alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: '#333' },
-  imageContainer: { alignItems: 'center', marginBottom: 20 },
-  image: { width: 300, height: 300, borderRadius: 15 },
-  predictionContainer: { marginTop: 15, alignItems: 'center' },
-  predictionText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  confidenceText: { fontSize: 16, color: '#666', marginTop: 5 },
-  buttonGroup: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 20,
+    color: '#333',
+    textAlign: 'center',
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  image: {
+    width: 250,
+    height: 333, // 3:4 ratio for portrait
+    borderRadius: 15,
+  },
+  predictionContainer: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  predictionText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  confidenceText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
   button: {
     backgroundColor: '#ff6b6b',
     flexDirection: 'row',
@@ -187,7 +231,11 @@ const styles = StyleSheet.create({
     width: '48%',
     justifyContent: 'center',
   },
-  buttonText: { color: 'white', marginLeft: 10, fontWeight: 'bold' },
+  buttonText: {
+    color: 'white',
+    marginLeft: 10,
+    fontWeight: 'bold',
+  },
   clearButton: {
     backgroundColor: '#ff6b6b',
     flexDirection: 'row',
@@ -196,14 +244,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 10,
   },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  loadingText: { color: 'white', marginTop: 10, fontSize: 18 },
+  loadingText: {
+    color: 'white',
+    marginTop: 10,
+    fontSize: 18,
+  },
 });
 
 export default AnimalDetectionScreen;
