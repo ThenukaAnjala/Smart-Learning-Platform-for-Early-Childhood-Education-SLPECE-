@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+// frontend/screens/DrawingBoard.js
+import React, { useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -15,21 +16,18 @@ import Pen from '../components/Pen';
 export default function DrawingBoard({ navigation }) {
   const [currentPoints, setCurrentPoints] = useState([]);
   const [previousStrokes, setPreviousStrokes] = useState([]);
-  const [pen] = useState(new Pen());
   const [color, setColor] = useState('#000');
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [isEraser, setIsEraser] = useState(false);
   const [recognizedLabel, setRecognizedLabel] = useState(null);
 
-  // For capturing the drawing area with ViewShot
+  // Reference for capturing the drawing area
   const viewShotRef = useRef(null);
+  const [pen] = useState(new Pen());
 
-  // Set this flag to true if you're using the Android emulator; false for a physical Android device over Wi‑Fi.
+  // Adjust if you are using an Android emulator or real device:
   const IS_ANDROID_EMULATOR = false;
-
-  // Replace with your computer's local IP address
-  const COMPUTER_IP = '192.168.16.101';
-
+  const COMPUTER_IP = '192.168.16.101'; // Replace with your LAN IP
   const BACKEND_URL =
     Platform.OS === 'android'
       ? IS_ANDROID_EMULATOR
@@ -39,7 +37,7 @@ export default function DrawingBoard({ navigation }) {
       ? 'http://127.0.0.1:5000/predict'
       : `http://${COMPUTER_IP}:5000/predict`;
 
-  // Setup PanResponder
+  // Setup PanResponder for drawing
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -64,51 +62,62 @@ export default function DrawingBoard({ navigation }) {
     })
   ).current;
 
-  // Capture and send to Flask
+  // Capture as a temp file, then upload that file to the backend
   const handleOk = async () => {
     try {
-      // Capture the drawing area as PNG base64. No need to add data header.
-      const base64 = await viewShotRef.current.capture({
+      // 1) Capture as a temp file instead of base64:
+      const tmpFilePath = await viewShotRef.current.capture({
         format: 'png',
         quality: 0.8,
-        result: 'base64',
+        result: 'tmpfile', // <--- returns a local URI (e.g. "file://...")
       });
-      const payload = { image: base64 };
 
-      // POST to Flask
+      // 2) Upload with FormData
+      const formData = new FormData();
+      formData.append('image', {
+        uri: tmpFilePath,
+        type: 'image/png',  // match your capture format
+        name: 'drawing.png',
+      });
+
+      // 3) POST the file to your Flask backend
       const response = await fetch(BACKEND_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
+
       const data = await response.json();
       console.log('Response from backend:', data);
+
       if (data.label) {
         setRecognizedLabel(data.label);
         Alert.alert('Prediction', `Recognized: ${data.label}`);
       } else {
-        Alert.alert('Error', 'No label returned.');
+        Alert.alert('Error', data.error || 'No label returned.');
       }
     } catch (error) {
-      console.error('Error sending drawing:', error);
-      Alert.alert('Error', 'Network request failed. Check your backend URL and network connectivity.');
+      console.error('Error uploading drawing:', error);
+      Alert.alert('Error', 'Network request failed. Check your IP and connectivity.');
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* Back Button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+      {/* Optional Back Button */}
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack?.()}>
         <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
 
-      {/* ViewShot captures the drawing area */}
+      {/* Captures the drawing area as a file */}
       <ViewShot style={styles.canvasContainer} ref={viewShotRef}>
         <View style={styles.drawingArea} {...panResponder.panHandlers}>
           <Svg width="100%" height="100%">
-            {previousStrokes.map((stroke, index) => (
+            {previousStrokes.map((stroke, idx) => (
               <Path
-                key={index}
+                key={idx}
                 d={pen.pointsToSvg(stroke.points)}
                 stroke={stroke.color}
                 strokeWidth={stroke.strokeWidth}
@@ -156,7 +165,6 @@ export default function DrawingBoard({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Display recognized label */}
       {recognizedLabel && (
         <View style={styles.labelContainer}>
           <Text style={styles.labelText}>Recognized: {recognizedLabel}</Text>
@@ -168,6 +176,16 @@ export default function DrawingBoard({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  backButton: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    zIndex: 10,
+    backgroundColor: '#6200EE',
+    padding: 10,
+    borderRadius: 5,
+  },
+  backButtonText: { color: '#fff', fontWeight: 'bold' },
   canvasContainer: { flex: 1, backgroundColor: '#fff' },
   drawingArea: { flex: 1 },
   controls: {
@@ -184,16 +202,6 @@ const styles = StyleSheet.create({
     margin: 5,
   },
   buttonText: { color: '#fff', fontWeight: 'bold' },
-  backButton: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    zIndex: 10,
-    backgroundColor: '#6200EE',
-    padding: 10,
-    borderRadius: 5,
-  },
-  backButtonText: { color: '#fff', fontWeight: 'bold' },
   labelContainer: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 60 : 40,

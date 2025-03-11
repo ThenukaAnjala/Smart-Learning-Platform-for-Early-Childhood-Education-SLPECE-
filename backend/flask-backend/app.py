@@ -1,8 +1,6 @@
-# flask-backend/app.py
-
 from flask import Flask, request, jsonify
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageOps
 import base64
 import numpy as np
 import tensorflow as tf
@@ -10,7 +8,7 @@ import os
 
 app = Flask(__name__)
 
-# Path to your trained model
+# Path to your trained ResNet model
 MODEL_PATH = os.path.join(os.getcwd(), "models", "resnet50_quick_draw_finetuned_accurate.h5")
 
 print("Loading model from:", MODEL_PATH)
@@ -25,38 +23,48 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict_drawing():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({'error': 'No image provided'}), 400
+    # We expect a file upload with key "image"
+    if 'image' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
 
-    # Extract Base64 (remove "data:image/png;base64," if present)
-    image_data = data['image']
-    if ',' in image_data:
-        image_data = image_data.split(',')[1]
+    file = request.files['image']
 
+    # 1) Read the file as a PIL image
     try:
-        # Decode to PIL image
-        img = Image.open(BytesIO(base64.b64decode(image_data)))
+        img = Image.open(file)
     except Exception as e:
-        return jsonify({'error': f'Invalid image data: {str(e)}'}), 400
+        return jsonify({'error': f'Invalid image file: {str(e)}'}), 400
 
-    # Convert to grayscale for the model
+    # 2) [Optional] Base64-encode the raw file (if you truly want to store it or something)
+    # We'll do it just to illustrate the "encode on backend" step:
+    file.seek(0)  # reset file pointer
+    encoded = base64.b64encode(file.read()).decode('utf-8')
+    # You could store 'encoded' or log it. We'll just keep it here for demonstration.
+
+    # 3) Convert to grayscale
     img = img.convert('L')
-    # Resize to 32x32 (as per your model’s training)
+    # 4) Threshold: <128 => black, else => white
+    img = img.point(lambda p: 0 if p < 128 else 255)
+    # 5) Invert if lines are black on white
+    if np.array(img).mean() > 128:
+        img = ImageOps.invert(img)
+    # 6) Resize to match model input (32x32)
     img = img.resize((32, 32))
 
-    # Scale and expand dims => shape (1, 32, 32, 1)
+    # 7) Convert to np array, scale, add channel & batch dimension
     img_array = np.array(img) / 255.0
     img_array = np.expand_dims(img_array, axis=-1)
     img_array = np.expand_dims(img_array, axis=0).astype('float32')
 
-    # Prediction
+    # 8) Predict
     preds = model.predict(img_array)
     class_idx = int(np.argmax(preds, axis=1)[0])
     predicted_label = labels[class_idx] if class_idx < len(labels) else 'unknown'
 
+    # Return result
+    # If you want to return the base64, you can do so as well: {"label": predicted_label, "base64": encoded}
     return jsonify({'label': predicted_label})
 
 if __name__ == '__main__':
-    # Listen on 0.0.0.0 so your device or emulator can connect
+    # Make server visible externally
     app.run(host='0.0.0.0', port=5000, debug=True)

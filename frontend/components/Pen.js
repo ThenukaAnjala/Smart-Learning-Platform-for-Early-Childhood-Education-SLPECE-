@@ -1,4 +1,4 @@
-// frontend/components/Pen.js
+// Pen.js
 
 export default class Pen {
   pointsToSvg(points) {
