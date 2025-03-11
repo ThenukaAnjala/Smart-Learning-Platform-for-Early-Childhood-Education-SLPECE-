@@ -1,44 +1,62 @@
+# flask-backend/app.py
+
 from flask import Flask, request, jsonify
-from tensorflow.keras.models import load_model
-import numpy as np
+from io import BytesIO
 from PIL import Image
-import io
 import base64
+import numpy as np
+import tensorflow as tf
+import os
 
 app = Flask(__name__)
 
-# Load the trained model
-model = load_model("resnet50_quick_draw_finetuned_accurate.h5")
+# Path to your trained model
+MODEL_PATH = os.path.join(os.getcwd(), "models", "resnet50_quick_draw_finetuned_accurate.h5")
 
-# Classes used during training
-animal_classes = ['cat', 'dog', 'bird', 'fish', 'elephant', 'lion', 'giraffe', 'rabbit', 'cow', 'tiger']
+print("Loading model from:", MODEL_PATH)
+model = tf.keras.models.load_model(MODEL_PATH)
+print("Model loaded successfully.")
+
+labels = ["cat", "dog", "bird", "fish", "elephant", "lion", "giraffe", "rabbit", "cow", "tiger"]
+
+@app.route('/')
+def index():
+    return "Welcome to the Smart Drawing API! Use POST /predict to classify images."
 
 @app.route('/predict', methods=['POST'])
-def predict():
+def predict_drawing():
     data = request.get_json()
-    if 'image' not in data:
-        return jsonify({'error': 'No image data provided'}), 400
+    if not data or 'image' not in data:
+        return jsonify({'error': 'No image provided'}), 400
 
-    # Decode the base64 image
-    image_data = base64.b64decode(data['image'])
-    image = Image.open(io.BytesIO(image_data)).convert('L')  # Convert to grayscale
+    # Extract Base64 (remove "data:image/png;base64," if present)
+    image_data = data['image']
+    if ',' in image_data:
+        image_data = image_data.split(',')[1]
 
-    # Preprocess the image: resize to 32x32 as used during training
-    image = image.resize((32, 32))
-    image_arr = np.array(image) / 255.0  # Normalize
-    image_arr = np.expand_dims(image_arr, axis=-1)  # Shape: (32, 32, 1)
-    image_arr = np.expand_dims(image_arr, axis=0)   # Shape: (1, 32, 32, 1)
+    try:
+        # Decode to PIL image
+        img = Image.open(BytesIO(base64.b64decode(image_data)))
+    except Exception as e:
+        return jsonify({'error': f'Invalid image data: {str(e)}'}), 400
 
-    # Predict the class
-    preds = model.predict(image_arr)
-    class_idx = np.argmax(preds[0])
-    predicted_class = animal_classes[class_idx]
-    confidence = float(preds[0][class_idx])
+    # Convert to grayscale for the model
+    img = img.convert('L')
+    # Resize to 32x32 (as per your model’s training)
+    img = img.resize((32, 32))
 
-    return jsonify({
-        'predicted_class': predicted_class,
-        'confidence': confidence
-    })
+    # Scale and expand dims => shape (1, 32, 32, 1)
+    img_array = np.array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=-1)
+    img_array = np.expand_dims(img_array, axis=0).astype('float32')
+
+    # Prediction
+    preds = model.predict(img_array)
+    class_idx = int(np.argmax(preds, axis=1)[0])
+    predicted_label = labels[class_idx] if class_idx < len(labels) else 'unknown'
+
+    return jsonify({'label': predicted_label})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Listen on 0.0.0.0 so your device or emulator can connect
+    app.run(host='0.0.0.0', port=5000, debug=True)
