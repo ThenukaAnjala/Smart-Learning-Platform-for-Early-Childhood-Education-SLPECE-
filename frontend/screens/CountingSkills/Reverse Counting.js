@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOp
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 80;
-const DUSTBIN_SIZE = 60;
+const DUSTBIN_SIZE = 70;
 const DUSTBIN_PADDING = 20;
 const LEFT_MARGIN = 20;
 const GAP = 10;
@@ -79,19 +79,18 @@ const ThreeLineElements = () => {
                 const element = r.elements.find(el => el.id === id);
                 if (!element) return r;
     
+                // Calculate element's new position
                 const currentX = element.x + deltaX;
                 const currentY = element.y + deltaY;
-                const centerX = currentX + ELEMENT_SIZE / 2;
-                const centerY = currentY + ELEMENT_SIZE / 2;
                 const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
                 const dustbinY = DUSTBIN_PADDING;
     
-                // Check if the element is dropped inside the dustbin area
-                const isInDustbin =
-                    centerX >= dustbinX &&
-                    centerX <= dustbinX + DUSTBIN_SIZE &&
-                    centerY >= dustbinY &&
-                    centerY <= dustbinY + DUSTBIN_SIZE;
+                // Check for overlap with dustbin (more forgiving detection)
+                const isInDustbin = 
+                    currentX + ELEMENT_SIZE > dustbinX &&
+                    currentX < dustbinX + DUSTBIN_SIZE &&
+                    currentY + ELEMENT_SIZE > dustbinY &&
+                    currentY < dustbinY + DUSTBIN_SIZE;
     
                 if (isInDustbin) {
                     const updatedElements = r.elements.filter(el => el.id !== id);
