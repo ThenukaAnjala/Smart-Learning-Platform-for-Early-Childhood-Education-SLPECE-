@@ -1,50 +1,61 @@
-// src/screens/DrawingBoard.js
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, PanResponder } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, PanResponder, Alert } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import Pen from '../components/Pen';
 
 const DrawingBoard = ({ navigation }) => {
-  const [currentPoints, setCurrentPoints] = useState([]);
-  const [previousStrokes, setPreviousStrokes] = useState([]);
-  const [pen] = useState(new Pen());
+  const [currentPoints, setCurrentPoints] = useState([]); // Points of the current stroke
+  const [previousStrokes, setPreviousStrokes] = useState([]); // Array of completed strokes
+  const [pen] = useState(new Pen()); // Pen instance
   const [color, setColor] = useState('#000000'); // Default brush color
   const [strokeWidth, setStrokeWidth] = useState(4); // Default stroke width
+  const [isEraser, setIsEraser] = useState(false); // Track eraser mode
 
-  const clearCanvas = () => {
-    setCurrentPoints([]);
-    setPreviousStrokes([]);
-    pen.clear();
+  const canvasRef = useRef(); // Ref for capturing the canvas
+
+  // Save the drawing to an image
+  const handleOk = async () => {
+    Alert.alert('Drawing Saved', 'Your drawing is ready for the next step!');
+    // Logic to export or save the image can be added here
   };
 
-  // Initialize PanResponder to capture touch events
-  const panResponder = useRef(
+  // PanResponder to handle touch gestures
+ const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
         const { locationX, locationY } = evt.nativeEvent;
-        pen.addStroke([{ x: locationX, y: locationY }]);
-        setCurrentPoints([{ x: locationX, y: locationY }]);
+        const strokeColor = isEraser ? '#ffffff' : color; // Use eraser color if active
+        setCurrentPoints((prevPoints) => [
+          ...prevPoints,
+          { x: locationX, y: locationY, color: strokeColor },
+        ]);
       },
       onPanResponderMove: (evt) => {
         const { locationX, locationY } = evt.nativeEvent;
         setCurrentPoints((prevPoints) => [...prevPoints, { x: locationX, y: locationY }]);
       },
       onPanResponderRelease: () => {
-        setPreviousStrokes((prevStrokes) => [...prevStrokes, currentPoints]);
-        setCurrentPoints([]);
+        if (currentPoints.length > 0) {
+          setPreviousStrokes((prevStrokes) => [
+            ...prevStrokes,
+            { points: currentPoints, color: isEraser ? '#ffffff' : color, strokeWidth },
+          ]);
+          setCurrentPoints([]); // Clear currentPoints for the next stroke
+        }
       },
     })
   ).current;
 
-  // Functions to adjust stroke width dynamically
-  const increaseStrokeWidth = () => {
-    setStrokeWidth((prevWidth) => prevWidth + 1);
-  };
 
-  const decreaseStrokeWidth = () => {
-    setStrokeWidth((prevWidth) => Math.max(prevWidth - 1, 1)); // Minimum width is 1
-  };
+  // Increase stroke width
+  const increaseStrokeWidth = () => setStrokeWidth((prevWidth) => prevWidth + 1);
+
+  // Decrease stroke width
+  const decreaseStrokeWidth = () => setStrokeWidth((prevWidth) => Math.max(prevWidth - 1, 1)); // Minimum width is 1
+
+  // Toggle eraser mode
+  const toggleEraser = () => setIsEraser(!isEraser);
 
   return (
     <View style={styles.container}>
@@ -54,27 +65,29 @@ const DrawingBoard = ({ navigation }) => {
       </TouchableOpacity>
 
       {/* Drawing Canvas */}
-      <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+      <View style={{ flex: 1 }} ref={canvasRef} {...panResponder.panHandlers}>
         <Svg style={styles.canvas}>
           {previousStrokes.map((stroke, index) => (
             <Path
               key={index}
-              d={pen.pointsToSvg(stroke)}
-              stroke={color}
-              strokeWidth={strokeWidth}
+              d={pen.pointsToSvg(stroke.points)}
+              stroke={stroke.color}
+              strokeWidth={stroke.strokeWidth}
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           ))}
-          <Path
-            d={pen.pointsToSvg(currentPoints)}
-            stroke={color}
-            strokeWidth={strokeWidth}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          {currentPoints.length > 0 && (
+            <Path
+              d={pen.pointsToSvg(currentPoints)}
+              stroke={isEraser ? '#ffffff' : color}
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
         </Svg>
       </View>
 
@@ -98,14 +111,20 @@ const DrawingBoard = ({ navigation }) => {
         >
           <Text style={styles.buttonText}>Blue</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.clearButton} onPress={clearCanvas}>
-          <Text style={styles.buttonText}>Clear</Text>
+        <TouchableOpacity
+          style={styles.clearButton}
+          onPress={toggleEraser}
+        >
+          <Text style={styles.buttonText}>{isEraser ? 'Eraser On' : 'Eraser Off'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlButton} onPress={increaseStrokeWidth}>
           <Text style={styles.buttonText}>Increase Width</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlButton} onPress={decreaseStrokeWidth}>
           <Text style={styles.buttonText}>Decrease Width</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.okButton} onPress={handleOk}>
+          <Text style={styles.buttonText}>OK</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -146,6 +165,12 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
     backgroundColor: '#6200EE',
+    margin: 5,
+  },
+  okButton: {
+    padding: 10,
+    borderRadius: 5,
+    backgroundColor: '#00AA00',
     margin: 5,
   },
   backButton: {
