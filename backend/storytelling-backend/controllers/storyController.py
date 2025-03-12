@@ -44,7 +44,8 @@ def generate_story():
     # Generate images and TTS audio
     results = []
     for segment in story_segments:
-        image_url = generate_image(segment)
+        # image_url = generate_image(segment)
+        image_url = ""
         audio_url = generate_tts(segment, voice)
         results.append({"text": segment, "image_url": image_url, "audio_url": audio_url})
 

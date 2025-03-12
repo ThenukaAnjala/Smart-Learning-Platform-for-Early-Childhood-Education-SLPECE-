@@ -7,6 +7,7 @@ const HomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Text style={styles.title}>This is the Home Screen</Text>
       <Button title="Open Drawing Board" onPress={() => navigation.navigate('DrawingBoard')} />
+      <Button title="Open Story Library" onPress={() => navigation.navigate('StoryTellingHome')} />
     </View>
   );
 };
