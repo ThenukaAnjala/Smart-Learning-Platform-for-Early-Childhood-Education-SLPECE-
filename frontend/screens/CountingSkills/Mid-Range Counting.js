@@ -104,11 +104,13 @@ const generateFlowers = () => {
 const MidrangeCounting = () => {
     const [flowers, setFlowers] = useState([]);
     const pulseAnim = useRef([]).current;
-    const cloudDrift1 = useRef(new Animated.Value(0)).current; // Start at 0 for translateX
-    const cloudDrift2 = useRef(new Animated.Value(0)).current; // Start at 0 for translateX
+    const cloudDrift1 = useRef(new Animated.Value(0)).current;
+    const cloudDrift2 = useRef(new Animated.Value(0)).current;
     const addButtonScale = useRef(new Animated.Value(1)).current;
     const resetButtonScale = useRef(new Animated.Value(1)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
+    const isResetting = useRef(false);
+    const isAdding = useRef(false);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -121,17 +123,16 @@ const MidrangeCounting = () => {
         }, [])
     );
 
-    // Separate useEffect for cloud animations (runs once on mount)
     useEffect(() => {
         Animated.loop(
             Animated.sequence([
                 Animated.timing(cloudDrift1, {
-                    toValue: 40, // Move right by 40
+                    toValue: 40,
                     duration: 5000,
                     useNativeDriver: true,
                 }),
                 Animated.timing(cloudDrift1, {
-                    toValue: 0, // Back to starting position
+                    toValue: 0,
                     duration: 5000,
                     useNativeDriver: true,
                 }),
@@ -140,20 +141,19 @@ const MidrangeCounting = () => {
         Animated.loop(
             Animated.sequence([
                 Animated.timing(cloudDrift2, {
-                    toValue: -40, // Move left by 40 (negative for right-aligned cloud)
+                    toValue: -40,
                     duration: 6000,
                     useNativeDriver: true,
                 }),
                 Animated.timing(cloudDrift2, {
-                    toValue: 0, // Back to starting position
+                    toValue: 0,
                     duration: 6000,
                     useNativeDriver: true,
                 }),
             ])
         ).start();
-    }, []); // Empty dependency array ensures it runs only once on mount
+    }, []);
 
-    // Separate useEffect for flower pulse animations
     useEffect(() => {
         pulseAnim.forEach((anim) => anim.stopAnimation());
         pulseAnim.length = 0;
@@ -247,60 +247,80 @@ const MidrangeCounting = () => {
     };
 
     const addPetal = () => {
+        if (isAdding.current) return;
+        isAdding.current = true;
+
+        // Find the flower with the minimum petal count that has less than 10 petals
+        let minPetalFlower = flowers.reduce((min, curr) =>
+            curr.petals.length < 10 && curr.petals.length < min.petals.length ? curr : min
+        , flowers[0]);
+
+        // If all flowers have 10 petals, do nothing
+        if (minPetalFlower.petals.length >= 10) {
+            isAdding.current = false;
+            return;
+        }
+
+        // Pre-compute the new state
+        const newFlowers = flowers.map((f) => {
+            if (f.flowerIndex !== minPetalFlower.flowerIndex) return f;
+
+            const newPetal = {
+                id: `${f.flowerIndex}-${Date.now()}`,
+                flowerIndex: f.flowerIndex,
+            };
+            const newPetals = [...f.petals, newPetal];
+            const updatedPetals = newPetals.map((p, i) => {
+                const angle = (i / newPetals.length) * 2 * Math.PI;
+                const radius = 40;
+                return {
+                    ...p,
+                    x: f.x + Math.cos(angle) * radius - ELEMENT_SIZE / 2,
+                    y: f.y + Math.sin(angle) * radius - ELEMENT_SIZE / 2,
+                    label: i + 1,
+                };
+            });
+            return { ...f, petals: updatedPetals };
+        });
+
         Animated.sequence([
             Animated.timing(addButtonScale, {
                 toValue: 1.1,
-                duration: 100,
+                duration: 50,
                 useNativeDriver: true,
             }),
             Animated.timing(addButtonScale, {
                 toValue: 1,
-                duration: 100,
+                duration: 50,
                 useNativeDriver: true,
             }),
-        ]).start();
-
-        const randomFlowerIndex = Math.floor(Math.random() * flowers.length);
-        setFlowers((prevFlowers) =>
-            prevFlowers.map((f) => {
-                if (f.flowerIndex !== randomFlowerIndex) return f;
-                if (f.petals.length >= 10) return f;
-
-                const newPetal = {
-                    id: `${f.flowerIndex}-${Date.now()}`,
-                    flowerIndex: f.flowerIndex,
-                };
-                const newPetals = [...f.petals, newPetal];
-                const updatedPetals = newPetals.map((p, i) => {
-                    const angle = (i / newPetals.length) * 2 * Math.PI;
-                    const radius = 40;
-                    return {
-                        ...p,
-                        x: f.x + Math.cos(angle) * radius - ELEMENT_SIZE / 2,
-                        y: f.y + Math.sin(angle) * radius - ELEMENT_SIZE / 2,
-                        label: i + 1,
-                    };
-                });
-                return { ...f, petals: updatedPetals };
-            })
-        );
+        ]).start(() => {
+            setFlowers(newFlowers);
+            isAdding.current = false;
+        });
     };
 
     const resetFlowers = () => {
+        if (isResetting.current) return;
+        isResetting.current = true;
+
+        const newFlowers = generateFlowers();
+
         Animated.sequence([
             Animated.timing(resetButtonScale, {
                 toValue: 1.1,
-                duration: 100,
+                duration: 50,
                 useNativeDriver: true,
             }),
             Animated.timing(resetButtonScale, {
                 toValue: 1,
-                duration: 100,
+                duration: 50,
                 useNativeDriver: true,
             }),
-        ]).start();
-
-        setFlowers(generateFlowers());
+        ]).start(() => {
+            setFlowers(newFlowers);
+            isResetting.current = false;
+        });
     };
 
     return (
@@ -438,7 +458,7 @@ const styles = StyleSheet.create({
     cloudBackground1: {
         position: 'absolute',
         top: 100,
-        left: 60, // Static initial position
+        left: 60,
         width: 100,
         height: 40,
         backgroundColor: '#FFFFFF',
@@ -452,7 +472,7 @@ const styles = StyleSheet.create({
     cloudBackground2: {
         position: 'absolute',
         top: 140,
-        right: 80, // Static initial position
+        right: 80,
         width: 120,
         height: 50,
         backgroundColor: '#FFFFFF',
