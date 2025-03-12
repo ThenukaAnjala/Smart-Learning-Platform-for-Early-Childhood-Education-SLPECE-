@@ -8,7 +8,7 @@ import os
 
 app = Flask(__name__)
 
-# Path to your trained ResNet model
+# Path to your trained model
 MODEL_PATH = os.path.join(os.getcwd(), "models", "resnet50_quick_draw_finetuned_accurate.h5")
 
 print("Loading model from:", MODEL_PATH)
@@ -23,48 +23,64 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict_drawing():
-    # We expect a file upload with key "image"
     if 'image' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
 
     file = request.files['image']
 
-    # 1) Read the file as a PIL image
+    # 1) Open the file as a PIL image
     try:
         img = Image.open(file)
     except Exception as e:
         return jsonify({'error': f'Invalid image file: {str(e)}'}), 400
 
-    # 2) [Optional] Base64-encode the raw file (if you truly want to store it or something)
-    # We'll do it just to illustrate the "encode on backend" step:
-    file.seek(0)  # reset file pointer
-    encoded = base64.b64encode(file.read()).decode('utf-8')
-    # You could store 'encoded' or log it. We'll just keep it here for demonstration.
+    # 2) Convert to grayscale for recognition
+    gray_img = img.convert('L')
 
-    # 3) Convert to grayscale
-    img = img.convert('L')
-    # 4) Threshold: <128 => black, else => white
-    img = img.point(lambda p: 0 if p < 128 else 255)
-    # 5) Invert if lines are black on white
-    if np.array(img).mean() > 128:
-        img = ImageOps.invert(img)
-    # 6) Resize to match model input (32x32)
-    img = img.resize((32, 32))
+    # 3) Threshold + invert if needed for your model
+    thresh_img = gray_img.point(lambda p: 0 if p < 128 else 255)
+    if np.array(thresh_img).mean() > 128:
+        thresh_img = ImageOps.invert(thresh_img)
 
-    # 7) Convert to np array, scale, add channel & batch dimension
-    img_array = np.array(img) / 255.0
-    img_array = np.expand_dims(img_array, axis=-1)
-    img_array = np.expand_dims(img_array, axis=0).astype('float32')
+    # 4) Resize for the model
+    thresh_img = thresh_img.resize((32, 32))
+    arr = np.array(thresh_img) / 255.0
+    arr = np.expand_dims(arr, axis=-1)
+    arr = np.expand_dims(arr, axis=0).astype('float32')
 
-    # 8) Predict
-    preds = model.predict(img_array)
+    # 5) Predict
+    preds = model.predict(arr)
     class_idx = int(np.argmax(preds, axis=1)[0])
     predicted_label = labels[class_idx] if class_idx < len(labels) else 'unknown'
 
-    # Return result
-    # If you want to return the base64, you can do so as well: {"label": predicted_label, "base64": encoded}
-    return jsonify({'label': predicted_label})
+    # 6) Now remove white background from original image (not just threshold)
+    #    We'll assume "white" is near 255,255,255, so we create an RGBA copy
+    #    and set white pixels to transparent.
+    #    This ensures the final image has just the lines (no bounding box).
+    original_rgba = img.convert("RGBA")
+    datas = original_rgba.getdata()
+    newData = []
+    for item in datas:
+        # item is (r,g,b,a)
+        # If r,g,b is close to white, set alpha=0
+        # Tweak tolerance if needed (like if item[:3] == (255,255,255))
+        if item[0] > 230 and item[1] > 230 and item[2] > 230:
+            # turn this pixel transparent
+            newData.append((255,255,255,0))
+        else:
+            newData.append(item)
+    original_rgba.putdata(newData)
+
+    # 7) Convert the final RGBA (with white removed) to base64
+    buffer = BytesIO()
+    original_rgba.save(buffer, format='PNG')
+    processed_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+    # Return the recognized label + the processed image
+    return jsonify({
+        'label': predicted_label,
+        'processedBase64': processed_base64
+    })
 
 if __name__ == '__main__':
-    # Make server visible externally
     app.run(host='0.0.0.0', port=5000, debug=True)

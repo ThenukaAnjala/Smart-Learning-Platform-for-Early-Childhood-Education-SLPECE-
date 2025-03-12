@@ -1,5 +1,5 @@
 // frontend/screens/DrawingBoard.js
-import React, { useRef, useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -20,14 +20,12 @@ export default function DrawingBoard({ navigation }) {
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [isEraser, setIsEraser] = useState(false);
   const [recognizedLabel, setRecognizedLabel] = useState(null);
-
-  // Reference for capturing the drawing area
   const viewShotRef = useRef(null);
   const [pen] = useState(new Pen());
 
-  // Adjust if you are using an Android emulator or real device:
+  // For environment config:
   const IS_ANDROID_EMULATOR = false;
-  const COMPUTER_IP = '192.168.16.101'; // Replace with your LAN IP
+  const COMPUTER_IP = '192.168.16.101'; // update to your LAN IP
   const BACKEND_URL =
     Platform.OS === 'android'
       ? IS_ANDROID_EMULATOR
@@ -37,7 +35,6 @@ export default function DrawingBoard({ navigation }) {
       ? 'http://127.0.0.1:5000/predict'
       : `http://${COMPUTER_IP}:5000/predict`;
 
-  // Setup PanResponder for drawing
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -62,25 +59,26 @@ export default function DrawingBoard({ navigation }) {
     })
   ).current;
 
-  // Capture as a temp file, then upload that file to the backend
+  // Capture as a file, upload to backend, get processed base64 (background removed)
   const handleOk = async () => {
     try {
-      // 1) Capture as a temp file instead of base64:
+      // 1) Capture the drawing as a temp file
       const tmpFilePath = await viewShotRef.current.capture({
         format: 'png',
         quality: 0.8,
-        result: 'tmpfile', // <--- returns a local URI (e.g. "file://...")
+        result: 'tmpfile',
       });
+      console.log('Captured file path:', tmpFilePath);
 
-      // 2) Upload with FormData
+      // 2) Build FormData
       const formData = new FormData();
       formData.append('image', {
         uri: tmpFilePath,
-        type: 'image/png',  // match your capture format
+        type: 'image/png',
         name: 'drawing.png',
       });
 
-      // 3) POST the file to your Flask backend
+      // 3) POST to the backend
       const response = await fetch(BACKEND_URL, {
         method: 'POST',
         body: formData,
@@ -88,13 +86,18 @@ export default function DrawingBoard({ navigation }) {
           'Content-Type': 'multipart/form-data',
         },
       });
-
       const data = await response.json();
       console.log('Response from backend:', data);
 
       if (data.label) {
         setRecognizedLabel(data.label);
         Alert.alert('Prediction', `Recognized: ${data.label}`);
+        // If recognized fish, navigate to FishScreen with the new base64
+        if (data.label.toLowerCase() === 'fish' && data.processedBase64) {
+          navigation.navigate('FishScreen', {
+            fishImageBase64: data.processedBase64,
+          });
+        }
       } else {
         Alert.alert('Error', data.error || 'No label returned.');
       }
@@ -106,12 +109,10 @@ export default function DrawingBoard({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Optional Back Button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack?.()}>
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
 
-      {/* Captures the drawing area as a file */}
       <ViewShot style={styles.canvasContainer} ref={viewShotRef}>
         <View style={styles.drawingArea} {...panResponder.panHandlers}>
           <Svg width="100%" height="100%">
@@ -140,7 +141,6 @@ export default function DrawingBoard({ navigation }) {
         </View>
       </ViewShot>
 
-      {/* Controls */}
       <View style={styles.controls}>
         <TouchableOpacity style={[styles.button, { backgroundColor: '#FF0000' }]} onPress={() => setColor('#FF0000')}>
           <Text style={styles.buttonText}>Red</Text>
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: { color: '#fff', fontWeight: 'bold' },
   canvasContainer: { flex: 1, backgroundColor: '#fff' },
-  drawingArea: { flex: 1 },
+  drawingArea: { flex: 1, backgroundColor: '#fff' },
   controls: {
     flexDirection: 'row',
     flexWrap: 'wrap',
