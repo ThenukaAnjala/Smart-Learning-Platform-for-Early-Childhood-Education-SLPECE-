@@ -13,7 +13,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
 import axios from 'axios';
-import * as ScreenOrientation from 'expo-screen-orientation'; // Import the library
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { useNavigation } from '@react-navigation/native'; // Import navigation hook
 
 const AnimalDetectionScreen = () => {
   const [image, setImage] = useState(null);
@@ -21,9 +22,9 @@ const AnimalDetectionScreen = () => {
   const [fontLoaded, setFontLoaded] = useState(false);
   const [prediction, setPrediction] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const navigation = useNavigation(); // Hook to access navigation
 
   useEffect(() => {
-    // Lock to portrait when the screen mounts
     const lockToPortrait = async () => {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     };
@@ -47,17 +48,17 @@ const AnimalDetectionScreen = () => {
     lockToPortrait();
     loadFontAndPermissions();
 
-    // Cleanup: Revert to landscape when the screen unmounts
     return () => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
-        .catch((error) => console.error('Error reverting to landscape:', error));
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch((error) =>
+        console.error('Error reverting to landscape:', error)
+      );
     };
   }, []);
 
   const getServerUrl = () => {
     return Platform.OS === 'android' && !__DEV__
-      ? 'http://10.0.2.2:5000/predict' // Emulator
-      : 'http://172.28.27.25:5000/predict'; // Your local IP
+      ? 'http://10.0.2.2:5050/predict'
+      : 'http://192.168.1.46:5050/predict';
   };
 
   const uploadImage = async (uri) => {
@@ -83,6 +84,15 @@ const AnimalDetectionScreen = () => {
       });
       console.log('Response:', response.data);
       setPrediction(response.data);
+
+      // Navigate if confidence > 90
+      if (response.data.confidence > 90) {
+        navigation.navigate('AnimalDetailsScreen', {
+          animalName: response.data.prediction,
+          confidence: response.data.confidence,
+          imageUri: uri,
+        });
+      }
     } catch (error) {
       console.error('Upload Error:', error.message);
       Alert.alert('Error', error.response?.data?.error || 'Failed to connect to the server.');
@@ -95,7 +105,7 @@ const AnimalDetectionScreen = () => {
     if (!hasPermission) return Alert.alert('Camera permission required.');
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: [3, 4], // Portrait-friendly aspect ratio
+      aspect: [3, 4],
       quality: 1,
     });
     if (!result.canceled) {
@@ -108,7 +118,7 @@ const AnimalDetectionScreen = () => {
     if (!hasPermission) return Alert.alert('Gallery permission required.');
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
-      aspect: [3, 4], // Portrait-friendly aspect ratio
+      aspect: [3, 4],
       quality: 1,
     });
     if (!result.canceled) {
@@ -145,14 +155,21 @@ const AnimalDetectionScreen = () => {
       {image && (
         <View style={styles.imageContainer}>
           <Image source={{ uri: image }} style={styles.image} />
-          {prediction && (
-            <View style={styles.predictionContainer}>
-              <Text style={styles.predictionText}>
-                I think it's a {prediction.prediction}!
+          {prediction && prediction.confidence <= 90 && (
+            <View style={styles.tryAgainContainer}>
+              <Text style={styles.tryAgainText}>
+                Hmm, I’m only {prediction.confidence.toFixed(2)}% sure. Let’s try again!
               </Text>
-              <Text style={styles.confidenceText}>
-                Confidence: {prediction.confidence.toFixed(2)}%
-              </Text>
+              <View style={styles.retryButtonGroup}>
+                <TouchableOpacity style={styles.retryButton} onPress={takePhoto}>
+                  <Ionicons name="camera" size={20} color="white" />
+                  <Text style={styles.retryButtonText}>Retake Photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.retryButton} onPress={pickImageFromGallery}>
+                  <Ionicons name="image" size={20} color="white" />
+                  <Text style={styles.retryButtonText}>New Gallery</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
           <TouchableOpacity style={styles.clearButton} onPress={clearImage}>
@@ -197,24 +214,37 @@ const styles = StyleSheet.create({
   },
   image: {
     width: 250,
-    height: 333, // 3:4 ratio for portrait
+    height: 333,
     borderRadius: 15,
   },
-  predictionContainer: {
+  tryAgainContainer: {
     marginTop: 15,
     alignItems: 'center',
   },
-  predictionText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+  tryAgainText: {
+    fontSize: 18,
+    color: '#ff6b6b',
     textAlign: 'center',
+    marginBottom: 10,
   },
-  confidenceText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 5,
-    textAlign: 'center',
+  retryButtonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  retryButton: {
+    backgroundColor: '#ff6b6b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    width: '48%',
+    justifyContent: 'center',
+  },
+  retryButtonText: {
+    color: 'white',
+    marginLeft: 8,
+    fontWeight: 'bold',
   },
   buttonGroup: {
     flexDirection: 'row',
