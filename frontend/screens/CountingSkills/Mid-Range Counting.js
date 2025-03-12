@@ -369,26 +369,42 @@ const MidrangeCounting = () => {
                                 },
                             ]}
                         />
+                        {/* Left leaf */}
                         <View
                             style={[
-                                styles.leaf,
+                                styles.leafBase,
                                 {
                                     left: flower.x - LEAF_SIZE - 5,
-                                    top: flower.y + STEM_HEIGHT * 0.4,
-                                    transform: [{ rotate: '45deg' }],
+                                    top: flower.y + STEM_HEIGHT * 0.3,
+                                    transform: [{ rotate: '30deg' }],
                                 },
                             ]}
-                        />
+                        >
+                            <View style={styles.leafVeins} />
+                            <View style={[styles.leafVein, { transform: [{ rotate: '20deg' }] }]} />
+                            <View style={[styles.leafVein, { transform: [{ rotate: '40deg' }] }]} />
+                            <View style={[styles.leafVein, { transform: [{ rotate: '-20deg' }] }]} />
+                            <View style={[styles.leafVein, { transform: [{ rotate: '-40deg' }] }]} />
+                        </View>
+                        
+                        {/* Right leaf */}
                         <View
                             style={[
-                                styles.leaf,
+                                styles.leafBase,
                                 {
                                     left: flower.x + 5,
-                                    top: flower.y + STEM_HEIGHT * 0.4,
-                                    transform: [{ rotate: '-45deg' }],
+                                    top: flower.y + STEM_HEIGHT * 0.5,
+                                    transform: [{ rotate: '-30deg' }, { scaleX: -1 }],
                                 },
                             ]}
-                        />
+                        >
+                            <View style={styles.leafVeins} />
+                            <View style={[styles.leafVein, { transform: [{ rotate: '20deg' }] }]} />
+                            <View style={[styles.leafVein, { transform: [{ rotate: '40deg' }] }]} />
+                            <View style={[styles.leafVein, { transform: [{ rotate: '-20deg' }] }]} />
+                            <View style={[styles.leafVein, { transform: [{ rotate: '-40deg' }] }]} />
+                        </View>
+
                         {flower.petals.map((petal) => (
                             <DraggableElement
                                 key={petal.id}
@@ -520,18 +536,36 @@ const styles = StyleSheet.create({
         position: 'absolute',
         zIndex: 0,
     },
-    leaf: {
-        width: LEAF_SIZE,
-        height: LEAF_SIZE,
-        backgroundColor: '#228B22',
-        borderRadius: LEAF_SIZE / 2,
+    // Updated realistic leaf styles
+    leafBase: {
+        width: LEAF_SIZE * 1.5, // Narrower for a more natural leaf shape
+        height: LEAF_SIZE * 0.8, // Slightly shorter height
+        backgroundColor: '#32CD32', // Bright green for leaf
+        borderRadius: LEAF_SIZE * 0.5, // Elliptical shape
         position: 'absolute',
         zIndex: 0,
+        overflow: 'hidden',
         shadowColor: '#000',
-        shadowOffset: { width: 2, height: 2 },
+        shadowOffset: { width: 1, height: 1 },
         shadowOpacity: 0.4,
-        shadowRadius: 3,
+        shadowRadius: 2,
         elevation: 3,
+    },
+    leafVeins: {
+        position: 'absolute',
+        width: 2, // Slightly thicker main vein
+        height: LEAF_SIZE * 0.7, // Main vein length
+        backgroundColor: '#1E8449', // Darker green for veins
+        left: LEAF_SIZE * 0.7, // Centered along the leaf
+        top: LEAF_SIZE * 0.05,
+    },
+    leafVein: {
+        position: 'absolute',
+        width: 1, // Thinner secondary veins
+        height: LEAF_SIZE * 0.4, // Shorter secondary veins
+        backgroundColor: '#1E8449',
+        left: LEAF_SIZE * 0.7, // Aligned with main vein
+        top: LEAF_SIZE * 0.2,
     },
     bounceWrapper: {
         position: 'absolute',
