@@ -4,13 +4,16 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 40; // Smaller size for petals
-const FLOWER_CENTER_SIZE = 50; // Size of the flower's center
+const FLOWER_CENTER_SIZE = 50; // Default size of the flower's center
+const MIDDLE_FLOWER_CENTER_SIZE = 70; // Larger size for the middle flower
 const DUSTBIN_SIZE = 50;
 const DUSTBIN_PADDING = 20;
+const STEM_HEIGHT = height * 0.6; // Longer stem height
+const LEAF_SIZE = 30; // Size of leaves
 const FLOWER_POSITIONS = [
-    { x: width * 0.25, y: height * 0.4 }, // Left flower
-    { x: width * 0.5, y: height * 0.4 },  // Middle flower
-    { x: width * 0.75, y: height * 0.4 }, // Right flower
+    { x: width * 0.25, y: height * 0.3 }, // Adjusted y position for longer stems
+    { x: width * 0.5, y: height * 0.3 },
+    { x: width * 0.75, y: height * 0.3 },
 ];
 
 const DraggableElement = ({ id, x, y, flowerIndex, onDrop, label }) => {
@@ -53,7 +56,7 @@ const DraggableElement = ({ id, x, y, flowerIndex, onDrop, label }) => {
 
 const generateFlowers = () => {
     return FLOWER_POSITIONS.map((pos, flowerIndex) => {
-        const petalCount = Math.floor(Math.random() * 5) + 3; // Random petals (3 to 7)
+        const petalCount = Math.floor(Math.random() * 6) + 5; // Random petals between 5 and 10
         const petals = Array.from({ length: petalCount }, (_, i) => {
             const angle = (i / petalCount) * 2 * Math.PI; // Distribute petals in a circle
             const radius = 40; // Distance from center
@@ -91,12 +94,12 @@ const MidrangeCounting = () => {
                 const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
                 const dustbinY = DUSTBIN_PADDING;
 
-                // Check if dropped in dustbin
+                // Improved dustbin detection with wider detection area
                 const isInDustbin =
-                    currentX + ELEMENT_SIZE > dustbinX &&
-                    currentX < dustbinX + DUSTBIN_SIZE &&
-                    currentY + ELEMENT_SIZE > dustbinY &&
-                    currentY < dustbinY + DUSTBIN_SIZE;
+                    currentX + ELEMENT_SIZE >= dustbinX - 10 &&
+                    currentX <= dustbinX + DUSTBIN_SIZE + 10 &&
+                    currentY + ELEMENT_SIZE >= dustbinY - 10 &&
+                    currentY <= dustbinY + DUSTBIN_SIZE + 10;
 
                 if (isInDustbin) {
                     const updatedPetals = f.petals.filter((p) => p.id !== id);
@@ -116,6 +119,7 @@ const MidrangeCounting = () => {
                 }
 
                 if (targetFlower) {
+                    // If dropped near another flower, move the petal to that flower
                     const updatedPetals = f.petals.filter((p) => p.id !== id);
                     const newPetal = { ...petal, flowerIndex: targetFlower.flowerIndex };
                     const newTargetPetals = [...targetFlower.petals, newPetal];
@@ -132,9 +136,20 @@ const MidrangeCounting = () => {
                     return f.flowerIndex === targetFlower.flowerIndex
                         ? { ...f, petals: updatedTargetPetals }
                         : { ...f, petals: updatedPetals };
+                } else {
+                    // If not dropped in dustbin or near another flower, return the petal to its original flower
+                    const updatedPetals = f.petals.map((p, i) => {
+                        if (p.id !== id) return p;
+                        const angle = (i / f.petals.length) * 2 * Math.PI;
+                        const radius = 40;
+                        return {
+                            ...p,
+                            x: f.x + Math.cos(angle) * radius - ELEMENT_SIZE / 2,
+                            y: f.y + Math.sin(angle) * radius - ELEMENT_SIZE / 2,
+                        };
+                    });
+                    return { ...f, petals: updatedPetals };
                 }
-
-                return f;
             })
         );
     };
@@ -144,6 +159,9 @@ const MidrangeCounting = () => {
         setFlowers((prevFlowers) =>
             prevFlowers.map((f) => {
                 if (f.flowerIndex !== randomFlowerIndex) return f;
+                // Check if flower already has maximum petals (10)
+                if (f.petals.length >= 10) return f;
+                
                 const newPetal = {
                     id: `${f.flowerIndex}-${Date.now()}`,
                     flowerIndex: f.flowerIndex,
@@ -178,7 +196,13 @@ const MidrangeCounting = () => {
                         <View
                             style={[
                                 styles.flowerCenter,
-                                { left: flower.x - FLOWER_CENTER_SIZE / 2, top: flower.y - FLOWER_CENTER_SIZE / 2 },
+                                {
+                                    left: flower.x - (flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE / 2 : FLOWER_CENTER_SIZE / 2),
+                                    top: flower.y - (flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE / 2 : FLOWER_CENTER_SIZE / 2),
+                                    width: flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE : FLOWER_CENTER_SIZE,
+                                    height: flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE : FLOWER_CENTER_SIZE,
+                                    borderRadius: flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE / 2 : FLOWER_CENTER_SIZE / 2,
+                                },
                             ]}
                         />
                         {/* Flower stem */}
@@ -187,8 +211,30 @@ const MidrangeCounting = () => {
                                 styles.stem,
                                 {
                                     left: flower.x - 2,
-                                    top: flower.y + FLOWER_CENTER_SIZE / 2,
-                                    height: height * 0.5 - flower.y,
+                                    top: flower.y + (flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE / 2 : FLOWER_CENTER_SIZE / 2),
+                                    height: STEM_HEIGHT,
+                                },
+                            ]}
+                        />
+                        {/* Left leaf */}
+                        <View
+                            style={[
+                                styles.leaf,
+                                {
+                                    left: flower.x - LEAF_SIZE - 5,
+                                    top: flower.y + STEM_HEIGHT * 0.4, // Positioned 40% down the stem
+                                    transform: [{ rotate: '45deg' }],
+                                },
+                            ]}
+                        />
+                        {/* Right leaf */}
+                        <View
+                            style={[
+                                styles.leaf,
+                                {
+                                    left: flower.x + 5,
+                                    top: flower.y + STEM_HEIGHT * 0.4,
+                                    transform: [{ rotate: '-45deg' }],
                                 },
                             ]}
                         />
@@ -229,10 +275,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     flowerCenter: {
-        width: FLOWER_CENTER_SIZE,
-        height: FLOWER_CENTER_SIZE,
         backgroundColor: 'red',
-        borderRadius: FLOWER_CENTER_SIZE / 2,
         position: 'absolute',
         zIndex: 1,
     },
@@ -242,10 +285,18 @@ const styles = StyleSheet.create({
         position: 'absolute',
         zIndex: 0,
     },
+    leaf: {
+        width: LEAF_SIZE,
+        height: LEAF_SIZE,
+        backgroundColor: 'green',
+        borderRadius: LEAF_SIZE / 2,
+        position: 'absolute',
+        zIndex: 0,
+    },
     petal: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
-        backgroundColor: 'red',
+        backgroundColor: '#FF69B4', // Changed to pink (Hot Pink)
         borderRadius: ELEMENT_SIZE / 2,
         position: 'absolute',
         alignItems: 'center',
