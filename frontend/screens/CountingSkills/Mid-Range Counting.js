@@ -3,23 +3,45 @@ import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOp
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
-const ELEMENT_SIZE = 40; // Smaller size for petals
-const FLOWER_CENTER_SIZE = 50; // Default size of the flower's center
-const MIDDLE_FLOWER_CENTER_SIZE = 70; // Larger size for the middle flower
+const ELEMENT_SIZE = 40;
+const FLOWER_CENTER_SIZE = 50;
+const MIDDLE_FLOWER_CENTER_SIZE = 70;
 const DUSTBIN_SIZE = 50;
 const DUSTBIN_PADDING = 20;
-const STEM_HEIGHT = height * 0.6; // Longer stem height
-const LEAF_SIZE = 30; // Size of leaves
+const STEM_HEIGHT = height * 0.6;
+const LEAF_SIZE = 30;
 const FLOWER_POSITIONS = [
-    { x: width * 0.25, y: height * 0.3 }, // Adjusted y position for longer stems
+    { x: width * 0.25, y: height * 0.3 },
     { x: width * 0.5, y: height * 0.3 },
     { x: width * 0.75, y: height * 0.3 },
 ];
 
 const DraggableElement = ({ id, x, y, flowerIndex, onDrop, label }) => {
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
+    const bounceAnim = useRef(new Animated.Value(0)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
+        Animated.parallel([
+            Animated.sequence([
+                Animated.timing(bounceAnim, {
+                    toValue: 1.2,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(bounceAnim, {
+                    toValue: 1,
+                    friction: 3,
+                    useNativeDriver: true,
+                }),
+            ]),
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
         Animated.spring(pan, {
             toValue: { x, y },
             useNativeDriver: false,
@@ -46,20 +68,27 @@ const DraggableElement = ({ id, x, y, flowerIndex, onDrop, label }) => {
 
     return (
         <Animated.View
-            style={[styles.petal, { transform: pan.getTranslateTransform() }]}
-            {...panResponder.panHandlers}
+            style={[
+                styles.bounceWrapper,
+                { transform: [{ scale: bounceAnim }], opacity: fadeAnim },
+            ]}
         >
-            <Text style={styles.labelText}>{label}</Text>
+            <Animated.View
+                style={[styles.petal, { transform: pan.getTranslateTransform() }]}
+                {...panResponder.panHandlers}
+            >
+                <Text style={styles.labelText}>{label}</Text>
+            </Animated.View>
         </Animated.View>
     );
 };
 
 const generateFlowers = () => {
     return FLOWER_POSITIONS.map((pos, flowerIndex) => {
-        const petalCount = Math.floor(Math.random() * 6) + 5; // Random petals between 5 and 10
+        const petalCount = Math.floor(Math.random() * 6) + 5;
         const petals = Array.from({ length: petalCount }, (_, i) => {
-            const angle = (i / petalCount) * 2 * Math.PI; // Distribute petals in a circle
-            const radius = 40; // Distance from center
+            const angle = (i / petalCount) * 2 * Math.PI;
+            const radius = 40;
             return {
                 id: `${flowerIndex}-${i}`,
                 label: i + 1,
@@ -73,13 +102,81 @@ const generateFlowers = () => {
 };
 
 const MidrangeCounting = () => {
-    const [flowers, setFlowers] = useState([]); // Initially empty
+    const [flowers, setFlowers] = useState([]);
+    const pulseAnim = useRef([]).current;
+    const cloudDrift1 = useRef(new Animated.Value(0)).current; // Start at 0 for translateX
+    const cloudDrift2 = useRef(new Animated.Value(0)).current; // Start at 0 for translateX
+    const addButtonScale = useRef(new Animated.Value(1)).current;
+    const resetButtonScale = useRef(new Animated.Value(1)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useFocusEffect(
         React.useCallback(() => {
-            setFlowers(generateFlowers()); // Reset flowers on focus
+            setFlowers(generateFlowers());
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: true,
+            }).start();
         }, [])
     );
+
+    // Separate useEffect for cloud animations (runs once on mount)
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(cloudDrift1, {
+                    toValue: 40, // Move right by 40
+                    duration: 5000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(cloudDrift1, {
+                    toValue: 0, // Back to starting position
+                    duration: 5000,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(cloudDrift2, {
+                    toValue: -40, // Move left by 40 (negative for right-aligned cloud)
+                    duration: 6000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(cloudDrift2, {
+                    toValue: 0, // Back to starting position
+                    duration: 6000,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+    }, []); // Empty dependency array ensures it runs only once on mount
+
+    // Separate useEffect for flower pulse animations
+    useEffect(() => {
+        pulseAnim.forEach((anim) => anim.stopAnimation());
+        pulseAnim.length = 0;
+
+        flowers.forEach(() => {
+            const anim = new Animated.Value(1);
+            pulseAnim.push(anim);
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(anim, {
+                        toValue: 1.1,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(anim, {
+                        toValue: 1,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                ])
+            ).start();
+        });
+    }, [flowers]);
 
     const handleDrop = (flowerIndex, id, deltaX, deltaY) => {
         setFlowers((prevFlowers) =>
@@ -94,7 +191,6 @@ const MidrangeCounting = () => {
                 const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
                 const dustbinY = DUSTBIN_PADDING;
 
-                // Improved dustbin detection with wider detection area
                 const isInDustbin =
                     currentX + ELEMENT_SIZE >= dustbinX - 10 &&
                     currentX <= dustbinX + DUSTBIN_SIZE + 10 &&
@@ -106,7 +202,6 @@ const MidrangeCounting = () => {
                     return { ...f, petals: updatedPetals };
                 }
 
-                // Check if dropped near another flower
                 let targetFlower = null;
                 for (const flower of prevFlowers) {
                     const distance = Math.sqrt(
@@ -119,11 +214,9 @@ const MidrangeCounting = () => {
                 }
 
                 if (targetFlower) {
-                    // If dropped near another flower, move the petal to that flower
                     const updatedPetals = f.petals.filter((p) => p.id !== id);
                     const newPetal = { ...petal, flowerIndex: targetFlower.flowerIndex };
                     const newTargetPetals = [...targetFlower.petals, newPetal];
-                    // Recalculate positions for the target flower
                     const updatedTargetPetals = newTargetPetals.map((p, i) => {
                         const angle = (i / newTargetPetals.length) * 2 * Math.PI;
                         const radius = 40;
@@ -137,7 +230,6 @@ const MidrangeCounting = () => {
                         ? { ...f, petals: updatedTargetPetals }
                         : { ...f, petals: updatedPetals };
                 } else {
-                    // If not dropped in dustbin or near another flower, return the petal to its original flower
                     const updatedPetals = f.petals.map((p, i) => {
                         if (p.id !== id) return p;
                         const angle = (i / f.petals.length) * 2 * Math.PI;
@@ -155,19 +247,30 @@ const MidrangeCounting = () => {
     };
 
     const addPetal = () => {
+        Animated.sequence([
+            Animated.timing(addButtonScale, {
+                toValue: 1.1,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+            Animated.timing(addButtonScale, {
+                toValue: 1,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
         const randomFlowerIndex = Math.floor(Math.random() * flowers.length);
         setFlowers((prevFlowers) =>
             prevFlowers.map((f) => {
                 if (f.flowerIndex !== randomFlowerIndex) return f;
-                // Check if flower already has maximum petals (10)
                 if (f.petals.length >= 10) return f;
-                
+
                 const newPetal = {
                     id: `${f.flowerIndex}-${Date.now()}`,
                     flowerIndex: f.flowerIndex,
                 };
                 const newPetals = [...f.petals, newPetal];
-                // Recalculate positions for the petals
                 const updatedPetals = newPetals.map((p, i) => {
                     const angle = (i / newPetals.length) * 2 * Math.PI;
                     const radius = 40;
@@ -184,25 +287,46 @@ const MidrangeCounting = () => {
     };
 
     const resetFlowers = () => {
-        setFlowers(generateFlowers()); // Reset flowers
+        Animated.sequence([
+            Animated.timing(resetButtonScale, {
+                toValue: 1.1,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+            Animated.timing(resetButtonScale, {
+                toValue: 1,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
+        setFlowers(generateFlowers());
     };
 
     return (
-        <View style={styles.container}>
-            {/* Garden Background */}
+        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
             <View style={styles.skyBackground} />
             <View style={styles.grassBackground} />
             <View style={styles.sunBackground} />
-            <View style={styles.cloudBackground1} />
-            <View style={styles.cloudBackground2} />
+            <Animated.View
+                style={[
+                    styles.cloudBackground1,
+                    { transform: [{ translateX: cloudDrift1 }] },
+                ]}
+            />
+            <Animated.View
+                style={[
+                    styles.cloudBackground2,
+                    { transform: [{ translateX: cloudDrift2 }] },
+                ]}
+            />
             <View style={styles.flowerBackground1} />
             <View style={styles.flowerBackground2} />
 
             <View style={styles.workspace}>
-                {flowers.map((flower) => (
+                {flowers.map((flower, index) => (
                     <React.Fragment key={flower.flowerIndex}>
-                        {/* Flower center */}
-                        <View
+                        <Animated.View
                             style={[
                                 styles.flowerCenter,
                                 {
@@ -211,10 +335,10 @@ const MidrangeCounting = () => {
                                     width: flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE : FLOWER_CENTER_SIZE,
                                     height: flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE : FLOWER_CENTER_SIZE,
                                     borderRadius: flower.flowerIndex === 1 ? MIDDLE_FLOWER_CENTER_SIZE / 2 : FLOWER_CENTER_SIZE / 2,
+                                    transform: [{ scale: pulseAnim[index] || 1 }],
                                 },
                             ]}
                         />
-                        {/* Flower stem */}
                         <View
                             style={[
                                 styles.stem,
@@ -225,7 +349,6 @@ const MidrangeCounting = () => {
                                 },
                             ]}
                         />
-                        {/* Left leaf */}
                         <View
                             style={[
                                 styles.leaf,
@@ -236,7 +359,6 @@ const MidrangeCounting = () => {
                                 },
                             ]}
                         />
-                        {/* Right leaf */}
                         <View
                             style={[
                                 styles.leaf,
@@ -247,7 +369,6 @@ const MidrangeCounting = () => {
                                 },
                             ]}
                         />
-                        {/* Petals */}
                         {flower.petals.map((petal) => (
                             <DraggableElement
                                 key={petal.id}
@@ -265,20 +386,24 @@ const MidrangeCounting = () => {
             <View style={styles.dustbin}>
                 <Text style={styles.dustbinText}>🗑️</Text>
             </View>
-            <TouchableOpacity onPress={addPetal} style={styles.addButton}>
-                <Text style={styles.buttonText}>Add Petal</Text>
+            <TouchableOpacity onPress={addPetal}>
+                <Animated.View style={[styles.addButton, { transform: [{ scale: addButtonScale }] }]}>
+                    <Text style={styles.buttonText}>Add Petal</Text>
+                </Animated.View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={resetFlowers} style={styles.resetButton}>
-                <Text style={styles.resetButtonText}>↻</Text>
+            <TouchableOpacity onPress={resetFlowers}>
+                <Animated.View style={[styles.resetButton, { transform: [{ scale: resetButtonScale }] }]}>
+                    <Text style={styles.resetButtonText}>↻</Text>
+                </Animated.View>
             </TouchableOpacity>
-        </View>
+        </Animated.View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        overflow: 'hidden', // Ensure background elements stay within bounds
+        overflow: 'hidden',
     },
     skyBackground: {
         position: 'absolute',
@@ -286,7 +411,7 @@ const styles = StyleSheet.create({
         left: 0,
         width: width,
         height: height * 0.6,
-        backgroundColor: '#87CEEB', // Light blue sky
+        backgroundColor: '#87CEEB',
     },
     grassBackground: {
         position: 'absolute',
@@ -294,7 +419,7 @@ const styles = StyleSheet.create({
         left: 0,
         width: width,
         height: height * 0.4,
-        backgroundColor: '#90EE90', // Light green grass
+        backgroundColor: '#90EE90',
     },
     sunBackground: {
         position: 'absolute',
@@ -302,7 +427,7 @@ const styles = StyleSheet.create({
         right: 40,
         width: 80,
         height: 80,
-        backgroundColor: '#FFFF00', // Bright yellow sun
+        backgroundColor: '#FFFF00',
         borderRadius: 40,
         shadowColor: '#FFA500',
         shadowOffset: { width: 0, height: 0 },
@@ -313,7 +438,7 @@ const styles = StyleSheet.create({
     cloudBackground1: {
         position: 'absolute',
         top: 100,
-        left: 60,
+        left: 60, // Static initial position
         width: 100,
         height: 40,
         backgroundColor: '#FFFFFF',
@@ -327,7 +452,7 @@ const styles = StyleSheet.create({
     cloudBackground2: {
         position: 'absolute',
         top: 140,
-        right: 80,
+        right: 80, // Static initial position
         width: 120,
         height: 50,
         backgroundColor: '#FFFFFF',
@@ -344,7 +469,7 @@ const styles = StyleSheet.create({
         left: 20,
         width: 30,
         height: 30,
-        backgroundColor: '#FFD700', // Yellow flower
+        backgroundColor: '#FFD700',
         borderRadius: 15,
     },
     flowerBackground2: {
@@ -353,14 +478,14 @@ const styles = StyleSheet.create({
         right: 30,
         width: 25,
         height: 25,
-        backgroundColor: '#FF4500', // Orange flower
+        backgroundColor: '#FF4500',
         borderRadius: 12.5,
     },
     workspace: {
         flex: 1,
     },
     flowerCenter: {
-        backgroundColor: '#FFD700', // Changed to yellow for a more natural flower look
+        backgroundColor: '#FFD700',
         position: 'absolute',
         zIndex: 1,
         shadowColor: '#000',
@@ -371,14 +496,14 @@ const styles = StyleSheet.create({
     },
     stem: {
         width: 4,
-        backgroundColor: '#228B22', // Darker green for realism
+        backgroundColor: '#228B22',
         position: 'absolute',
         zIndex: 0,
     },
     leaf: {
         width: LEAF_SIZE,
         height: LEAF_SIZE,
-        backgroundColor: '#228B22', // Darker green
+        backgroundColor: '#228B22',
         borderRadius: LEAF_SIZE / 2,
         position: 'absolute',
         zIndex: 0,
@@ -388,12 +513,14 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
         elevation: 3,
     },
+    bounceWrapper: {
+        position: 'absolute',
+    },
     petal: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
-        backgroundColor: '#FF69B4', // Pink (Hot Pink)
+        backgroundColor: '#FF69B4',
         borderRadius: ELEMENT_SIZE / 2,
-        position: 'absolute',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
@@ -416,10 +543,10 @@ const styles = StyleSheet.create({
         height: DUSTBIN_SIZE,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#FFFFFF', // White for contrast
+        backgroundColor: '#FFFFFF',
         borderRadius: DUSTBIN_SIZE / 2,
         borderWidth: 2,
-        borderColor: '#FF4444', // Red border for visibility
+        borderColor: '#FF4444',
         zIndex: 1000,
         shadowColor: '#000',
         shadowOffset: { width: 2, height: 2 },
@@ -434,7 +561,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 20,
         alignSelf: 'center',
-        backgroundColor: '#4169E1', // Royal blue for a playful touch
+        backgroundColor: '#4169E1',
         padding: 12,
         borderRadius: 8,
         shadowColor: '#000',
@@ -446,7 +573,7 @@ const styles = StyleSheet.create({
     buttonText: {
         fontSize: 20,
         color: 'white',
-        fontWeight: '600', // Slightly bolder text
+        fontWeight: '600',
     },
     resetButton: {
         position: 'absolute',
@@ -454,7 +581,7 @@ const styles = StyleSheet.create({
         right: DUSTBIN_PADDING,
         width: 50,
         height: 50,
-        backgroundColor: '#4169E1', // Matching royal blue
+        backgroundColor: '#4169E1',
         borderRadius: 25,
         alignItems: 'center',
         justifyContent: 'center',
