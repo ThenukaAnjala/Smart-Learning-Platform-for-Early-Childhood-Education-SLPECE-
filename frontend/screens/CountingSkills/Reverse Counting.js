@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native'; // Import useFocusEffect
 
 const { width, height } = Dimensions.get('window');
-const ELEMENT_SIZE = 80;
+const ELEMENT_SIZE = 60;
 const DUSTBIN_SIZE = 70;
 const DUSTBIN_PADDING = 20;
 const LEFT_MARGIN = 20;
@@ -29,7 +30,6 @@ const DraggableElement = ({ id, x, y, rowIndex, onDrop, label }) => {
                 [null, { dx: pan.x, dy: pan.y }],
                 { useNativeDriver: false }
             ),
-            // Use gestureState.dx/dy to calculate the final drop offset
             onPanResponderRelease: (evt, gestureState) => {
                 pan.flattenOffset();
                 onDrop(rowIndex, id, gestureState.dx, gestureState.dy);
@@ -69,7 +69,14 @@ const generateRows = () => {
 };
 
 const ThreeLineElements = () => {
-    const [rows, setRows] = useState(generateRows);
+    const [rows, setRows] = useState([]); // Initially empty
+
+    // Use useFocusEffect to reset state when the screen comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            setRows(generateRows()); // Reset rows to a fresh state
+        }, [])
+    );
 
     const handleDrop = (rowIndex, id, deltaX, deltaY) => {
         setRows(prevRows =>
@@ -79,13 +86,11 @@ const ThreeLineElements = () => {
                 const element = r.elements.find(el => el.id === id);
                 if (!element) return r;
     
-                // Calculate element's new position
                 const currentX = element.x + deltaX;
                 const currentY = element.y + deltaY;
                 const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
                 const dustbinY = DUSTBIN_PADDING;
     
-                // Check for overlap with dustbin (more forgiving detection)
                 const isInDustbin = 
                     currentX + ELEMENT_SIZE > dustbinX &&
                     currentX < dustbinX + DUSTBIN_SIZE &&
