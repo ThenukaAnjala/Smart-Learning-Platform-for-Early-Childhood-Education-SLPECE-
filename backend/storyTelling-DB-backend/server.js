@@ -21,6 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(errorHandler);
 app.use('/story-liabrary',require('./routes/storyRoutes'))
+app.use('/story-music',require('./routes/musicRoutes'))
 
 let serverPromise = new Promise((resolve, reject) => {
   mongoose.connection.once("open", () => {

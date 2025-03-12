@@ -7,16 +7,16 @@ const backgroundMusicSchema = mongoose.Schema(
         required: true
     },
    
-    musicSubCategory: {
+    musicCategory: {
         type: String,
         required: true
     },
 
-    subCategories: {
+    subCategories: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'BackgroundMusicCategory'
         
-    },
+    }],
 
 });
 

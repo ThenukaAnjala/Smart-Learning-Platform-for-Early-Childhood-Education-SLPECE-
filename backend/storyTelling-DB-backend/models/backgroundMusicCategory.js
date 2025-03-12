@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const backgroundMusicCategorySchema = mongoose.Schema( 
 {
-    subCategories: {
+    subCategory: {
         type: String,
         required: true
     },
