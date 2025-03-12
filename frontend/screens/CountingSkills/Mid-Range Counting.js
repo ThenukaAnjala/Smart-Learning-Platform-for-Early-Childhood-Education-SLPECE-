@@ -189,6 +189,15 @@ const MidrangeCounting = () => {
 
     return (
         <View style={styles.container}>
+            {/* Garden Background */}
+            <View style={styles.skyBackground} />
+            <View style={styles.grassBackground} />
+            <View style={styles.sunBackground} />
+            <View style={styles.cloudBackground1} />
+            <View style={styles.cloudBackground2} />
+            <View style={styles.flowerBackground1} />
+            <View style={styles.flowerBackground2} />
+
             <View style={styles.workspace}>
                 {flowers.map((flower) => (
                     <React.Fragment key={flower.flowerIndex}>
@@ -222,7 +231,7 @@ const MidrangeCounting = () => {
                                 styles.leaf,
                                 {
                                     left: flower.x - LEAF_SIZE - 5,
-                                    top: flower.y + STEM_HEIGHT * 0.4, // Positioned 40% down the stem
+                                    top: flower.y + STEM_HEIGHT * 0.4,
                                     transform: [{ rotate: '45deg' }],
                                 },
                             ]}
@@ -269,34 +278,120 @@ const MidrangeCounting = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#24bbed',
+        overflow: 'hidden', // Ensure background elements stay within bounds
+    },
+    skyBackground: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: width,
+        height: height * 0.6,
+        backgroundColor: '#87CEEB', // Light blue sky
+    },
+    grassBackground: {
+        position: 'absolute',
+        top: height * 0.6,
+        left: 0,
+        width: width,
+        height: height * 0.4,
+        backgroundColor: '#90EE90', // Light green grass
+    },
+    sunBackground: {
+        position: 'absolute',
+        top: 40,
+        right: 40,
+        width: 80,
+        height: 80,
+        backgroundColor: '#FFFF00', // Bright yellow sun
+        borderRadius: 40,
+        shadowColor: '#FFA500',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    cloudBackground1: {
+        position: 'absolute',
+        top: 100,
+        left: 60,
+        width: 100,
+        height: 40,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    cloudBackground2: {
+        position: 'absolute',
+        top: 140,
+        right: 80,
+        width: 120,
+        height: 50,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 25,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    flowerBackground1: {
+        position: 'absolute',
+        bottom: 60,
+        left: 20,
+        width: 30,
+        height: 30,
+        backgroundColor: '#FFD700', // Yellow flower
+        borderRadius: 15,
+    },
+    flowerBackground2: {
+        position: 'absolute',
+        bottom: 80,
+        right: 30,
+        width: 25,
+        height: 25,
+        backgroundColor: '#FF4500', // Orange flower
+        borderRadius: 12.5,
     },
     workspace: {
         flex: 1,
     },
     flowerCenter: {
-        backgroundColor: 'red',
+        backgroundColor: '#FFD700', // Changed to yellow for a more natural flower look
         position: 'absolute',
         zIndex: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 3, height: 3 },
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
+        elevation: 5,
     },
     stem: {
         width: 4,
-        backgroundColor: 'green',
+        backgroundColor: '#228B22', // Darker green for realism
         position: 'absolute',
         zIndex: 0,
     },
     leaf: {
         width: LEAF_SIZE,
         height: LEAF_SIZE,
-        backgroundColor: 'green',
+        backgroundColor: '#228B22', // Darker green
         borderRadius: LEAF_SIZE / 2,
         position: 'absolute',
         zIndex: 0,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 3,
+        elevation: 3,
     },
     petal: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
-        backgroundColor: '#FF69B4', // Changed to pink (Hot Pink)
+        backgroundColor: '#FF69B4', // Pink (Hot Pink)
         borderRadius: ELEMENT_SIZE / 2,
         position: 'absolute',
         alignItems: 'center',
@@ -321,11 +416,16 @@ const styles = StyleSheet.create({
         height: DUSTBIN_SIZE,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#eee',
+        backgroundColor: '#FFFFFF', // White for contrast
         borderRadius: DUSTBIN_SIZE / 2,
-        borderWidth: 1,
-        borderColor: '#ccc',
+        borderWidth: 2,
+        borderColor: '#FF4444', // Red border for visibility
         zIndex: 1000,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
+        elevation: 5,
     },
     dustbinText: {
         fontSize: 30,
@@ -334,13 +434,19 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 20,
         alignSelf: 'center',
-        backgroundColor: 'blue',
-        padding: 10,
-        borderRadius: 5,
+        backgroundColor: '#4169E1', // Royal blue for a playful touch
+        padding: 12,
+        borderRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
+        elevation: 5,
     },
     buttonText: {
         fontSize: 20,
         color: 'white',
+        fontWeight: '600', // Slightly bolder text
     },
     resetButton: {
         position: 'absolute',
@@ -348,11 +454,16 @@ const styles = StyleSheet.create({
         right: DUSTBIN_PADDING,
         width: 50,
         height: 50,
-        backgroundColor: 'blue',
+        backgroundColor: '#4169E1', // Matching royal blue
         borderRadius: 25,
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
+        elevation: 5,
     },
     resetButtonText: {
         fontSize: 30,
