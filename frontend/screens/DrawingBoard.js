@@ -24,7 +24,7 @@ export default function DrawingBoard({ navigation }) {
   const viewShotRef = useRef(null);
   const [pen] = useState(new Pen());
 
-  // Network configuration: update COMPUTER_IP to your LAN IP.
+  // Update these values with your computer's LAN IP if using a physical device.
   const IS_ANDROID_EMULATOR = false;
   const COMPUTER_IP = '192.168.16.101';
   const BACKEND_URL =
@@ -36,7 +36,7 @@ export default function DrawingBoard({ navigation }) {
       ? 'http://127.0.0.1:5000/predict'
       : `http://${COMPUTER_IP}:5000/predict`;
 
-  // PanResponder to capture drawing strokes.
+  // Capture drawing strokes with PanResponder.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -61,7 +61,7 @@ export default function DrawingBoard({ navigation }) {
     })
   ).current;
 
-  // Handle "OK" press: capture drawing, upload to backend, and prompt based on recognized label.
+  // Handle "OK" press: capture drawing, upload to backend, then prompt.
   const handleOk = async () => {
     try {
       // Capture the drawing as a temporary file.
@@ -95,6 +95,7 @@ export default function DrawingBoard({ navigation }) {
         setRecognizedLabel(data.label);
         Alert.alert('Prediction', `Recognized: ${data.label}`);
         const label = data.label.toLowerCase();
+        // Preserve fish branch exactly.
         if (label === 'fish' && data.processedBase64) {
           Alert.alert(
             "Fish Head Direction",
@@ -119,7 +120,7 @@ export default function DrawingBoard({ navigation }) {
             ]
           );
         } else if (label === 'rabbit' && data.processedBase64) {
-          // For rabbit, first ask if it's just the head or full rabbit.
+          // For rabbit, first ask if it's Head Only or Full Body.
           Alert.alert(
             "Rabbit Drawing Type",
             "Is this just a rabbit's head or the entire rabbit?",
