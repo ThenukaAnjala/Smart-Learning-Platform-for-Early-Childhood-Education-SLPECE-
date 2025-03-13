@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOp
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
-const ELEMENT_SIZE = 40;
+const ELEMENT_SIZE = 50;
 const FLOWER_CENTER_SIZE = 50;
 const MIDDLE_FLOWER_CENTER_SIZE = 70;
 const DUSTBIN_SIZE = 50;
