@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -16,6 +14,7 @@ import {
 import axios from "axios";
 import * as Speech from "expo-speech"; // For text-to-speech
 import { Picker } from "@react-native-picker/picker"; // Correct Picker import
+import { Audio } from 'expo-av'; // Import for playing audio
 
 const GenerateStory = () => {
   const [storyPrompt, setStoryPrompt] = useState(""); // User input for story
@@ -26,6 +25,8 @@ const GenerateStory = () => {
   const [fontStyle, setFontStyle] = useState("Poppins"); // Default font style
   const [fontColor, setFontColor] = useState("#000000"); // Default text color
   const [fontSize, setFontSize] = useState(16); // Default font size
+  const [musicURLs, setMusicURLs] = useState([]); // Music URLs
+  const [sound, setSound] = useState(null); // Sound object for playing music
 
   // Font styles for selection
   const fontStyles = [
@@ -78,7 +79,47 @@ const GenerateStory = () => {
       }
     };
     fetchVoices();
+
+    // Cleanup function to unload sound when component unmounts
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
   }, []);
+
+  // Function to fetch music URLs based on story parameters
+  const fetchMusicURLs = async (musicmood, musicCategory, subCategory, baseURL = 'http://192.168.8.144:4010') => {
+    try {
+      // Construct the URL with query parameters
+      const response = await axios.get(`${baseURL}/story-music/search`, {
+        params: {
+          musicmood,
+          musicCategory,
+          subCategory
+        }
+      });
+      
+      // Return the data from the response
+      return response.data;
+    } catch (error) {
+      // Handle different types of errors
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Server error:', error.response.status, error.response.data);
+        throw error.response.data;
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('Network error:', error.request);
+        throw new Error('Network error. Please check your connection.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('Request error:', error.message);
+        throw new Error('Error setting up request: ' + error.message);
+      }
+    }
+  };
 
   // Generate story from the server
   const generateStory = async () => {
@@ -87,13 +128,47 @@ const GenerateStory = () => {
       console.log("Sending request...");
       
       const response = await axios.post(
-        "http://172.20.10.14:5000/story/generate-story", 
+        "http://192.168.8.144:5000/story/generate-story", 
         { story_prompt: storyPrompt },
         { headers: { "Content-Type": "application/json" } }
       );
       
       console.log("Response received:", response.data);
       setStoryParts(response.data.story_parts);
+      
+      // After getting the story, fetch appropriate music based on the story's mood and category
+      // Assuming the response includes mood and category information for the story
+      if (response.data.mood && response.data.category && response.data.subcategory) {
+        try {
+          const musicResponse = await fetchMusicURLs(
+            response.data.mood,
+            response.data.category,
+            response.data.subcategory
+          );
+          setMusicURLs(musicResponse.urls);
+          
+          // Play the first music track if available
+          if (musicResponse.urls && musicResponse.urls.length > 0) {
+            playMusic(musicResponse.urls[0]);
+          }
+        } catch (musicError) {
+          console.error("Error fetching music:", musicError);
+        }
+      } else {
+        // Fallback to default music parameters if not provided in response
+        try {
+          const musicResponse = await fetchMusicURLs("happy", "Fairy Tale", "Dragon's Lair");
+          setMusicURLs(musicResponse.urls);
+          console.log(musicResponse.urls);
+          
+          // Play the first music track if available
+          if (musicResponse.urls && musicResponse.urls.length > 0) {
+            playMusic(musicResponse.urls[0]);
+          }
+        } catch (musicError) {
+          console.error("Error fetching default music:", musicError);
+        }
+      }
     } catch (error) {
       console.error("Error:", error);
       alert("Network or CORS issue detected.");
@@ -101,7 +176,31 @@ const GenerateStory = () => {
       setLoading(false);
     }
   };
-  
+
+  // Function to play music
+  const playMusic = async (url) => {
+    // Stop any currently playing music
+    if (sound) {
+      await sound.unloadAsync();
+    }
+    
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: url },
+        { shouldPlay: true, isLooping: true }
+      );
+      setSound(newSound);
+    } catch (error) {
+      console.error("Error playing music:", error);
+    }
+  };
+
+  // Function to stop music
+  const stopMusic = async () => {
+    if (sound) {
+      await sound.stopAsync();
+    }
+  };
 
   // Text-to-Speech function
   const readText = (text) => {
@@ -127,9 +226,36 @@ const GenerateStory = () => {
         {item.text}
       </Text>
       <Image source={{ uri: item.image_url }} style={styles.storyImage} />
-      <Button title="Read Text" onPress={() => readText(item.text)} />
+      <View style={styles.buttonRow}>
+        <Button title="Read Text" onPress={() => readText(item.text)} />
+      </View>
     </View>
   );
+
+  // Render music player section if music URLs are available
+  const renderMusicPlayer = () => {
+    if (musicURLs.length === 0) return null;
+    
+    return (
+      <View style={styles.musicPlayerContainer}>
+        <Text style={styles.musicTitle}>Background Music</Text>
+        <FlatList
+          data={musicURLs}
+          horizontal
+          keyExtractor={(item, index) => `music-${index}`}
+          renderItem={({ item, index }) => (
+            <TouchableOpacity 
+              style={styles.musicItem} 
+              onPress={() => playMusic(item)}
+            >
+              <Text style={styles.musicText}>Track {index + 1}</Text>
+            </TouchableOpacity>
+          )}
+        />
+        <Button title="Stop Music" onPress={stopMusic} />
+      </View>
+    );
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -142,6 +268,9 @@ const GenerateStory = () => {
       />
       <Button title="Submit Story" onPress={generateStory} />
       {loading && <ActivityIndicator size="large" color="#0000ff" />}
+
+      {/* Music player section */}
+      {renderMusicPlayer()}
 
       {/* Settings for font styles, sizes, colors, and voices */}
       <View style={styles.settings}>
@@ -291,7 +420,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
   },
+  musicPlayerContainer: {
+    width: "100%",
+    marginVertical: 20,
+    padding: 15,
+    backgroundColor: "#e8f4ff",
+    borderRadius: 10,
+  },
+  musicTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#333",
+  },
+  musicItem: {
+    backgroundColor: "#0078ff",
+    padding: 12,
+    borderRadius: 8,
+    marginRight: 10,
+    marginBottom: 10,
+    width: 100,
+    alignItems: "center",
+  },
+  musicText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "100%",
+  },
 });
 
 export default GenerateStory;
-
