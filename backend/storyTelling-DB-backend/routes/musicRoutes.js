@@ -1,8 +1,15 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const { createBackgroundMusic } = require("../controllers/musicController");
+const { 
+    createBackgroundMusic, 
+    getMusicURLsByParams 
+} = require('../controllers/musicController');
 
-// POST route to add a new background music category
-router.post("/add", createBackgroundMusic);
+// Create new background music
+router.post('/', createBackgroundMusic);
+
+// Get music by parameters in request body
+router.get('/search', getMusicURLsByParams);
+
 
 module.exports = router;
