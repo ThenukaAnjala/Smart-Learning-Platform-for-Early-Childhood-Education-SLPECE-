@@ -20,12 +20,13 @@ export default function DrawingBoard({ navigation }) {
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [isEraser, setIsEraser] = useState(false);
   const [recognizedLabel, setRecognizedLabel] = useState(null);
+
   const viewShotRef = useRef(null);
   const [pen] = useState(new Pen());
 
-  // For environment config:
+  // Network configuration: update COMPUTER_IP to your LAN IP.
   const IS_ANDROID_EMULATOR = false;
-  const COMPUTER_IP = '192.168.16.101'; // update to your LAN IP
+  const COMPUTER_IP = '192.168.16.101';
   const BACKEND_URL =
     Platform.OS === 'android'
       ? IS_ANDROID_EMULATOR
@@ -35,6 +36,7 @@ export default function DrawingBoard({ navigation }) {
       ? 'http://127.0.0.1:5000/predict'
       : `http://${COMPUTER_IP}:5000/predict`;
 
+  // PanResponder to capture drawing strokes.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -59,10 +61,10 @@ export default function DrawingBoard({ navigation }) {
     })
   ).current;
 
-  // Capture as a file, upload to backend, get processed base64 (background removed)
+  // Handle "OK" press: capture drawing, upload to backend, and prompt based on recognized label.
   const handleOk = async () => {
     try {
-      // 1) Capture the drawing as a temp file
+      // Capture the drawing as a temporary file.
       const tmpFilePath = await viewShotRef.current.capture({
         format: 'png',
         quality: 0.8,
@@ -70,7 +72,7 @@ export default function DrawingBoard({ navigation }) {
       });
       console.log('Captured file path:', tmpFilePath);
 
-      // 2) Build FormData
+      // Build FormData for file upload.
       const formData = new FormData();
       formData.append('image', {
         uri: tmpFilePath,
@@ -78,7 +80,7 @@ export default function DrawingBoard({ navigation }) {
         name: 'drawing.png',
       });
 
-      // 3) POST to the backend
+      // Upload the drawing.
       const response = await fetch(BACKEND_URL, {
         method: 'POST',
         body: formData,
@@ -92,19 +94,88 @@ export default function DrawingBoard({ navigation }) {
       if (data.label) {
         setRecognizedLabel(data.label);
         Alert.alert('Prediction', `Recognized: ${data.label}`);
-        // If recognized fish, navigate to FishScreen with the new base64
-        if (data.label.toLowerCase() === 'fish' && data.processedBase64) {
-          navigation.navigate('FishScreen', {
-            fishImageBase64: data.processedBase64,
-          });
+        const label = data.label.toLowerCase();
+        if (label === 'fish' && data.processedBase64) {
+          Alert.alert(
+            "Fish Head Direction",
+            "Which side is the fish's head on?",
+            [
+              {
+                text: "Left",
+                onPress: () =>
+                  navigation.navigate('FishScreen', {
+                    fishImageBase64: data.processedBase64,
+                    initialHeadSide: 'left',
+                  }),
+              },
+              {
+                text: "Right",
+                onPress: () =>
+                  navigation.navigate('FishScreen', {
+                    fishImageBase64: data.processedBase64,
+                    initialHeadSide: 'right',
+                  }),
+              },
+            ]
+          );
+        } else if (label === 'rabbit' && data.processedBase64) {
+          // For rabbit, first ask if it's just the head or full rabbit.
+          Alert.alert(
+            "Rabbit Drawing Type",
+            "Is this just a rabbit's head or the entire rabbit?",
+            [
+              {
+                text: "Head Only",
+                onPress: () =>
+                  navigation.navigate('RabbitScreen', {
+                    rabbitImageBase64: data.processedBase64,
+                    isHeadOnly: true,
+                  }),
+              },
+              {
+                text: "Full Body",
+                onPress: () =>
+                  Alert.alert(
+                    "Rabbit Head Direction",
+                    "Which side is the rabbit's head on?",
+                    [
+                      {
+                        text: "Left",
+                        onPress: () =>
+                          navigation.navigate('RabbitBodyScreen', {
+                            rabbitImageBase64: data.processedBase64,
+                            isHeadOnly: false,
+                            initialHeadSide: 'left',
+                          }),
+                      },
+                      {
+                        text: "Right",
+                        onPress: () =>
+                          navigation.navigate('RabbitBodyScreen', {
+                            rabbitImageBase64: data.processedBase64,
+                            isHeadOnly: false,
+                            initialHeadSide: 'right',
+                          }),
+                      },
+                    ]
+                  ),
+              },
+            ]
+          );
         }
       } else {
         Alert.alert('Error', data.error || 'No label returned.');
       }
     } catch (error) {
       console.error('Error uploading drawing:', error);
-      Alert.alert('Error', 'Network request failed. Check your IP and connectivity.');
+      Alert.alert('Error', 'Network request failed. Check your connectivity.');
     }
+  };
+
+  // Clear drawing board.
+  const handleClear = () => {
+    setPreviousStrokes([]);
+    setCurrentPoints([]);
   };
 
   return (
@@ -114,30 +185,38 @@ export default function DrawingBoard({ navigation }) {
       </TouchableOpacity>
 
       <ViewShot style={styles.canvasContainer} ref={viewShotRef}>
-        <View style={styles.drawingArea} {...panResponder.panHandlers}>
-          <Svg width="100%" height="100%">
-            {previousStrokes.map((stroke, idx) => (
-              <Path
-                key={idx}
-                d={pen.pointsToSvg(stroke.points)}
-                stroke={stroke.color}
-                strokeWidth={stroke.strokeWidth}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
-            {currentPoints.length > 0 && (
-              <Path
-                d={pen.pointsToSvg(currentPoints)}
-                stroke={isEraser ? '#ffffff' : color}
-                strokeWidth={strokeWidth}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
-          </Svg>
+        <View style={styles.drawingAreaWrapper}>
+          {/* Fixed layer: completed strokes */}
+          <View style={styles.fixedLayer} pointerEvents="none">
+            <Svg width="100%" height="100%">
+              {previousStrokes.map((stroke, idx) => (
+                <Path
+                  key={idx}
+                  d={pen.pointsToSvg(stroke.points)}
+                  stroke={stroke.color}
+                  strokeWidth={stroke.strokeWidth}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </Svg>
+          </View>
+          {/* Interactive layer: current stroke */}
+          <View style={styles.interactiveLayer} {...panResponder.panHandlers}>
+            <Svg width="100%" height="100%">
+              {currentPoints.length > 0 && (
+                <Path
+                  d={pen.pointsToSvg(currentPoints)}
+                  stroke={isEraser ? '#ffffff' : color}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </Svg>
+          </View>
         </View>
       </ViewShot>
 
@@ -163,6 +242,9 @@ export default function DrawingBoard({ navigation }) {
         <TouchableOpacity style={[styles.button, { backgroundColor: '#00AA00' }]} onPress={handleOk}>
           <Text style={styles.buttonText}>OK</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={[styles.button, { backgroundColor: '#FFAA00' }]} onPress={handleClear}>
+          <Text style={styles.buttonText}>Clear</Text>
+        </TouchableOpacity>
       </View>
 
       {recognizedLabel && (
@@ -187,7 +269,9 @@ const styles = StyleSheet.create({
   },
   backButtonText: { color: '#fff', fontWeight: 'bold' },
   canvasContainer: { flex: 1, backgroundColor: '#fff' },
-  drawingArea: { flex: 1, backgroundColor: '#fff' },
+  drawingAreaWrapper: { flex: 1 },
+  fixedLayer: { ...StyleSheet.absoluteFillObject },
+  interactiveLayer: { flex: 1 },
   controls: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -7,53 +7,113 @@ import OxygenBubbles from '../components/OxygenBubbles';
 
 export default function FishScreen() {
   const route = useRoute();
-  // Processed fish image (base64 string without white background)
   const fishImageBase64 = route.params?.fishImageBase64;
+  const initialHeadSide = route.params?.initialHeadSide || 'right'; // "left" or "right"
 
-  // Get screen dimensions ("tank")
+  // Screen ("tank") dimensions
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const fishWidth = 100;  // adjust as needed
   const fishHeight = 100; // adjust as needed
 
-  // Animated values for position and rotation
+  // Animated values for position, rotation, and bobbing (vertical oscillation)
   const xAnim = useRef(new Animated.Value(0)).current;
   const yAnim = useRef(new Animated.Value(0)).current;
   const rotationAnim = useRef(new Animated.Value(0)).current;
+  const bobbingAnim = useRef(new Animated.Value(0)).current;
   const [flip, setFlip] = useState(1);
 
-  // Helper: generate a random number between min and max
+  // Helper function to generate random numbers between min and max.
   const randomBetween = (min, max) => Math.random() * (max - min) + min;
 
-  // Function to move the fish:
-  // 1. Pick a random target within screen bounds.
-  // 2. Compute the direction and target rotation.
-  // 3. First rotate the fish so it faces the target, then move.
+  // Start bobbing animation (gentle up/down movement)
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bobbingAnim, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        Animated.timing(bobbingAnim, {
+          toValue: -1,
+          duration: 6000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        Animated.timing(bobbingAnim, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.sin),
+        }),
+      ])
+    ).start();
+  }, [bobbingAnim]);
+
+  // Initial setup: position the fish based on initialHeadSide.
+  useEffect(() => {
+    if (!fishImageBase64) return;
+    const initialX = initialHeadSide === 'right' ? -fishWidth : screenWidth;
+    xAnim.setValue(initialX);
+    const initialY = randomBetween(0, screenHeight - fishHeight);
+    yAnim.setValue(initialY);
+    rotationAnim.setValue(0);
+
+    // Animate to a central target position
+    const initialTargetX = screenWidth / 2;
+    const initialTargetY = randomBetween(0, screenHeight - fishHeight);
+    const deltaX = initialTargetX - initialX;
+    const deltaY = initialTargetY - initialY;
+    const angleRad = Math.atan2(deltaY, deltaX);
+    const targetRotation = angleRad * (180 / Math.PI);
+    setFlip(deltaX >= 0 ? 1 : -1);
+
+    Animated.timing(rotationAnim, {
+      toValue: targetRotation,
+      duration: 3000,
+      useNativeDriver: true,
+      easing: Easing.inOut(Easing.quad),
+    }).start(() => {
+      Animated.parallel([
+        Animated.timing(xAnim, {
+          toValue: initialTargetX,
+          duration: 6000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.quad),
+        }),
+        Animated.timing(yAnim, {
+          toValue: initialTargetY,
+          duration: 6000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.quad),
+        }),
+      ]).start(() => {
+        moveFish();
+      });
+    });
+  }, [fishImageBase64, initialHeadSide, xAnim, yAnim, rotationAnim]);
+
+  // Function for continuous random movement
   const moveFish = () => {
     const currentX = xAnim.__getValue();
     const currentY = yAnim.__getValue();
-
-    // Choose target position so the fish stays fully visible
     const targetX = randomBetween(0, screenWidth - fishWidth);
     const targetY = randomBetween(0, screenHeight - fishHeight);
-
-    // Calculate movement vector and angle
     const deltaX = targetX - currentX;
     const deltaY = targetY - currentY;
     const angleRad = Math.atan2(deltaY, deltaX);
     const targetRotation = angleRad * (180 / Math.PI);
-
-    // Flip the fish horizontally if moving left
     setFlip(deltaX >= 0 ? 1 : -1);
 
-    // First animate rotation (turning to face the target)
+    // Rotate first
     Animated.timing(rotationAnim, {
       toValue: targetRotation,
-      duration: 2500, // slower rotation (2.5 seconds)
+      duration: 3000,
       useNativeDriver: true,
       easing: Easing.inOut(Easing.quad),
     }).start(() => {
-      // Then animate movement after the fish has turned
-      const moveDuration = randomBetween(8000, 12000); // slow movement (8-12 seconds)
+      const moveDuration = randomBetween(10000, 15000);
       Animated.parallel([
         Animated.timing(xAnim, {
           toValue: targetX,
@@ -68,18 +128,21 @@ export default function FishScreen() {
           easing: Easing.inOut(Easing.quad),
         }),
       ]).start(() => {
-        moveFish(); // Repeat
+        moveFish();
       });
     });
   };
 
-  useEffect(() => {
-    moveFish();
-  }, [xAnim, yAnim, rotationAnim]);
-
+  // Interpolate rotation to string format
   const rotationInterpolate = rotationAnim.interpolate({
     inputRange: [-180, 180],
     outputRange: ['-180deg', '180deg'],
+  });
+
+  // Interpolate bobbing value to a vertical offset (±15 pixels)
+  const bobOffset = bobbingAnim.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [-15, 15],
   });
 
   return (
@@ -87,7 +150,7 @@ export default function FishScreen() {
       colors={['#B3E5FC', '#81D4FA', '#4FC3F7']}
       style={styles.container}
     >
-      {/* Oxygen bubbles float upward from the sides */}
+      {/* Render oxygen bubbles */}
       <OxygenBubbles />
       <Text style={styles.title}>Underwater Adventure!</Text>
       {fishImageBase64 && (
@@ -100,7 +163,7 @@ export default function FishScreen() {
               height: fishHeight,
               transform: [
                 { translateX: xAnim },
-                { translateY: yAnim },
+                { translateY: Animated.add(yAnim, bobOffset) },
                 { rotate: rotationInterpolate },
                 { scaleX: flip },
               ],
