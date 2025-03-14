@@ -86,6 +86,13 @@ const GenerateStory = () => {
         sound.unloadAsync();
       }
     };
+
+    // Cleanup function to unload sound when component unmounts
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
   }, []);
 
     // Add this utility function at the top of your component
