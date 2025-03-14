@@ -67,33 +67,40 @@ const GenerateStory = () => {
   // Font sizes for dropdown
   const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40];
 
-  // Fetch available voices on component mount
-  useEffect(() => {
-    const fetchVoices = async () => {
+  // Corrected implementation
+useEffect(() => {
+  let isMounted = true;
+  let retryTimeout;
+
+  const fetchVoices = async () => {
+    try {
       const voices = await Speech.getAvailableVoicesAsync();
       
-      setAvailableVoices(voices);
+      if (!isMounted) return;
+
       if (voices.length > 0) {
-        
-        setSelectedVoice(voices[0].identifier); // Set the first voice as default
+        setAvailableVoices(voices);
+        setSelectedVoice(voices[0].identifier);
+      } else {
+        // Retry after 1 second if no voices found
+        retryTimeout = setTimeout(fetchVoices, 1000);
       }
-    };
-    fetchVoices();
+    } catch (error) {
+      console.error('Error fetching voices:', error);
+    }
+  };
 
-    // Cleanup function to unload sound when component unmounts
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
+  // Initial fetch with slight delay
+  const initialDelay = setTimeout(fetchVoices, 500);
 
-    // Cleanup function to unload sound when component unmounts
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, []);
+  return () => {
+    isMounted = false;
+    clearTimeout(initialDelay);
+    clearTimeout(retryTimeout);
+  };
+}, []);
+
+    
 
     // Add this utility function at the top of your component
     const convertS3UrlToPresigned = async (s3Uri, baseURL = 'http://172.20.10.14:4010') => {
@@ -188,7 +195,7 @@ const GenerateStory = () => {
       console.log("Sending request...");
       
       const response = await axios.post(
-        "http://192.168.8.144:5000/story/generate-story", 
+        "http://172.20.10.14:5000/story/generate-story", 
         { story_prompt: storyPrompt },
         { headers: { "Content-Type": "application/json" } }
       );
@@ -277,7 +284,7 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
         shouldPlay: true,
         isLooping: true,
         isMuted: false,
-        volume: 1.0,
+        volume: 0.5,
         rate: 1.0,
         shouldCorrectPitch: true
       }
@@ -307,7 +314,7 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
       voice: selectedVoice, // Use the selected voice
       language: "en", // Adjust language code if necessary
       pitch: 1.0, // Adjust pitch
-      rate: 1.0, // Adjust speech rate
+      rate: 0.5, // Adjust speech rate
     });
   };
 
