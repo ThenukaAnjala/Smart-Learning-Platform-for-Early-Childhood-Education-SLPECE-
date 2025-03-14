@@ -26,7 +26,7 @@ export default function DrawingBoard({ navigation }) {
 
   // Update these values with your computer's LAN IP if using a physical device.
   const IS_ANDROID_EMULATOR = false;
-  const COMPUTER_IP = '192.168.16.101';
+  const COMPUTER_IP = '192.168.16.100';
   const BACKEND_URL =
     Platform.OS === 'android'
       ? IS_ANDROID_EMULATOR
