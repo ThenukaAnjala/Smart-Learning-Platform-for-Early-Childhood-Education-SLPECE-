@@ -1,17 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity, TouchableWithoutFeedback, Image } from 'react-native';
+import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity, TouchableWithoutFeedback, Image, Vibration } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
-const ELEMENT_SIZE = 80; // Size of each element
+const ELEMENT_SIZE = 80;
 const DUSTBIN_SIZE = 60;
 const DUSTBIN_PADDING = 20;
-const ELEMENT_SPACING = 10; // Minimum spacing between elements
-const TOP_OFFSET = 80; // For target text (SHOW NUMBER) and padding
-const BOTTOM_OFFSET = 120; // For wave, shuffle button, and padding
-const RIGHT_OFFSET = DUSTBIN_SIZE + DUSTBIN_PADDING; // For dustbin
-const MAX_ATTEMPTS = 200; // Increased attempts to ensure placement
+const ELEMENT_SPACING = 10;
+const TOP_OFFSET = 100;
+const BOTTOM_OFFSET = 120;
+const RIGHT_OFFSET = DUSTBIN_SIZE + DUSTBIN_PADDING;
+const MAX_ATTEMPTS = 1000; // Increased to ensure placement success
 
-// Custom Toast Component for Child-Friendly Interaction
+// Custom Toast Component
 const Toast = ({ visible, message, onDismiss, isCorrect }) => {
     const [fadeAnim] = useState(new Animated.Value(0));
     const [scaleAnim] = useState(new Animated.Value(0.5));
@@ -19,23 +19,11 @@ const Toast = ({ visible, message, onDismiss, isCorrect }) => {
     useEffect(() => {
         if (visible) {
             Animated.parallel([
-                Animated.timing(fadeAnim, {
-                    toValue: 1,
-                    duration: 300,
-                    useNativeDriver: true,
-                }),
-                Animated.spring(scaleAnim, {
-                    toValue: 1,
-                    friction: 3,
-                    useNativeDriver: true,
-                }),
+                Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+                Animated.spring(scaleAnim, { toValue: 1, friction: 3, useNativeDriver: true }),
             ]).start();
         } else {
-            Animated.timing(fadeAnim, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-            }).start();
+            Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
         }
     }, [visible, fadeAnim, scaleAnim]);
 
@@ -45,11 +33,7 @@ const Toast = ({ visible, message, onDismiss, isCorrect }) => {
         <Animated.View
             style={[
                 styles.toastContainer,
-                {
-                    opacity: fadeAnim,
-                    transform: [{ scale: scaleAnim }],
-                    backgroundColor: isCorrect ? '#4CAF50' : '#F44336',
-                },
+                { opacity: fadeAnim, transform: [{ scale: scaleAnim }], backgroundColor: isCorrect ? '#4CAF50' : '#F44336' },
             ]}
         >
             <Text style={styles.toastText}>{message}</Text>
@@ -62,6 +46,7 @@ const Toast = ({ visible, message, onDismiss, isCorrect }) => {
     );
 };
 
+// Draggable Element Component
 const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget }) => {
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
     const panResponder = useRef(
@@ -71,10 +56,7 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget }) => {
                 pan.setOffset({ x: pan.x._value, y: pan.y._value });
                 pan.setValue({ x: 0, y: 0 });
             },
-            onPanResponderMove: Animated.event(
-                [null, { dx: pan.x, dy: pan.y }],
-                { useNativeDriver: false }
-            ),
+            onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
             onPanResponderRelease: () => {
                 pan.flattenOffset();
                 onDrop(id, pan.x._value, pan.y._value);
@@ -87,7 +69,7 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget }) => {
             style={[
                 styles.element,
                 { transform: pan.getTranslateTransform() },
-                isTarget && styles.targetElement, // Highlight if this is the target number
+                isTarget && styles.targetElement,
             ]}
             {...panResponder.panHandlers}
         >
@@ -98,71 +80,37 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget }) => {
     );
 };
 
-// Custom Sea Background Component with Multiple Fish
+// Sea Background Component (unchanged for brevity)
 const SeaBackground = () => {
     const waveAnim = useRef(new Animated.Value(0)).current;
-    const NUMBER_OF_FISH = 25; // Set to 25 fish (within 20-30 range)
-
-    // Predefine fish animations with fixed number of Animated.Values
+    const NUMBER_OF_FISH = 25;
     const fishAnimations = useRef(
         Array.from({ length: NUMBER_OF_FISH }, (_, index) => ({
             x: new Animated.Value(-50),
             y: new Animated.Value(Math.random() * (height - 150)),
-            direction: new Animated.Value(1), // 1 for left to right, -1 for right to left
+            direction: new Animated.Value(1),
         }))
     ).current;
 
     useEffect(() => {
-        // Animate sea waves
         Animated.loop(
             Animated.sequence([
-                Animated.timing(waveAnim, {
-                    toValue: 1,
-                    duration: 2000,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(waveAnim, {
-                    toValue: 0,
-                    duration: 2000,
-                    useNativeDriver: true,
-                }),
+                Animated.timing(waveAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+                Animated.timing(waveAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
             ])
         ).start();
 
-        // Animate each fish independently
         fishAnimations.forEach((fish, index) => {
             Animated.loop(
                 Animated.sequence([
-                    // Left to right
                     Animated.parallel([
-                        Animated.timing(fish.x, {
-                            toValue: width + 50,
-                            duration: 5000 + index * 200, // Staggered timing for variety
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(fish.direction, {
-                            toValue: 1, // Head faces left (no flip)
-                            duration: 0,
-                            useNativeDriver: true,
-                        }),
+                        Animated.timing(fish.x, { toValue: width + 50, duration: 5000 + index * 200, useNativeDriver: true }),
+                        Animated.timing(fish.direction, { toValue: 1, duration: 0, useNativeDriver: true }),
                     ]),
-                    Animated.timing(fish.y, {
-                        toValue: Math.random() * (height - 150),
-                        duration: 1000,
-                        useNativeDriver: true,
-                    }),
-                    // Right to left
+                    Animated.timing(fish.y, { toValue: Math.random() * (height - 150), duration: 1000, useNativeDriver: true }),
                     Animated.parallel([
-                        Animated.timing(fish.x, {
-                            toValue: -50,
-                            duration: 5000 + index * 200,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(fish.direction, {
-                            toValue: -1, // Head faces right (flip)
-                            duration: 0,
-                            useNativeDriver: true,
-                        }),
+                        Animated.timing(fish.x, { toValue: -50, duration: 5000 + index * 200, useNativeDriver: true }),
+                        Animated.timing(fish.direction, { toValue: -1, duration: 0, useNativeDriver: true }),
                     ]),
                 ])
             ).start();
@@ -170,70 +118,28 @@ const SeaBackground = () => {
     }, [waveAnim]);
 
     const handleFishPress = (fish) => {
-        // Interactive feedback: move fish to a random position
         Animated.parallel([
-            Animated.spring(fish.x, {
-                toValue: Math.random() * width,
-                friction: 3,
-                useNativeDriver: true,
-            }),
-            Animated.spring(fish.y, {
-                toValue: Math.random() * (height - 150),
-                friction: 3,
-                useNativeDriver: true,
-            }),
-            // Reset direction based on new position relative to current position
-            Animated.timing(fish.direction, {
-                toValue: fish.x._value < Math.random() * width ? 1 : -1, // If moving right, face left; if moving left, face right
-                duration: 0,
-                useNativeDriver: true,
-            }),
+            Animated.spring(fish.x, { toValue: Math.random() * width, friction: 3, useNativeDriver: true }),
+            Animated.spring(fish.y, { toValue: Math.random() * (height - 150), friction: 3, useNativeDriver: true }),
+            Animated.timing(fish.direction, { toValue: fish.x._value < Math.random() * width ? 1 : -1, duration: 0, useNativeDriver: true }),
         ]).start();
     };
 
     return (
         <View style={styles.seaBackground}>
-            {/* Animated Sea Waves */}
-            <Animated.View
-                style={{
-                    ...styles.wave,
-                    transform: [{ translateY: waveAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, 20],
-                    }) }],
-                }}
-            />
-            <Animated.View
-                style={{
-                    ...styles.wave,
-                    transform: [{ translateY: waveAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -20],
-                    }) }],
-                }}
-            />
-            {/* Multiple Interactive Fish */}
+            <Animated.View style={{ ...styles.wave, transform: [{ translateY: waveAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) }] }} />
+            <Animated.View style={{ ...styles.wave, transform: [{ translateY: waveAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }] }} />
             {fishAnimations.map((fish, index) => (
-                <TouchableWithoutFeedback
-                    key={index}
-                    onPress={() => handleFishPress(fish)}
-                >
+                <TouchableWithoutFeedback key={index} onPress={() => handleFishPress(fish)}>
                     <Animated.View
                         style={{
                             position: 'absolute',
                             width: 60,
                             height: 60,
-                            transform: [
-                                { translateX: fish.x },
-                                { translateY: fish.y },
-                                { scaleX: fish.direction }, // Dynamically flip the fish based on direction
-                            ],
+                            transform: [{ translateX: fish.x }, { translateY: fish.y }, { scaleX: fish.direction }],
                         }}
                     >
-                        <Image
-                            source={require('../../assets/images/blue_fish.png')} // Use only blue fish
-                            style={styles.fishImage}
-                        />
+                        <Image source={require('../../assets/images/blue_fish.png')} style={styles.fishImage} />
                     </Animated.View>
                 </TouchableWithoutFeedback>
             ))}
@@ -241,143 +147,140 @@ const SeaBackground = () => {
     );
 };
 
+// Main Component with Random Placement
 const OrderIrrelevance = () => {
     const [elements, setElements] = useState([]);
     const [targetNumber, setTargetNumber] = useState(null);
     const [toastVisible, setToastVisible] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [isCorrect, setIsCorrect] = useState(false);
+    const targetAnim = useRef(new Animated.Value(0)).current;
+
+    const placeElementRandomly = (existingElements) => {
+        const availableWidth = width - RIGHT_OFFSET - ELEMENT_SIZE;
+        const availableHeight = height - TOP_OFFSET - BOTTOM_OFFSET - ELEMENT_SIZE;
+        const minDistance = ELEMENT_SIZE + ELEMENT_SPACING;
+        let attempts = 0;
+        let newX, newY;
+
+        do {
+            newX = Math.random() * availableWidth;
+            newY = TOP_OFFSET + Math.random() * availableHeight;
+            attempts++;
+        } while (
+            attempts < MAX_ATTEMPTS &&
+            existingElements.some((el) =>
+                Math.sqrt(Math.pow(newX - el.x, 2) + Math.pow(newY - el.y, 2)) < minDistance
+            )
+        );
+
+        if (attempts >= MAX_ATTEMPTS) {
+            console.warn("Max attempts reached for element placement!");
+            return null; // Fallback: skip this element
+        }
+
+        return { x: newX, y: newY };
+    };
 
     const initializeElements = () => {
         const newElements = [];
-        const availableWidth = width - RIGHT_OFFSET;
-        const availableHeight = height - TOP_OFFSET - BOTTOM_OFFSET;
-        const minDistance = ELEMENT_SIZE + ELEMENT_SPACING;
-
         for (let i = 1; i <= 10; i++) {
-            let attempts = 0;
-            let newX, newY;
-
-            do {
-                newX = Math.random() * availableWidth;
-                newY = Math.random() * availableHeight + TOP_OFFSET;
-                attempts++;
-            } while (
-                attempts < MAX_ATTEMPTS &&
-                newElements.some((el) =>
-                    Math.abs(newX + ELEMENT_SIZE / 2 - (el.x + ELEMENT_SIZE / 2)) < minDistance &&
-                    Math.abs(newY + ELEMENT_SIZE / 2 - (el.y + ELEMENT_SIZE / 2)) < minDistance
-                )
-            );
-
-            if (attempts >= MAX_ATTEMPTS) {
-                console.warn("Max attempts reached for element placement during initialization!");
-                break; // Stop if max attempts reached
+            const position = placeElementRandomly(newElements);
+            if (position) {
+                newElements.push({ id: i, number: i, ...position });
             }
+        }
 
-            newElements.push({ id: i, number: i, x: newX, y: newY });
+        if (newElements.length < 10) {
+            console.warn("Not all elements could be placed due to space constraints!");
         }
 
         setElements(newElements);
-        setTargetNumber(Math.floor(Math.random() * newElements.length) + 1);
+        const newTarget = Math.floor(Math.random() * newElements.length) + 1;
+        setTargetNumber(newTarget);
+        animateTargetNumber();
     };
 
-    // Initialize elements when the component mounts
     useEffect(() => {
         initializeElements();
     }, []);
 
-    // Shuffle the positions of the elements without overlapping
     const shuffleElements = () => {
         setElements((prevElements) => {
-            const shuffledElements = prevElements.map((el) => ({ ...el }));
-            const availableWidth = width - RIGHT_OFFSET;
-            const availableHeight = height - TOP_OFFSET - BOTTOM_OFFSET;
-            const minDistance = ELEMENT_SIZE + ELEMENT_SPACING;
-
-            shuffledElements.forEach((el, index) => {
-                let attempts = 0;
-                let newX, newY;
-
-                do {
-                    newX = Math.random() * availableWidth;
-                    newY = Math.random() * availableHeight + TOP_OFFSET;
-                    attempts++;
-                } while (
-                    attempts < MAX_ATTEMPTS &&
-                    (shuffledElements.slice(0, index).some((other) =>
-                        Math.abs(newX + ELEMENT_SIZE / 2 - (other.x + ELEMENT_SIZE / 2)) < minDistance &&
-                        Math.abs(newY + ELEMENT_SIZE / 2 - (other.y + ELEMENT_SIZE / 2)) < minDistance
-                    ) || newX < 0 || newY < TOP_OFFSET || newY > height - BOTTOM_OFFSET)
-                );
-
-                if (attempts >= MAX_ATTEMPTS) {
-                    console.warn("Max attempts reached for element placement during shuffle!");
-                } else {
-                    el.x = newX;
-                    el.y = newY;
+            const shuffledElements = [];
+            prevElements.forEach((el) => {
+                const position = placeElementRandomly(shuffledElements);
+                if (position) {
+                    shuffledElements.push({ ...el, ...position });
                 }
             });
-
-            return shuffledElements;
+            return shuffledElements.length === prevElements.length ? shuffledElements : prevElements; // Fallback to original if placement fails
         });
-        // Set a new target number (change the question), within 1 to 10
-        setTargetNumber(Math.floor(Math.random() * elements.length) + 1);
+        const newTarget = Math.floor(Math.random() * elements.length) + 1;
+        setTargetNumber(newTarget);
+        animateTargetNumber();
     };
 
-    // Update the position of an element when dropped
-    // Delete the element if it's dropped inside the dustbin region
     const handleDrop = (id, newX, newY) => {
         const centerX = newX + ELEMENT_SIZE / 2;
         const centerY = newY + ELEMENT_SIZE / 2;
         const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
         const dustbinY = DUSTBIN_PADDING;
 
-        if (
-            centerX >= dustbinX &&
-            centerX <= dustbinX + DUSTBIN_SIZE &&
-            centerY >= dustbinY &&
-            centerY <= dustbinY + DUSTBIN_SIZE
-        ) {
-            // Remove the element if dropped in dustbin region
+        if (centerX >= dustbinX && centerX <= dustbinX + DUSTBIN_SIZE && centerY >= dustbinY && centerY <= dustbinY + DUSTBIN_SIZE) {
             setElements((prevElements) => prevElements.filter((el) => el.id !== id));
         } else {
-            // Update the element's position
-            setElements((prevElements) =>
-                prevElements.map((el) =>
-                    el.id === id ? { ...el, x: newX, y: newY } : el
-                )
-            );
+            setElements((prevElements) => prevElements.map((el) => (el.id === id ? { ...el, x: newX, y: newY } : el)));
         }
     };
 
-    // Handle when a number is touched
     const handleTouch = (number) => {
         if (number === targetNumber) {
             setToastMessage(`🎉 Great job! You found ${number}!`);
             setIsCorrect(true);
+            Vibration.vibrate(100);
         } else {
             setToastMessage(`😕 Try again! Find ${targetNumber}!`);
             setIsCorrect(false);
+            Vibration.vibrate([0, 50]);
         }
         setToastVisible(true);
     };
 
-    // Dismiss toast and proceed to next challenge if correct
     const dismissToast = () => {
         setToastVisible(false);
         if (isCorrect) {
-            setTargetNumber(Math.floor(Math.random() * elements.length) + 1);
+            const newTarget = Math.floor(Math.random() * elements.length) + 1;
+            setTargetNumber(newTarget);
+            animateTargetNumber();
         }
+    };
+
+    const animateTargetNumber = () => {
+        Animated.sequence([
+            Animated.timing(targetAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+            Animated.timing(targetAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+        ]).start();
     };
 
     return (
         <View style={styles.container}>
             <SeaBackground />
             <View style={styles.workspace}>
-                {/* Display the target number to find */}
                 {targetNumber && (
-                    <Text style={styles.targetText}>SHOW NUMBER {targetNumber}</Text>
+                    <Animated.View
+                        style={[
+                            styles.targetTextContainer,
+                            {
+                                transform: [
+                                    { scale: targetAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) },
+                                    { rotate: targetAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '10deg'] }) },
+                                ],
+                            },
+                        ]}
+                    >
+                        <Text style={styles.targetText}>SHOW NUMBER {targetNumber}</Text>
+                    </Animated.View>
                 )}
                 {elements.map((el) => (
                     <DraggableElement
@@ -392,7 +295,6 @@ const OrderIrrelevance = () => {
                     />
                 ))}
             </View>
-            {/* Dustbin icon */}
             <View style={styles.dustbin}>
                 <Text style={styles.dustbinText}>🗑️</Text>
             </View>
@@ -401,31 +303,14 @@ const OrderIrrelevance = () => {
                     <Text style={styles.buttonText}>Shuffle</Text>
                 </TouchableOpacity>
             </View>
-            {/* Custom Toast */}
-            <Toast
-                visible={toastVisible}
-                message={toastMessage}
-                onDismiss={dismissToast}
-                isCorrect={isCorrect}
-            />
+            <Toast visible={toastVisible} message={toastMessage} onDismiss={dismissToast} isCorrect={isCorrect} />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#24bbed', // Original background color, overridden by SeaBackground
-    },
-    workspace: {
-        backgroundColor: 'transparent', // Make workspace transparent to show sea background
-        flex: 1,
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-    },
+    container: { flex: 1, backgroundColor: '#24bbed' },
+    workspace: { backgroundColor: 'transparent', flex: 1, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
     element: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
@@ -440,42 +325,28 @@ const styles = StyleSheet.create({
         shadowRadius: 5,
         elevation: 10,
     },
-    targetElement: {
-        borderWidth: 3,
-        borderColor: 'yellow', // Highlight the target number
-    },
-    elementText: {
-        color: 'white',
-        fontSize: 24,
-        fontWeight: 'bold',
+    targetElement: { borderWidth: 3, borderColor: 'yellow' },
+    elementText: { color: 'white', fontSize: 24, fontWeight: 'bold' },
+    targetTextContainer: {
+        position: 'absolute',
+        top: 30,
+        left: width / 2 - 120,
+        zIndex: 1500,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        padding: 15,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderColor: '#FFD700',
     },
     targetText: {
-        position: 'absolute',
-        top: 20,
-        left: width / 2 - 100,
-        color: 'black',
-        fontSize: 24,
+        color: '#FF4500',
+        fontSize: 28,
         fontWeight: 'bold',
-        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-        padding: 10,
-        borderRadius: 5,
+        textAlign: 'center',
     },
-    controls: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginRight: 20,
-        marginBottom: 20,
-        padding: 10,
-    },
-    button: {
-        backgroundColor: '#ccc',
-        padding: 10,
-        borderRadius: 5,
-    },
-    buttonText: {
-        fontSize: 20,
-        color: 'black',
-    },
+    controls: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: 20, marginBottom: 20, padding: 10 },
+    button: { backgroundColor: '#ccc', padding: 10, borderRadius: 5 },
+    buttonText: { fontSize: 20, color: 'black' },
     dustbin: {
         position: 'absolute',
         top: DUSTBIN_PADDING,
@@ -490,9 +361,7 @@ const styles = StyleSheet.create({
         borderColor: '#ccc',
         zIndex: 1000,
     },
-    dustbinText: {
-        fontSize: 30,
-    },
+    dustbinText: { fontSize: 30 },
     toastContainer: {
         position: 'absolute',
         bottom: 50,
@@ -504,47 +373,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         zIndex: 2000,
     },
-    toastText: {
-        color: 'white',
-        fontSize: 20,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    nextButton: {
-        marginTop: 10,
-        padding: 10,
-        backgroundColor: '#FFEB3B',
-        borderRadius: 10,
-    },
-    nextButtonText: {
-        color: '#333',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    seaBackground: {
-        flex: 1,
-        backgroundColor: '#00CED1', // Deep sky blue for sea base
-        overflow: 'hidden',
-    },
-    wave: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: 50,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)', // White waves with transparency
-        borderRadius: 50,
-    },
-    fishText: {
-        fontSize: 18,
-        color: 'white',
-        textAlign: 'center',
-    },
-    fishImage: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'contain',
-    },
+    toastText: { color: 'white', fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
+    nextButton: { marginTop: 10, padding: 10, backgroundColor: '#FFEB3B', borderRadius: 10 },
+    nextButtonText: { color: '#333', fontSize: 18, fontWeight: 'bold' },
+    seaBackground: { flex: 1, backgroundColor: '#00CED1', overflow: 'hidden' },
+    wave: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 50, backgroundColor: 'rgba(255, 255, 255, 0.3)', borderRadius: 50 },
+    fishImage: { width: '100%', height: '100%', resizeMode: 'contain' },
 });
 
 export default OrderIrrelevance;
