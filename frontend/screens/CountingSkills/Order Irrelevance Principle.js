@@ -3,13 +3,11 @@ import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOp
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 80;
-const DUSTBIN_SIZE = 60;
-const DUSTBIN_PADDING = 20;
 const ELEMENT_SPACING = 10;
 const TOP_OFFSET = 100;
 const BOTTOM_OFFSET = 120;
-const RIGHT_OFFSET = DUSTBIN_SIZE + DUSTBIN_PADDING;
-const MAX_ATTEMPTS = 1000; // Increased to ensure placement success
+const RIGHT_OFFSET = 0; // No dustbin, so no offset needed
+const MAX_ATTEMPTS = 1000;
 
 // Custom Toast Component
 const Toast = ({ visible, message, onDismiss, isCorrect }) => {
@@ -80,7 +78,7 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget }) => {
     );
 };
 
-// Sea Background Component (unchanged for brevity)
+// Sea Background Component (unchanged)
 const SeaBackground = () => {
     const waveAnim = useRef(new Animated.Value(0)).current;
     const NUMBER_OF_FISH = 25;
@@ -147,7 +145,7 @@ const SeaBackground = () => {
     );
 };
 
-// Main Component with Random Placement
+// Main Component without Dustbin
 const OrderIrrelevance = () => {
     const [elements, setElements] = useState([]);
     const [targetNumber, setTargetNumber] = useState(null);
@@ -156,7 +154,7 @@ const OrderIrrelevance = () => {
     const [isCorrect, setIsCorrect] = useState(false);
     const targetAnim = useRef(new Animated.Value(0)).current;
 
-    const placeElementRandomly = (existingElements) => {
+    const placeElementRandomly = (existingElements, currentX, currentY) => {
         const availableWidth = width - RIGHT_OFFSET - ELEMENT_SIZE;
         const availableHeight = height - TOP_OFFSET - BOTTOM_OFFSET - ELEMENT_SIZE;
         const minDistance = ELEMENT_SIZE + ELEMENT_SPACING;
@@ -169,14 +167,14 @@ const OrderIrrelevance = () => {
             attempts++;
         } while (
             attempts < MAX_ATTEMPTS &&
-            existingElements.some((el) =>
+            (existingElements.some((el) =>
                 Math.sqrt(Math.pow(newX - el.x, 2) + Math.pow(newY - el.y, 2)) < minDistance
-            )
+            ) || (Math.abs(newX - currentX) < minDistance && Math.abs(newY - currentY) < minDistance))
         );
 
         if (attempts >= MAX_ATTEMPTS) {
             console.warn("Max attempts reached for element placement!");
-            return null; // Fallback: skip this element
+            return null;
         }
 
         return { x: newX, y: newY };
@@ -207,31 +205,34 @@ const OrderIrrelevance = () => {
 
     const shuffleElements = () => {
         setElements((prevElements) => {
-            const shuffledElements = [];
-            prevElements.forEach((el) => {
-                const position = placeElementRandomly(shuffledElements);
+            const newPositions = [];
+            const updatedElements = prevElements.map((el) => ({ ...el }));
+
+            updatedElements.forEach((el) => {
+                const position = placeElementRandomly(newPositions, el.x, el.y);
                 if (position) {
-                    shuffledElements.push({ ...el, ...position });
+                    el.x = position.x;
+                    el.y = position.y;
+                    newPositions.push(el);
                 }
             });
-            return shuffledElements.length === prevElements.length ? shuffledElements : prevElements; // Fallback to original if placement fails
+
+            if (newPositions.length === prevElements.length) {
+                return updatedElements;
+            } else {
+                console.warn("Shuffle failed to place all elements; keeping previous positions.");
+                return prevElements;
+            }
         });
+
         const newTarget = Math.floor(Math.random() * elements.length) + 1;
         setTargetNumber(newTarget);
         animateTargetNumber();
     };
 
     const handleDrop = (id, newX, newY) => {
-        const centerX = newX + ELEMENT_SIZE / 2;
-        const centerY = newY + ELEMENT_SIZE / 2;
-        const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
-        const dustbinY = DUSTBIN_PADDING;
-
-        if (centerX >= dustbinX && centerX <= dustbinX + DUSTBIN_SIZE && centerY >= dustbinY && centerY <= dustbinY + DUSTBIN_SIZE) {
-            setElements((prevElements) => prevElements.filter((el) => el.id !== id));
-        } else {
-            setElements((prevElements) => prevElements.map((el) => (el.id === id ? { ...el, x: newX, y: newY } : el)));
-        }
+        // Only update position, no dustbin check
+        setElements((prevElements) => prevElements.map((el) => (el.id === id ? { ...el, x: newX, y: newY } : el)));
     };
 
     const handleTouch = (number) => {
@@ -295,9 +296,6 @@ const OrderIrrelevance = () => {
                     />
                 ))}
             </View>
-            <View style={styles.dustbin}>
-                <Text style={styles.dustbinText}>🗑️</Text>
-            </View>
             <View style={styles.controls}>
                 <TouchableOpacity onPress={shuffleElements} style={styles.button}>
                     <Text style={styles.buttonText}>Shuffle</Text>
@@ -347,21 +345,6 @@ const styles = StyleSheet.create({
     controls: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: 20, marginBottom: 20, padding: 10 },
     button: { backgroundColor: '#ccc', padding: 10, borderRadius: 5 },
     buttonText: { fontSize: 20, color: 'black' },
-    dustbin: {
-        position: 'absolute',
-        top: DUSTBIN_PADDING,
-        right: DUSTBIN_PADDING,
-        width: DUSTBIN_SIZE,
-        height: DUSTBIN_SIZE,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#eee',
-        borderRadius: DUSTBIN_SIZE / 2,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        zIndex: 1000,
-    },
-    dustbinText: { fontSize: 30 },
     toastContainer: {
         position: 'absolute',
         bottom: 50,
