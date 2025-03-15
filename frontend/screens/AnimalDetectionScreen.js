@@ -17,6 +17,13 @@ import axios from 'axios';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useNavigation } from '@react-navigation/native';
 
+// Import the camera and gallery images
+const cameraImage = require('../assets/images/Button-Icons/camara-image.png');
+const galleryImage = require('../assets/images/Button-Icons/gallery.png');
+
+// Import the background image
+const backgroundImage = require('../assets/images/Background/Animal-DiscovererBG.jpg');
+
 const AnimalDetectionScreen = () => {
   const [image, setImage] = useState(null);
   const [hasPermission, setHasPermission] = useState(false);
@@ -24,8 +31,12 @@ const AnimalDetectionScreen = () => {
   const [prediction, setPrediction] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
-  const fadeAnim = useState(new Animated.Value(0))[0]; // Animation for fade-in
-  const scaleAnim = useState(new Animated.Value(1))[0]; // Animation for scaling
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const scaleAnim = useState(new Animated.Value(1))[0];
+  
+  // Animation values for pulsing effect
+  const cameraPulseAnim = useState(new Animated.Value(1))[0]; // For camera button
+  const galleryPulseAnim = useState(new Animated.Value(1))[0]; // For gallery button
 
   useEffect(() => {
     const lockToPortrait = async () => {
@@ -39,6 +50,7 @@ const AnimalDetectionScreen = () => {
     const loadFontAndPermissions = async () => {
       await Font.loadAsync({
         Poppins: require('../assets/fonts/Poppins-Regular.ttf'),
+        Schoolbell: require('../assets/fonts/Schoolbell-Regular.ttf'),
       });
       setFontLoaded(true);
 
@@ -49,30 +61,49 @@ const AnimalDetectionScreen = () => {
         Alert.alert('Permissions!', 'We need camera and gallery access to play with animals! 🐾');
       } else {
         setHasPermission(true);
-        // Start fade-in animation when permissions are granted
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 1000, // Slow 1-second fade
+          duration: 1000,
           useNativeDriver: true,
         }).start();
       }
     };
 
+    // Start the pulsing animations for camera and gallery buttons
+    const startPulsing = (animValue) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(animValue, {
+            toValue: 1.1, // Scale up to 110%
+            duration: 1000, // Duration of scaling up
+            useNativeDriver: true,
+          }),
+          Animated.timing(animValue, {
+            toValue: 1, // Scale back to 100%
+            duration: 1000, // Duration of scaling down
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    startPulsing(cameraPulseAnim); // Start pulsing for camera button
+    startPulsing(galleryPulseAnim); // Start pulsing for gallery button
+
     lockToPortrait();
     loadFontAndPermissions();
 
-    // Cleanup: Reset orientation when component unmounts
     return () => {
       ScreenOrientation.unlockAsync().catch((error) =>
         console.error('Error unlocking orientation:', error)
       );
     };
-  }, [fadeAnim]);
+  }, [fadeAnim, cameraPulseAnim, galleryPulseAnim]);
 
   const getServerUrl = () => {
     return Platform.OS === 'android' && !__DEV__
       ? 'http://10.0.2.2:5050/predict'
-      : 'http://172.28.9.160:5050/predict';
+      : 'http://192.168.1.46:5050/predict';
   };
 
   const uploadImage = async (uri) => {
@@ -98,10 +129,9 @@ const AnimalDetectionScreen = () => {
       setPrediction(response.data);
 
       if (response.data.confidence > 90) {
-        // Animate image scale before navigation
         Animated.timing(scaleAnim, {
-          toValue: 1.1, // Slight zoom
-          duration: 500, // Slow 0.5-second scale
+          toValue: 1.1,
+          duration: 500,
           useNativeDriver: true,
         }).start(() => {
           navigation.navigate('AnimalDetailsScreen', {
@@ -128,7 +158,6 @@ const AnimalDetectionScreen = () => {
     if (!hasPermission) return Alert.alert('Camera!', 'We need camera access to snap animals! 🐾');
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: [3, 4],
       quality: 1,
     });
     if (!result.canceled) {
@@ -141,7 +170,6 @@ const AnimalDetectionScreen = () => {
     if (!hasPermission) return Alert.alert('Gallery!', 'We need gallery access to see animals! 🐾');
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
-      aspect: [3, 4],
       quality: 1,
     });
     if (!result.canceled) {
@@ -152,8 +180,8 @@ const AnimalDetectionScreen = () => {
 
   const clearImage = () => {
     Animated.timing(scaleAnim, {
-      toValue: 0.9, // Slight shrink
-      duration: 500, // Slow 0.5-second scale
+      toValue: 0.9,
+      duration: 500,
       useNativeDriver: true,
     }).start(() => {
       setImage(null);
@@ -177,7 +205,15 @@ const AnimalDetectionScreen = () => {
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      <Text style={styles.title}>Find an Animal! 🐾</Text>
+      {/* Background image layer */}
+      <View style={styles.background}>
+        <Image source={backgroundImage} style={styles.backgroundImage} />
+      </View>
+
+      {/* Dedicated header for the title */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Lets Find Animals !!!</Text>
+      </View>
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
@@ -192,7 +228,7 @@ const AnimalDetectionScreen = () => {
           {prediction && prediction.confidence <= 90 && (
             <View style={styles.tryAgainContainer}>
               <Text style={styles.tryAgainText}>
-                I’m {prediction.confidence.toFixed(2)}% sure. Try again? 🐱
+                I’m {prediction.confidence.toFixed(2)}% sure. Try again?
               </Text>
               <View style={styles.retryButtonGroup}>
                 <TouchableOpacity
@@ -200,16 +236,14 @@ const AnimalDetectionScreen = () => {
                   onPress={takePhoto}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="camera" size={24} color="#FFF" />
-                  <Text style={styles.retryButtonText}>Camera</Text>
+                  <Image source={cameraImage} style={styles.buttonIcon} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.retryButton}
                   onPress={pickImageFromGallery}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="image" size={24} color="#FFF" />
-                  <Text style={styles.retryButtonText}>Gallery</Text>
+                  <Image source={galleryImage} style={styles.buttonIcon} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -221,16 +255,41 @@ const AnimalDetectionScreen = () => {
         </Animated.View>
       )}
 
-      <View style={styles.buttonGroup}>
-        <TouchableOpacity style={styles.button} onPress={takePhoto} activeOpacity={0.7}>
-          <Ionicons name="camera" size={28} color="#FFF" />
-          <Text style={styles.buttonText}>Camera</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={pickImageFromGallery} activeOpacity={0.7}>
-          <Ionicons name="image" size={28} color="#FFF" />
-          <Text style={styles.buttonText}>Gallery</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Show initial buttons only when no image is selected and not in "try again" state */}
+      {!image && (
+        <View style={styles.centeredButtonContainer}>
+          <View style={styles.initialButtonGroup}>
+            <Animated.View style={{ transform: [{ scale: cameraPulseAnim }] }}>
+              <TouchableOpacity style={styles.button} onPress={takePhoto} activeOpacity={0.7}>
+                <Image source={cameraImage} style={styles.buttonIcon} />
+              </TouchableOpacity>
+            </Animated.View>
+            <Animated.View style={{ transform: [{ scale: galleryPulseAnim }] }}>
+              <TouchableOpacity style={styles.button} onPress={pickImageFromGallery} activeOpacity={0.7}>
+                <Image source={galleryImage} style={styles.buttonIcon} />
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </View>
+      )}
+
+      {/* Show bottom buttons only when an image is selected, prediction is not in "try again" state, and before navigation */}
+      {image && !isLoading && prediction && prediction.confidence > 90 && (
+        <View style={styles.bottomButtonContainer}>
+          <View style={styles.buttonGroup}>
+            <Animated.View style={{ transform: [{ scale: cameraPulseAnim }] }}>
+              <TouchableOpacity style={styles.button} onPress={takePhoto} activeOpacity={0.7}>
+                <Image source={cameraImage} style={styles.buttonIcon} />
+              </TouchableOpacity>
+            </Animated.View>
+            <Animated.View style={{ transform: [{ scale: galleryPulseAnim }] }}>
+              <TouchableOpacity style={styles.button} onPress={pickImageFromGallery} activeOpacity={0.7}>
+                <Image source={galleryImage} style={styles.buttonIcon} />
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </View>
+      )}
     </Animated.View>
   );
 };
@@ -238,21 +297,36 @@ const AnimalDetectionScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#A3D8A1', // Vibrant green
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 20,
   },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
+  },
+  backgroundImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  header: {
+    width: '100%',
+    paddingTop: 100,
+    paddingBottom: 10,
+    alignItems: 'center',
+  },
   title: {
-    fontSize: 40,
-    fontWeight: '600',
-    color: '#FFF',
+    fontSize: 50,
+    fontWeight: '900',
+    color: '#8B4513',
     textAlign: 'center',
-    marginTop: 20,
-    fontFamily: 'Poppins',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    marginTop: 0,
+    fontFamily: 'Schoolbell',
+    textShadowColor: 'rgba(255, 255, 255, 0.5)',
     textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
+    textShadowRadius: 6,
+    letterSpacing: 2,
   },
   imageContainer: {
     alignItems: 'center',
@@ -262,8 +336,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 400,
     borderRadius: 40,
-    borderWidth: 6,
-    borderColor: '#FFF',
+    resizeMode: 'contain',
   },
   tryAgainContainer: {
     marginTop: 20,
@@ -278,47 +351,70 @@ const styles = StyleSheet.create({
   },
   retryButtonGroup: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     width: '100%',
+    gap: 30,
   },
   retryButton: {
-    backgroundColor: '#FFC107', // Bright yellow
+    backgroundColor: '#D2691E',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 30,
-    width: '48%',
     justifyContent: 'center',
+    width: 120,
+    height: 120,
+    borderRadius: 30,
   },
   retryButtonText: {
     color: '#FFF',
     marginLeft: 10,
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: 'Poppins',
+  },
+  centeredButtonContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomButtonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    width: '100%',
+    alignItems: 'center',
+  },
+  initialButtonGroup: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 40,
   },
   buttonGroup: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 20,
+    justifyContent: 'space-around',
+    width: '80%',
+    gap: 30,
   },
   button: {
-    backgroundColor: '#FFC107', // Bright yellow
+    backgroundColor: '#D2691E',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 30,
-    width: '48%',
     justifyContent: 'center',
+    width: 140,
+    height: 140,
+    borderRadius: 35,
   },
   buttonText: {
     color: '#FFF',
     marginLeft: 10,
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: 'Poppins',
   },
+  buttonIcon: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
+  },
   clearButton: {
-    backgroundColor: '#FFC107',
+    backgroundColor: '#D2691E',
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,

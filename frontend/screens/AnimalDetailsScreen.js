@@ -26,6 +26,17 @@ const animalImages = {
   'tiger.jpg': require('../assets/images/Animals/tiger.jpg'),
 };
 
+// Helper function to determine if a color is light or dark
+const isLightColor = (hexColor) => {
+  if (!hexColor) return true; // Default to light if color is undefined
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 128; // Return true if light, false if dark
+};
+
 const AnimalDetailsScreen = ({ route }) => {
   const { animalName, confidence } = route.params;
   const navigation = useNavigation();
@@ -45,7 +56,7 @@ const AnimalDetailsScreen = ({ route }) => {
 
     const fetchAnimalDetails = async () => {
       try {
-        const response = await axios.get(`http://172.28.9.160:5050/animal-details/${animalName.toLowerCase()}`);
+        const response = await axios.get(`http://192.168.1.46:5050/animal-details/${animalName.toLowerCase()}`);
         setAnimalDetails(response.data);
       } catch (error) {
         console.error('Error fetching details:', error);
@@ -95,21 +106,26 @@ const AnimalDetailsScreen = ({ route }) => {
   }
 
   const selectedImage = animalImages[animalDetails.imagePath] || animalImages['elephant.jpg'];
+  
+  // Determine if the background is light or dark
+  const isBackgroundLight = isLightColor(animalDetails.color);
+  const textColor = isBackgroundLight ? '#333' : '#FFF'; // Dark text on light background, white on dark
+  const buttonColor = isBackgroundLight ? '#FFCA28' : '#A3D8A1'; // Orange on light, green on dark
 
   return (
     <Animated.View style={[styles.container, { backgroundColor: animalDetails.color, opacity: fadeAnim }]}>
-      <Text style={styles.title}>It’s a {animalDetails.name.toUpperCase()}!</Text>
+      <Text style={[styles.title, { color: textColor }]}>It’s a {animalDetails.name.toUpperCase()}!</Text>
       <Animated.View style={{ transform: [{ scale: bounceAnim.interpolate({
         inputRange: [0, 1],
         outputRange: [0.9, 1.1], // Slight bounce
       })}] }}>
         <Image source={selectedImage} style={styles.image} />
       </Animated.View>
-      <Text style={styles.confidence}>{confidence.toFixed(0)}% Sure! 🐾</Text>
-      <Text style={styles.fact}>{animalDetails.fact}</Text>
-      <Text style={styles.habitat}>Lives in: {animalDetails.habitat}</Text>
+      <Text style={[styles.confidence, { color: textColor }]}>{confidence.toFixed(0)}% Sure! 🐾</Text>
+      <Text style={[styles.fact, { color: textColor }]}>{animalDetails.fact}</Text>
+      <Text style={[styles.habitat, { color: textColor }]}>Lives in: {animalDetails.habitat}</Text>
       <TouchableOpacity
-        style={styles.backButton}
+        style={[styles.backButton, { backgroundColor: buttonColor }]}
         onPress={() => {
           Animated.timing(bounceAnim, {
             toValue: 0,
@@ -119,8 +135,8 @@ const AnimalDetailsScreen = ({ route }) => {
         }}
         activeOpacity={0.7}
       >
-        <Ionicons name="arrow-back" size={28} color="#FFF" />
-        <Text style={styles.backButtonText}>Back</Text>
+        <Ionicons name="arrow-back" size={28} color={isBackgroundLight ? '#FFF' : '#333'} />
+        <Text style={[styles.backButtonText, { color: isBackgroundLight ? '#FFF' : '#333' }]}>Back</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -132,12 +148,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     padding: 20,
-    backgroundColor: '#FF9999', // Vibrant pink
   },
   title: {
     fontSize: 28,
     fontWeight: '600',
-    color: '#FFF',
     textAlign: 'center',
     marginTop: 10,
     fontFamily: 'Poppins',
@@ -149,29 +163,25 @@ const styles = StyleSheet.create({
     width: 200,
     height: 266,
     borderRadius: 25,
-    // Removed borderWidth and borderColor
+    resizeMode: 'contain', // Added to prevent cropping and maintain aspect ratio
   },
   confidence: {
     fontSize: 18,
-    color: '#FFF',
     textAlign: 'center',
     fontFamily: 'Poppins',
   },
   fact: {
     fontSize: 20,
-    color: '#FFF',
     textAlign: 'center',
     paddingHorizontal: 15,
     fontFamily: 'Poppins',
   },
   habitat: {
     fontSize: 18,
-    color: '#FFF',
     textAlign: 'center',
     fontFamily: 'Poppins',
   },
   backButton: {
-    backgroundColor: '#FFCA28', // Bright orange
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
@@ -179,7 +189,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButtonText: {
-    color: '#FFF',
     marginLeft: 10,
     fontSize: 20,
     fontFamily: 'Poppins',
@@ -188,11 +197,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FF9999',
+    backgroundColor: '#FFF', // Default white while loading
   },
   loadingText: {
     fontSize: 20,
-    color: '#FFF',
+    color: '#333',
     marginTop: 10,
     fontFamily: 'Poppins',
   },
