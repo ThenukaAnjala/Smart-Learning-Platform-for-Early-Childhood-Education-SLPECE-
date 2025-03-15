@@ -1,17 +1,21 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity, TouchableWithoutFeedback, Image } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
-const ELEMENT_SIZE = 80; // Used for both element size & collision threshold
+const ELEMENT_SIZE = 80; // Size of each element
 const DUSTBIN_SIZE = 60;
 const DUSTBIN_PADDING = 20;
+const ELEMENT_SPACING = 10; // Minimum spacing between elements
+const TOP_OFFSET = 80; // For target text (SHOW NUMBER) and padding
+const BOTTOM_OFFSET = 120; // For wave, shuffle button, and padding
+const RIGHT_OFFSET = DUSTBIN_SIZE + DUSTBIN_PADDING; // For dustbin
 
 // Custom Toast Component for Child-Friendly Interaction
 const Toast = ({ visible, message, onDismiss, isCorrect }) => {
     const [fadeAnim] = useState(new Animated.Value(0));
     const [scaleAnim] = useState(new Animated.Value(0.5));
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (visible) {
             Animated.parallel([
                 Animated.timing(fadeAnim, {
@@ -93,6 +97,149 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget }) => {
     );
 };
 
+// Custom Sea Background Component with Multiple Fish
+const SeaBackground = () => {
+    const waveAnim = useRef(new Animated.Value(0)).current;
+    const NUMBER_OF_FISH = 25; // Set to 25 fish (within 20-30 range)
+
+    // Predefine fish animations with fixed number of Animated.Values
+    const fishAnimations = useRef(
+        Array.from({ length: NUMBER_OF_FISH }, (_, index) => ({
+            x: new Animated.Value(-50),
+            y: new Animated.Value(Math.random() * (height - 150)),
+            direction: new Animated.Value(1), // 1 for left to right, -1 for right to left
+        }))
+    ).current;
+
+    useEffect(() => {
+        // Animate sea waves
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(waveAnim, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(waveAnim, {
+                    toValue: 0,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+
+        // Animate each fish independently
+        fishAnimations.forEach((fish, index) => {
+            Animated.loop(
+                Animated.sequence([
+                    // Left to right
+                    Animated.parallel([
+                        Animated.timing(fish.x, {
+                            toValue: width + 50,
+                            duration: 5000 + index * 200, // Staggered timing for variety
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(fish.direction, {
+                            toValue: 1, // Head faces left (no flip)
+                            duration: 0,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                    Animated.timing(fish.y, {
+                        toValue: Math.random() * (height - 150),
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                    // Right to left
+                    Animated.parallel([
+                        Animated.timing(fish.x, {
+                            toValue: -50,
+                            duration: 5000 + index * 200,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(fish.direction, {
+                            toValue: -1, // Head faces right (flip)
+                            duration: 0,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                ])
+            ).start();
+        });
+    }, [waveAnim]);
+
+    const handleFishPress = (fish) => {
+        // Interactive feedback: move fish to a random position
+        Animated.parallel([
+            Animated.spring(fish.x, {
+                toValue: Math.random() * width,
+                friction: 3,
+                useNativeDriver: true,
+            }),
+            Animated.spring(fish.y, {
+                toValue: Math.random() * (height - 150),
+                friction: 3,
+                useNativeDriver: true,
+            }),
+            // Reset direction based on new position relative to current position
+            Animated.timing(fish.direction, {
+                toValue: fish.x._value < Math.random() * width ? 1 : -1, // If moving right, face left; if moving left, face right
+                duration: 0,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    };
+
+    return (
+        <View style={styles.seaBackground}>
+            {/* Animated Sea Waves */}
+            <Animated.View
+                style={{
+                    ...styles.wave,
+                    transform: [{ translateY: waveAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 20],
+                    }) }],
+                }}
+            />
+            <Animated.View
+                style={{
+                    ...styles.wave,
+                    transform: [{ translateY: waveAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -20],
+                    }) }],
+                }}
+            />
+            {/* Multiple Interactive Fish */}
+            {fishAnimations.map((fish, index) => (
+                <TouchableWithoutFeedback
+                    key={index}
+                    onPress={() => handleFishPress(fish)}
+                >
+                    <Animated.View
+                        style={{
+                            position: 'absolute',
+                            width: 60,
+                            height: 60,
+                            transform: [
+                                { translateX: fish.x },
+                                { translateY: fish.y },
+                                { scaleX: fish.direction }, // Dynamically flip the fish based on direction
+                            ],
+                        }}
+                    >
+                        <Image
+                            source={require('../../assets/images/blue_fish.png')} // Use only blue fish
+                            style={styles.fishImage}
+                        />
+                    </Animated.View>
+                </TouchableWithoutFeedback>
+            ))}
+        </View>
+    );
+};
+
 const OrderIrrelevance = () => {
     const [elements, setElements] = useState([]);
     const [targetNumber, setTargetNumber] = useState(null);
@@ -102,32 +249,92 @@ const OrderIrrelevance = () => {
 
     const initializeElements = () => {
         const newElements = [];
-        for (let i = 1; i <= 10; i++) { // Changed from 8 to 10
-            const randomX = Math.random() * (width - ELEMENT_SIZE);
-            const randomY = Math.random() * (height - 150);
-            newElements.push({ id: i, number: i, x: randomX, y: randomY });
+        const gridSpacing = ELEMENT_SIZE + ELEMENT_SPACING;
+        const availableWidth = width - RIGHT_OFFSET;
+        const availableHeight = height - TOP_OFFSET - BOTTOM_OFFSET;
+        const gridSizeX = Math.floor(availableWidth / gridSpacing);
+        const gridSizeY = Math.floor(availableHeight / gridSpacing);
+        const totalSlots = gridSizeX * gridSizeY;
+
+        if (totalSlots < 10) {
+            console.warn("Not enough space to place all elements without overlap during initialization!");
+            return;
+        }
+
+        const positions = [];
+        for (let y = 0; y < gridSizeY; y++) {
+            for (let x = 0; x < gridSizeX; x++) {
+                positions.push({
+                    x: x * gridSpacing,
+                    y: y * gridSpacing + TOP_OFFSET,
+                });
+            }
+        }
+
+        // Shuffle positions for initial placement
+        for (let i = positions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [positions[i], positions[j]] = [positions[j], positions[i]];
+        }
+
+        for (let i = 1; i <= 10; i++) {
+            const pos = positions[i - 1];
+            newElements.push({ id: i, number: i, x: pos.x, y: pos.y });
         }
         setElements(newElements);
-        // Set a random target number to find, ensuring it’s within 1 to 10
-        setTargetNumber(Math.floor(Math.random() * 10) + 1); // Changed from 8 to 10
+        setTargetNumber(Math.floor(Math.random() * 10) + 1);
     };
 
     // Initialize elements when the component mounts
-    React.useEffect(() => {
+    useEffect(() => {
         initializeElements();
     }, []);
 
-    // Shuffle the positions of the elements
+    // Shuffle the positions of the elements without overlapping
     const shuffleElements = () => {
-        setElements((prevElements) =>
-            prevElements.map((el) => ({
-                ...el,
-                x: Math.random() * (width - ELEMENT_SIZE),
-                y: Math.random() * (height - 150),
-            }))
-        );
+        setElements((prevElements) => {
+            const shuffledElements = prevElements.map((el) => ({ ...el }));
+            const gridSpacing = ELEMENT_SIZE + ELEMENT_SPACING;
+            const availableWidth = width - RIGHT_OFFSET;
+            const availableHeight = height - TOP_OFFSET - BOTTOM_OFFSET;
+            const gridSizeX = Math.floor(availableWidth / gridSpacing);
+            const gridSizeY = Math.floor(availableHeight / gridSpacing);
+            const totalSlots = gridSizeX * gridSizeY;
+
+            if (totalSlots < shuffledElements.length) {
+                console.warn("Not enough space to place all elements without overlap!");
+                return shuffledElements; // Return unchanged if not enough space
+            }
+
+            // Create an array of possible positions with spacing
+            const positions = [];
+            for (let y = 0; y < gridSizeY; y++) {
+                for (let x = 0; x < gridSizeX; x++) {
+                    positions.push({
+                        x: x * gridSpacing,
+                        y: y * gridSpacing + TOP_OFFSET,
+                    });
+                }
+            }
+
+            // Shuffle positions array
+            for (let i = positions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [positions[i], positions[j]] = [positions[j], positions[i]];
+            }
+
+            // Assign shuffled positions to elements
+            shuffledElements.forEach((el, index) => {
+                if (index < positions.length) {
+                    el.x = positions[index].x;
+                    el.y = positions[index].y;
+                }
+            });
+
+            return shuffledElements;
+        });
         // Set a new target number (change the question), within 1 to 10
-        setTargetNumber(Math.floor(Math.random() * 10) + 1); // Changed from 8 to 10
+        setTargetNumber(Math.floor(Math.random() * 10) + 1);
     };
 
     // Update the position of an element when dropped
@@ -178,6 +385,7 @@ const OrderIrrelevance = () => {
 
     return (
         <View style={styles.container}>
+            <SeaBackground />
             <View style={styles.workspace}>
                 {/* Display the target number to find */}
                 {targetNumber && (
@@ -219,11 +427,16 @@ const OrderIrrelevance = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#24bbed',
+        backgroundColor: '#24bbed', // Original background color, overridden by SeaBackground
     },
     workspace: {
-        backgroundColor: '#24bbed',
+        backgroundColor: 'transparent', // Make workspace transparent to show sea background
         flex: 1,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
     },
     element: {
         width: ELEMENT_SIZE,
@@ -292,12 +505,11 @@ const styles = StyleSheet.create({
     dustbinText: {
         fontSize: 30,
     },
-    // Styles for the new Toast component
     toastContainer: {
         position: 'absolute',
         bottom: 50,
-        left: 300,
-        right: 300,
+        left: 80,
+        right: 80,
         padding: 20,
         borderRadius: 15,
         alignItems: 'center',
@@ -320,6 +532,30 @@ const styles = StyleSheet.create({
         color: '#333',
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    seaBackground: {
+        flex: 1,
+        backgroundColor: '#00CED1', // Deep sky blue for sea base
+        overflow: 'hidden',
+    },
+    wave: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 50,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)', // White waves with transparency
+        borderRadius: 50,
+    },
+    fishText: {
+        fontSize: 18,
+        color: 'white',
+        textAlign: 'center',
+    },
+    fishImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'contain',
     },
 });
 
