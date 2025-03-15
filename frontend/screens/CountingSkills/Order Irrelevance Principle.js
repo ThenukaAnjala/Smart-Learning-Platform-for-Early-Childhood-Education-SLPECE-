@@ -9,6 +9,7 @@ const ELEMENT_SPACING = 10; // Minimum spacing between elements
 const TOP_OFFSET = 80; // For target text (SHOW NUMBER) and padding
 const BOTTOM_OFFSET = 120; // For wave, shuffle button, and padding
 const RIGHT_OFFSET = DUSTBIN_SIZE + DUSTBIN_PADDING; // For dustbin
+const MAX_ATTEMPTS = 200; // Increased attempts to ensure placement
 
 // Custom Toast Component for Child-Friendly Interaction
 const Toast = ({ visible, message, onDismiss, isCorrect }) => {
@@ -249,40 +250,36 @@ const OrderIrrelevance = () => {
 
     const initializeElements = () => {
         const newElements = [];
-        const gridSpacing = ELEMENT_SIZE + ELEMENT_SPACING;
         const availableWidth = width - RIGHT_OFFSET;
         const availableHeight = height - TOP_OFFSET - BOTTOM_OFFSET;
-        const gridSizeX = Math.floor(availableWidth / gridSpacing);
-        const gridSizeY = Math.floor(availableHeight / gridSpacing);
-        const totalSlots = gridSizeX * gridSizeY;
-
-        if (totalSlots < 10) {
-            console.warn("Not enough space to place all elements without overlap during initialization!");
-            return;
-        }
-
-        const positions = [];
-        for (let y = 0; y < gridSizeY; y++) {
-            for (let x = 0; x < gridSizeX; x++) {
-                positions.push({
-                    x: x * gridSpacing,
-                    y: y * gridSpacing + TOP_OFFSET,
-                });
-            }
-        }
-
-        // Shuffle positions for initial placement
-        for (let i = positions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [positions[i], positions[j]] = [positions[j], positions[i]];
-        }
+        const minDistance = ELEMENT_SIZE + ELEMENT_SPACING;
 
         for (let i = 1; i <= 10; i++) {
-            const pos = positions[i - 1];
-            newElements.push({ id: i, number: i, x: pos.x, y: pos.y });
+            let attempts = 0;
+            let newX, newY;
+
+            do {
+                newX = Math.random() * availableWidth;
+                newY = Math.random() * availableHeight + TOP_OFFSET;
+                attempts++;
+            } while (
+                attempts < MAX_ATTEMPTS &&
+                newElements.some((el) =>
+                    Math.abs(newX + ELEMENT_SIZE / 2 - (el.x + ELEMENT_SIZE / 2)) < minDistance &&
+                    Math.abs(newY + ELEMENT_SIZE / 2 - (el.y + ELEMENT_SIZE / 2)) < minDistance
+                )
+            );
+
+            if (attempts >= MAX_ATTEMPTS) {
+                console.warn("Max attempts reached for element placement during initialization!");
+                break; // Stop if max attempts reached
+            }
+
+            newElements.push({ id: i, number: i, x: newX, y: newY });
         }
+
         setElements(newElements);
-        setTargetNumber(Math.floor(Math.random() * 10) + 1);
+        setTargetNumber(Math.floor(Math.random() * newElements.length) + 1);
     };
 
     // Initialize elements when the component mounts
@@ -294,47 +291,38 @@ const OrderIrrelevance = () => {
     const shuffleElements = () => {
         setElements((prevElements) => {
             const shuffledElements = prevElements.map((el) => ({ ...el }));
-            const gridSpacing = ELEMENT_SIZE + ELEMENT_SPACING;
             const availableWidth = width - RIGHT_OFFSET;
             const availableHeight = height - TOP_OFFSET - BOTTOM_OFFSET;
-            const gridSizeX = Math.floor(availableWidth / gridSpacing);
-            const gridSizeY = Math.floor(availableHeight / gridSpacing);
-            const totalSlots = gridSizeX * gridSizeY;
+            const minDistance = ELEMENT_SIZE + ELEMENT_SPACING;
 
-            if (totalSlots < shuffledElements.length) {
-                console.warn("Not enough space to place all elements without overlap!");
-                return shuffledElements; // Return unchanged if not enough space
-            }
-
-            // Create an array of possible positions with spacing
-            const positions = [];
-            for (let y = 0; y < gridSizeY; y++) {
-                for (let x = 0; x < gridSizeX; x++) {
-                    positions.push({
-                        x: x * gridSpacing,
-                        y: y * gridSpacing + TOP_OFFSET,
-                    });
-                }
-            }
-
-            // Shuffle positions array
-            for (let i = positions.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [positions[i], positions[j]] = [positions[j], positions[i]];
-            }
-
-            // Assign shuffled positions to elements
             shuffledElements.forEach((el, index) => {
-                if (index < positions.length) {
-                    el.x = positions[index].x;
-                    el.y = positions[index].y;
+                let attempts = 0;
+                let newX, newY;
+
+                do {
+                    newX = Math.random() * availableWidth;
+                    newY = Math.random() * availableHeight + TOP_OFFSET;
+                    attempts++;
+                } while (
+                    attempts < MAX_ATTEMPTS &&
+                    (shuffledElements.slice(0, index).some((other) =>
+                        Math.abs(newX + ELEMENT_SIZE / 2 - (other.x + ELEMENT_SIZE / 2)) < minDistance &&
+                        Math.abs(newY + ELEMENT_SIZE / 2 - (other.y + ELEMENT_SIZE / 2)) < minDistance
+                    ) || newX < 0 || newY < TOP_OFFSET || newY > height - BOTTOM_OFFSET)
+                );
+
+                if (attempts >= MAX_ATTEMPTS) {
+                    console.warn("Max attempts reached for element placement during shuffle!");
+                } else {
+                    el.x = newX;
+                    el.y = newY;
                 }
             });
 
             return shuffledElements;
         });
         // Set a new target number (change the question), within 1 to 10
-        setTargetNumber(Math.floor(Math.random() * 10) + 1);
+        setTargetNumber(Math.floor(Math.random() * elements.length) + 1);
     };
 
     // Update the position of an element when dropped
