@@ -360,8 +360,8 @@ const styles = StyleSheet.create({
     toastContainer: {
         position: 'absolute',
         bottom: 50,
-        left: 80,
-        right: 80,
+        left: 300,
+        right: 300,
         padding: 20,
         borderRadius: 15,
         alignItems: 'center',
