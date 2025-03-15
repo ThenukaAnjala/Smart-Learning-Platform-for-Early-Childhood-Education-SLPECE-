@@ -6,7 +6,7 @@ const ELEMENT_SIZE = 80;
 const ELEMENT_SPACING = 10;
 const TOP_OFFSET = 100;
 const BOTTOM_OFFSET = 120;
-const RIGHT_OFFSET = 0; // No dustbin, so no offset needed
+const RIGHT_OFFSET = 0;
 const MAX_ATTEMPTS = 1000;
 
 // Custom Toast Component
@@ -45,8 +45,14 @@ const Toast = ({ visible, message, onDismiss, isCorrect }) => {
 };
 
 // Draggable Element Component
-const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget }) => {
-    const pan = useRef(new Animated.ValueXY({ x, y })).current;
+const DraggableElement = ({ id, number, x, y, onDrop, onTouch }) => {
+    const pan = useRef(new Animated.ValueXY()).current;
+
+    // Reset the Animated.ValueXY whenever x or y props change
+    useEffect(() => {
+        pan.setValue({ x, y });
+    }, [x, y]);
+
     const panResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
@@ -67,7 +73,6 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget }) => {
             style={[
                 styles.element,
                 { transform: pan.getTranslateTransform() },
-                isTarget && styles.targetElement,
             ]}
             {...panResponder.panHandlers}
         >
@@ -145,7 +150,7 @@ const SeaBackground = () => {
     );
 };
 
-// Main Component without Dustbin
+// Main Component
 const OrderIrrelevance = () => {
     const [elements, setElements] = useState([]);
     const [targetNumber, setTargetNumber] = useState(null);
@@ -205,33 +210,42 @@ const OrderIrrelevance = () => {
 
     const shuffleElements = () => {
         setElements((prevElements) => {
-            const newPositions = [];
-            const updatedElements = prevElements.map((el) => ({ ...el }));
+            const shuffledElements = [...prevElements];
+            console.log("Before shuffle:", prevElements.map(el => ({ number: el.number, x: el.x, y: el.y })));
 
-            updatedElements.forEach((el) => {
-                const position = placeElementRandomly(newPositions, el.x, el.y);
-                if (position) {
-                    el.x = position.x;
-                    el.y = position.y;
-                    newPositions.push(el);
+            // Fisher-Yates shuffle
+            for (let i = shuffledElements.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tempX = shuffledElements[i].x;
+                const tempY = shuffledElements[i].y;
+                shuffledElements[i].x = shuffledElements[j].x;
+                shuffledElements[i].y = shuffledElements[j].y;
+                shuffledElements[j].x = tempX;
+                shuffledElements[j].y = tempY;
+            }
+
+            // Check and fix any elements that stayed in their original position
+            prevElements.forEach((original, index) => {
+                if (original.x === shuffledElements[index].x && original.y === shuffledElements[index].y) {
+                    // Swap with the next element (wrap around if at end)
+                    const nextIndex = (index + 1) % shuffledElements.length;
+                    const tempX = shuffledElements[index].x;
+                    const tempY = shuffledElements[index].y;
+                    shuffledElements[index].x = shuffledElements[nextIndex].x;
+                    shuffledElements[index].y = shuffledElements[nextIndex].y;
+                    shuffledElements[nextIndex].x = tempX;
+                    shuffledElements[nextIndex].y = tempY;
                 }
             });
 
-            if (newPositions.length === prevElements.length) {
-                return updatedElements;
-            } else {
-                console.warn("Shuffle failed to place all elements; keeping previous positions.");
-                return prevElements;
-            }
+            console.log("After shuffle:", shuffledElements.map(el => ({ number: el.number, x: el.x, y: el.y })));
+            setTargetNumber(Math.floor(Math.random() * shuffledElements.length) + 1);
+            animateTargetNumber();
+            return shuffledElements;
         });
-
-        const newTarget = Math.floor(Math.random() * elements.length) + 1;
-        setTargetNumber(newTarget);
-        animateTargetNumber();
     };
 
     const handleDrop = (id, newX, newY) => {
-        // Only update position, no dustbin check
         setElements((prevElements) => prevElements.map((el) => (el.id === id ? { ...el, x: newX, y: newY } : el)));
     };
 
@@ -292,7 +306,6 @@ const OrderIrrelevance = () => {
                         y={el.y}
                         onDrop={handleDrop}
                         onTouch={handleTouch}
-                        isTarget={el.number === targetNumber}
                     />
                 ))}
             </View>
@@ -323,7 +336,6 @@ const styles = StyleSheet.create({
         shadowRadius: 5,
         elevation: 10,
     },
-    targetElement: { borderWidth: 3, borderColor: 'yellow' },
     elementText: { color: 'white', fontSize: 24, fontWeight: 'bold' },
     targetTextContainer: {
         position: 'absolute',
