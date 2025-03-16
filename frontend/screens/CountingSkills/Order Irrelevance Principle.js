@@ -8,6 +8,7 @@ const TOP_OFFSET = 100;
 const BOTTOM_OFFSET = 120;
 const RIGHT_OFFSET = 0;
 const MAX_ATTEMPTS = 1000;
+const TIMER_DURATION = 15; // 15 seconds
 
 // Custom Toast Component
 const Toast = ({ visible, message, onDismiss, isCorrect }) => {
@@ -44,18 +45,47 @@ const Toast = ({ visible, message, onDismiss, isCorrect }) => {
     );
 };
 
-// Draggable Element Component
-const DraggableElement = ({ id, number, x, y, onDrop, onTouch }) => {
+// Timer Component
+const Timer = ({ timeLeft, isTimeUp }) => {
+    const clockAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.timing(clockAnim, {
+                toValue: 1,
+                duration: 1000,
+                useNativeDriver: true,
+            })
+        ).start();
+    }, [clockAnim]);
+
+    return (
+        <View style={styles.timerContainer}>
+            <Animated.View
+                style={{
+                    transform: [
+                        { rotate: clockAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+                    ],
+                }}
+            >
+                <Text style={styles.timerText}>⏰ {timeLeft}s</Text>
+            </Animated.View>
+            {isTimeUp && <Text style={styles.timeUpText}>Time's Up!</Text>}
+        </View>
+    );
+};
+
+// Draggable Element Component (Updated for Post-Time-Up Interaction)
+const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget, isTimeUp }) => {
     const pan = useRef(new Animated.ValueXY()).current;
 
-    // Reset the Animated.ValueXY whenever x or y props change
     useEffect(() => {
         pan.setValue({ x, y });
     }, [x, y]);
 
     const panResponder = useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
+            onStartShouldSetPanResponder: () => !isTimeUp, // Disable dragging when time is up
             onPanResponderGrant: () => {
                 pan.setOffset({ x: pan.x._value, y: pan.y._value });
                 pan.setValue({ x: 0, y: 0 });
@@ -73,10 +103,11 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch }) => {
             style={[
                 styles.element,
                 { transform: pan.getTranslateTransform() },
+                isTimeUp && isTarget && styles.targetElement, // Yellow ribbon when time is up
             ]}
             {...panResponder.panHandlers}
         >
-            <TouchableOpacity onPress={() => onTouch(number)}>
+            <TouchableOpacity onPress={() => onTouch(number, isTimeUp)}>
                 <Text style={styles.elementText}>{number}</Text>
             </TouchableOpacity>
         </Animated.View>
@@ -157,6 +188,8 @@ const OrderIrrelevance = () => {
     const [toastVisible, setToastVisible] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [isCorrect, setIsCorrect] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(TIMER_DURATION);
+    const [isTimeUp, setIsTimeUp] = useState(false);
     const targetAnim = useRef(new Animated.Value(0)).current;
 
     const placeElementRandomly = (existingElements, currentX, currentY) => {
@@ -199,8 +232,11 @@ const OrderIrrelevance = () => {
         }
 
         setElements(newElements);
-        const newTarget = Math.floor(Math.random() * newElements.length) + 1;
-        setTargetNumber(newTarget);
+        setTargetNumber(Math.floor(Math.random() * newElements.length) + 1);
+        setTimeLeft(TIMER_DURATION);
+        setIsTimeUp(false);
+        setIsCorrect(false);
+        setToastVisible(false);
         animateTargetNumber();
     };
 
@@ -208,12 +244,31 @@ const OrderIrrelevance = () => {
         initializeElements();
     }, []);
 
+    // Timer Logic
+    useEffect(() => {
+        if (timeLeft > 0 && !isCorrect) {
+            const timer = setInterval(() => {
+                setTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        setIsTimeUp(true);
+                        clearInterval(timer);
+                        setToastMessage(`⏰ Time's up! Tap ${targetNumber} to continue.`);
+                        setToastVisible(true);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [timeLeft, isCorrect, targetNumber]);
+
     const shuffleElements = () => {
+        if (isTimeUp) return;
         setElements((prevElements) => {
             const shuffledElements = [...prevElements];
             console.log("Before shuffle:", prevElements.map(el => ({ number: el.number, x: el.x, y: el.y })));
 
-            // Fisher-Yates shuffle
             for (let i = shuffledElements.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 const tempX = shuffledElements[i].x;
@@ -224,10 +279,8 @@ const OrderIrrelevance = () => {
                 shuffledElements[j].y = tempY;
             }
 
-            // Check and fix any elements that stayed in their original position
             prevElements.forEach((original, index) => {
                 if (original.x === shuffledElements[index].x && original.y === shuffledElements[index].y) {
-                    // Swap with the next element (wrap around if at end)
                     const nextIndex = (index + 1) % shuffledElements.length;
                     const tempX = shuffledElements[index].x;
                     const tempY = shuffledElements[index].y;
@@ -240,34 +293,44 @@ const OrderIrrelevance = () => {
 
             console.log("After shuffle:", shuffledElements.map(el => ({ number: el.number, x: el.x, y: el.y })));
             setTargetNumber(Math.floor(Math.random() * shuffledElements.length) + 1);
+            setTimeLeft(TIMER_DURATION);
+            setIsTimeUp(false);
             animateTargetNumber();
             return shuffledElements;
         });
     };
 
     const handleDrop = (id, newX, newY) => {
+        if (isTimeUp) return;
         setElements((prevElements) => prevElements.map((el) => (el.id === id ? { ...el, x: newX, y: newY } : el)));
     };
 
-    const handleTouch = (number) => {
+    const handleTouch = (number, timeUp) => {
+        if (timeUp) {
+            if (number === targetNumber) {
+                // User tapped the correct answer after time up, start new round
+                initializeElements();
+            }
+            return;
+        }
+
         if (number === targetNumber) {
             setToastMessage(`🎉 Great job! You found ${number}!`);
             setIsCorrect(true);
             Vibration.vibrate(100);
+            setToastVisible(true);
         } else {
             setToastMessage(`😕 Try again! Find ${targetNumber}!`);
             setIsCorrect(false);
             Vibration.vibrate([0, 50]);
+            setToastVisible(true);
         }
-        setToastVisible(true);
     };
 
     const dismissToast = () => {
         setToastVisible(false);
         if (isCorrect) {
-            const newTarget = Math.floor(Math.random() * elements.length) + 1;
-            setTargetNumber(newTarget);
-            animateTargetNumber();
+            initializeElements(); // Restart only if correct within time
         }
     };
 
@@ -306,14 +369,17 @@ const OrderIrrelevance = () => {
                         y={el.y}
                         onDrop={handleDrop}
                         onTouch={handleTouch}
+                        isTarget={el.number === targetNumber}
+                        isTimeUp={isTimeUp}
                     />
                 ))}
             </View>
             <View style={styles.controls}>
-                <TouchableOpacity onPress={shuffleElements} style={styles.button}>
+                <TouchableOpacity onPress={shuffleElements} style={styles.button} disabled={isTimeUp}>
                     <Text style={styles.buttonText}>Shuffle</Text>
                 </TouchableOpacity>
             </View>
+            <Timer timeLeft={timeLeft} isTimeUp={isTimeUp} />
             <Toast visible={toastVisible} message={toastMessage} onDismiss={dismissToast} isCorrect={isCorrect} />
         </View>
     );
@@ -335,6 +401,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.8,
         shadowRadius: 5,
         elevation: 10,
+    },
+    targetElement: {
+        borderWidth: 4,
+        borderColor: 'yellow', // Yellow ribbon when time is up
     },
     elementText: { color: 'white', fontSize: 24, fontWeight: 'bold' },
     targetTextContainer: {
@@ -374,6 +444,27 @@ const styles = StyleSheet.create({
     seaBackground: { flex: 1, backgroundColor: '#00CED1', overflow: 'hidden' },
     wave: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 50, backgroundColor: 'rgba(255, 255, 255, 0.3)', borderRadius: 50 },
     fishImage: { width: '100%', height: '100%', resizeMode: 'contain' },
+    timerContainer: {
+        position: 'absolute',
+        top: 20,
+        right: 20,
+        alignItems: 'center',
+        zIndex: 1500,
+    },
+    timerText: {
+        fontSize: 24,
+        color: '#FFF',
+        fontWeight: 'bold',
+        textShadowColor: '#000',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+    timeUpText: {
+        fontSize: 18,
+        color: '#FF4500',
+        marginTop: 5,
+        fontWeight: 'bold',
+    },
 });
 
 export default OrderIrrelevance;
