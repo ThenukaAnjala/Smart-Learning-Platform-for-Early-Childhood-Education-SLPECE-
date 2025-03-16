@@ -9,7 +9,7 @@ import birdGif from '../assets/images/animate_bird.gif'; // Adjusted path
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Define bird size and padding
-const BIRD_SIZE = 60;
+const BIRD_SIZE = 80;
 const PADDING = 20; // Padding from screen edges
 const X_MIN = PADDING;
 const X_MAX = SCREEN_WIDTH - BIRD_SIZE - PADDING;
@@ -220,8 +220,8 @@ const styles = StyleSheet.create({
     },
     bird: {
         position: 'absolute',
-        width: 60, // Size unchanged
-        height: 60,
+        width: 80, // Size unchanged
+        height: 80,
         opacity: 0.9,
         inset: 0,
     },
