@@ -8,6 +8,9 @@ import DrawingBoard from '../screens/DrawingBoard';
 import TextToSpeech from '../screens/storyTellingComponent/TextToSpeech';
 import StoryTellingHome from '../screens/storyTellingComponent/storyTellingHome';
 import StoryAbout from '../screens/storyTellingComponent/storyAbout';
+import GenerateStory from '../screens/storyTellingComponent/GenerateStory'; // Import GenerateStory
+import SingleStory from '../screens/storyTellingComponent/singleStory'; // Import SingleStory
+
 
 const Stack = createStackNavigator();
 
@@ -22,6 +25,8 @@ const AppNavigator = () => {
         <Stack.Screen name="TextToSpeech" component={TextToSpeech} />
         <Stack.Screen name="StoryTellingHome" component={StoryTellingHome} />
         <Stack.Screen name="StoryAbout" component={StoryAbout} />
+        <Stack.Screen name="GenerateStory" component={GenerateStory} /> 
+        <Stack.Screen name="SingleStory" component={SingleStory} />
       </Stack.Navigator>
     </NavigationContainer>
   );

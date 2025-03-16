@@ -1,19 +1,48 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet } from "react-native";
+import axios from "axios";
+import { useNavigation } from '@react-navigation/native';
 
-const StoryLibrary = ({ stories }) => {
+const StoryLibrary = () => {
+  const [stories, setStories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const userId = "12345"; // Replace with actual user ID
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const fetchStories = async () => {
+      try {
+        const response = await axios.get(`http://192.168.8.144:4010/story-liabrary/stories/user/${userId}`);
+        setStories(response.data);
+      } catch (error) {
+        console.error("Error fetching stories:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStories();
+  }, [userId]);
+
   const handleOpenStory = (story) => {
-    console.log(`Opening story: ${story.title}`);
-    // Redirect to story-reading page
-    // Navigate or show a modal to display the story
+    console.log(`Opening story: ${story.storyName}`);
+    navigation.navigate('SingleStory', { storyId: story._id });
   };
 
   const renderStory = ({ item }) => (
     <TouchableOpacity style={styles.storyCard} onPress={() => handleOpenStory(item)}>
       <Image style={styles.storyImage} source={{ uri: item.image }} />
-      <Text style={styles.storyTitle}>{item.title}</Text>
+      <Text style={styles.storyTitle}>{item.storyName}</Text>
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -21,7 +50,7 @@ const StoryLibrary = ({ stories }) => {
       <FlatList
         data={stories}
         renderItem={renderStory}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item._id.toString()}
         contentContainerStyle={styles.storyList}
       />
     </View>

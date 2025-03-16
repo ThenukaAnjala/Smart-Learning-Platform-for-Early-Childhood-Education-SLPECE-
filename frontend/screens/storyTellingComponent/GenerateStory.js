@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+
 import {
   View,
   Text,
@@ -10,13 +11,17 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import axios from "axios";
 import * as Speech from "expo-speech"; // For text-to-speech
 import { Picker } from "@react-native-picker/picker"; // Correct Picker import
-import { Audio } from 'expo-av'; // Import for playing audio
+import { Audio } from "expo-av"; // Import for playing audio
+import { useNavigation } from '@react-navigation/native';
 
 const GenerateStory = () => {
+  const navigation = useNavigation();
+
   const [storyPrompt, setStoryPrompt] = useState(""); // User input for story
   const [storyParts, setStoryParts] = useState([]); // Segmented story parts
   const [loading, setLoading] = useState(false); // Loader
@@ -27,6 +32,10 @@ const GenerateStory = () => {
   const [fontSize, setFontSize] = useState(16); // Default font size
   const [musicURLs, setMusicURLs] = useState([]); // Music URLs
   const [sound, setSound] = useState(null); // Sound object for playing music
+
+  const [storyName, setStoryName] = useState("");
+  const [storyDescription, setStoryDescription] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // Font styles for selection
   const fontStyles = [
@@ -68,180 +77,202 @@ const GenerateStory = () => {
   const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40];
 
   // Corrected implementation
-useEffect(() => {
-  let isMounted = true;
-  let retryTimeout;
+  useEffect(() => {
+    let isMounted = true;
+    let retryTimeout;
 
-  const fetchVoices = async () => {
-    try {
-      const voices = await Speech.getAvailableVoicesAsync();
-      
-      if (!isMounted) return;
-
-      if (voices.length > 0) {
-        setAvailableVoices(voices);
-        setSelectedVoice(voices[0].identifier);
-      } else {
-        // Retry after 1 second if no voices found
-        retryTimeout = setTimeout(fetchVoices, 1000);
-      }
-    } catch (error) {
-      console.error('Error fetching voices:', error);
-    }
-  };
-
-  // Initial fetch with slight delay
-  const initialDelay = setTimeout(fetchVoices, 500);
-
-  return () => {
-    isMounted = false;
-    clearTimeout(initialDelay);
-    clearTimeout(retryTimeout);
-  };
-}, []);
-
-    
-
-    // Add this utility function at the top of your component
-    const convertS3UrlToPresigned = async (s3Uri, baseURL = 'http://172.20.10.14:4010') => {
+    const fetchVoices = async () => {
       try {
-        // Check if the s3Uri already contains a presigned URL
-        if (s3Uri.includes('X-Amz-Algorithm')) {
-          console.log('URL already presigned, returning as is');
-          return s3Uri;
+        const voices = await Speech.getAvailableVoicesAsync();
+
+        if (!isMounted) return;
+
+        if (voices.length > 0) {
+          setAvailableVoices(voices);
+          setSelectedVoice(voices[0].identifier);
+        } else {
+          // Retry after 1 second if no voices found
+          retryTimeout = setTimeout(fetchVoices, 1000);
         }
-        
-        const response = await axios.get(`${baseURL}/s3/get-presigned-url`, {
-          params: { s3Uri }
-        });
-        return response.data.url;
       } catch (error) {
-        console.error('Error converting S3 URL:', error);
-        throw error;
+        console.error("Error fetching voices:", error);
       }
     };
 
+    // Initial fetch with slight delay
+    const initialDelay = setTimeout(fetchVoices, 500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(initialDelay);
+      clearTimeout(retryTimeout);
+    };
+  }, []);
+
+  // Add this utility function at the top of your component
+  const convertS3UrlToPresigned = async (
+    s3Uri,
+    baseURL = "http://192.168.8.144:4010"
+  ) => {
+    try {
+      // Check if the s3Uri already contains a presigned URL
+      if (s3Uri.includes("X-Amz-Algorithm")) {
+        console.log("URL already presigned, returning as is");
+        return s3Uri;
+      }
+
+      const response = await axios.get(`${baseURL}/s3/get-presigned-url`, {
+        params: { s3Uri },
+      });
+      return response.data.url;
+    } catch (error) {
+      console.error("Error converting S3 URL:", error);
+      throw error;
+    }
+  };
+
   // Function to fetch music URLs based on story parameters
-  const fetchMusicURLs = async (musicmood, musicCategory, subCategory, baseURL = 'http://172.20.10.14:4010') => {
+  const fetchMusicURLs = async (
+    musicmood,
+    musicCategory,
+    subCategory,
+    baseURL = "http://192.168.8.144:4010"
+  ) => {
     try {
       // Step 1: Get S3 URIs from MongoDB
       const response = await axios.get(`${baseURL}/story-music/search`, {
         params: { musicmood, musicCategory, subCategory },
-        timeout: 10000 // 10 seconds timeout
+        timeout: 10000, // 10 seconds timeout
       });
-  
+
       if (!response.data?.urls || !Array.isArray(response.data.urls)) {
-        throw new Error('Invalid response format from music search endpoint');
+        throw new Error("Invalid response format from music search endpoint");
       }
-  
+
       // Step 2: Convert S3 URIs to presigned URLs - but only if they're not already presigned
       const presignedUrls = [];
       for (const s3Uri of response.data.urls) {
         try {
           // Debug log
-          console.log('Processing S3 URI:', s3Uri);
-          
+          console.log("Processing S3 URI:", s3Uri);
+
           // Skip URLs that are already presigned
-          if (s3Uri.includes('X-Amz-Algorithm')) {
+          if (s3Uri.includes("X-Amz-Algorithm")) {
             presignedUrls.push(s3Uri);
             continue;
           }
-          
+
           const presignedUrl = await convertS3UrlToPresigned(s3Uri, baseURL);
           presignedUrls.push(presignedUrl);
         } catch (error) {
           console.error(`Failed to convert S3 URI: ${s3Uri}`, error);
         }
       }
-  
+
       if (presignedUrls.length === 0) {
-        throw new Error('No valid music URLs could be generated');
+        throw new Error("No valid music URLs could be generated");
       }
-  
-      return { 
+
+      return {
         success: true,
         urls: presignedUrls,
         originalCount: response.data.urls.length,
-        convertedCount: presignedUrls.length
+        convertedCount: presignedUrls.length,
       };
-  
     } catch (error) {
-      console.error('Music URL fetch error:', error);
-      
+      console.error("Music URL fetch error:", error);
+
       const errorData = {
-        message: 'Failed to fetch music URLs',
+        message: "Failed to fetch music URLs",
         details: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-  
+
       if (error.response) {
         errorData.status = error.response.status;
-        errorData.serverMessage = error.response.data?.message || 'No server message';
-        console.error('Server error:', error.response.status, error.response.data);
+        errorData.serverMessage =
+          error.response.data?.message || "No server message";
+        console.error(
+          "Server error:",
+          error.response.status,
+          error.response.data
+        );
       } else if (error.request) {
-        errorData.type = 'network-error';
-        console.error('Network error:', error.request);
+        errorData.type = "network-error";
+        console.error("Network error:", error.request);
       }
-  
+
       throw errorData;
     }
   };
-
 
   // Generate story from the server
   const generateStory = async () => {
     setLoading(true);
     try {
       console.log("Sending request...");
-      
+
       const response = await axios.post(
-        "http://172.20.10.14:5000/story/generate-story", 
+        "http://192.168.8.144:5000/story/generate-story",
         { story_prompt: storyPrompt },
         { headers: { "Content-Type": "application/json" } }
       );
-      
+
       console.log("Response received:", response.data);
-      setStoryParts(response.data.story_parts);
-  
+      setStoryParts(response.data.segments);
+
       // And update the handleMusic function inside generateStory:
-const handleMusic = async (mood, category, subcategory, isDefault = false) => {
-  try {
-    const musicResponse = await fetchMusicURLs(mood, category, subcategory);
-    console.log('Music response:', musicResponse);
-    
-    if (musicResponse.urls && musicResponse.urls.length > 0) {
-      setMusicURLs(musicResponse.urls);
-      
-      // Log the URL we're about to play
-      console.log('About to play music URL:', musicResponse.urls[0]);
-      
-      // Play the first URL
-      playMusic(musicResponse.urls[0]);
-      
-      if (isDefault) {
-        console.log('Using default background music');
-      }
-    } else {
-      Alert.alert(
-        'No Music Available',
-        isDefault ? 
-        'Could not load default background music' :
-        'No suitable music found for this story'
-      );
-    }
-  } catch (musicError) {
-    console.error("Music error:", musicError);
-    Alert.alert(
-      'Music Error',
-      isDefault ?
-      'Failed to load default background music' :
-      'Failed to load story-specific music'
-    );
-  }
-};
-  
+      const handleMusic = async (
+        mood,
+        category,
+        subcategory,
+        isDefault = false
+      ) => {
+        try {
+          const musicResponse = await fetchMusicURLs(
+            mood,
+            category,
+            subcategory
+          );
+          console.log("Music response:", musicResponse);
+
+          if (musicResponse.urls && musicResponse.urls.length > 0) {
+            setMusicURLs(musicResponse.urls);
+
+            // Log the URL we're about to play
+            console.log("About to play music URL:", musicResponse.urls[0]);
+
+            // Play the first URL
+            playMusic(musicResponse.urls[0]);
+
+            if (isDefault) {
+              console.log("Using default background music");
+            }
+          } else {
+            Alert.alert(
+              "No Music Available",
+              isDefault
+                ? "Could not load default background music"
+                : "No suitable music found for this story"
+            );
+          }
+        } catch (musicError) {
+          console.error("Music error:", musicError);
+          Alert.alert(
+            "Music Error",
+            isDefault
+              ? "Failed to load default background music"
+              : "Failed to load story-specific music"
+          );
+        }
+      };
+
       // Try to get music based on story metadata
-      if (response.data.mood && response.data.category && response.data.subcategory) {
+      if (
+        response.data.mood &&
+        response.data.category &&
+        response.data.subcategory
+      ) {
         await handleMusic(
           response.data.mood,
           response.data.category,
@@ -251,12 +282,11 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
         // Fallback to default parameters
         await handleMusic("happy", "Fairy Tale", "Dragon's Lair", true);
       }
-  
     } catch (error) {
       console.error("Error:", error);
       Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to generate story'
+        "Error",
+        error.response?.data?.message || "Failed to generate story"
       );
     } finally {
       setLoading(false);
@@ -264,47 +294,118 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
   };
 
   // Function to play music
- const playMusic = async (url) => {
-  try {
-    if (sound) {
-      await sound.unloadAsync();
-    }
-
-    console.log('Attempting to play from URL:', url);
-    
-    const { sound: newSound } = await Audio.Sound.createAsync(
-      { 
-        uri: url,
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      },
-      { 
-        shouldPlay: true,
-        isLooping: true,
-        isMuted: false,
-        volume: 0.5,
-        rate: 1.0,
-        shouldCorrectPitch: true
+  const playMusic = async (url) => {
+    try {
+      if (sound) {
+        await sound.unloadAsync();
       }
-    );
-    
-    setSound(newSound);
-    console.log('Playback started successfully');
-  } catch (error) {
-    console.error('Playback Error:', error);
-    Alert.alert(
-      'Playback Failed',
-      `Could not play music:\n${url}\n\nError: ${error.message}`
-    );
-  }
-};
+
+      console.log("Attempting to play from URL:", url);
+
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        {
+          uri: url,
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+        },
+        {
+          shouldPlay: true,
+          isLooping: true,
+          isMuted: false,
+          volume: 0.5,
+          rate: 1.0,
+          shouldCorrectPitch: true,
+        }
+      );
+
+      setSound(newSound);
+      console.log("Playback started successfully");
+    } catch (error) {
+      console.error("Playback Error:", error);
+      Alert.alert(
+        "Playback Failed",
+        `Could not play music:\n${url}\n\nError: ${error.message}`
+      );
+    }
+  };
 
   // Function to stop music
   const stopMusic = async () => {
     if (sound) {
       await sound.stopAsync();
+    }
+  };
+
+
+  const logAllStates = () => {
+    console.log("📋 ALL STATE VALUES:", JSON.stringify({
+      storyPrompt,
+      storyParts,
+      loading,
+      availableVoices: availableVoices.length,
+      selectedVoice,
+      fontStyle,
+      fontColor,
+      fontSize,
+      musicURLs,
+      sound: sound ? "Exists" : "Null",
+      storyName,
+      storyDescription,
+      saving
+    }, null, 2));
+  };
+
+  
+  const handleSaveStory = async () => {
+    logAllStates(); // <-- Add this at the start
+    
+    
+    if (!storyName || storyParts.length === 0) {
+      Alert.alert("Error", "Please fill all fields and generate a story first");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const getRandomMusicURL = (urls) => {
+        if (!urls || urls.length === 0) return null;
+        const randomIndex = Math.floor(Math.random() * urls.length);
+        return urls[randomIndex];
+      };
+      const storyData = {
+        user_id: "12345", // Replace with actual user ID from your auth system
+        storyName,
+        story: storyPrompt,
+        storyTextColor: fontColor,
+        storyTextSize: `${fontSize}px`,
+        storyTextStyle: fontStyle,
+        backgroundMusicURL: getRandomMusicURL(musicURLs),
+        storySections: storyParts.map((part) => ({
+          storyText: part.text,
+          storyImage: part.image_url,
+        })),
+      };
+      console.log("Saving story:", storyData);
+      const response = await axios.post(
+        "http://192.168.8.144:4010/story-liabrary/stories",
+        storyData,
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+      Alert.alert("Success", "Story saved successfully!");
+      console.log("Saved story:", response.data);
+
+      navigation.navigate('StoryTellingHome');
+    } catch (error) {
+      console.error("Save error:", error);
+      Alert.alert(
+        "Save Failed",
+        error.response?.data?.message || "Failed to save story"
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -341,7 +442,7 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
   // Render music player section if music URLs are available
   const renderMusicPlayer = () => {
     if (musicURLs.length === 0) return null;
-    
+
     return (
       <View style={styles.musicPlayerContainer}>
         <Text style={styles.musicTitle}>Background Music</Text>
@@ -350,8 +451,8 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
           horizontal
           keyExtractor={(item, index) => `music-${index}`}
           renderItem={({ item, index }) => (
-            <TouchableOpacity 
-              style={styles.musicItem} 
+            <TouchableOpacity
+              style={styles.musicItem}
               onPress={() => playMusic(item)}
             >
               <Text style={styles.musicText}>Track {index + 1}</Text>
@@ -388,7 +489,11 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
             style={styles.picker}
           >
             {fontStyles.map((font) => (
-              <Picker.Item key={font.value} label={font.label} value={font.value} />
+              <Picker.Item
+                key={font.value}
+                label={font.label}
+                value={font.value}
+              />
             ))}
           </Picker>
         </View>
@@ -415,7 +520,11 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
           style={styles.picker}
         >
           {availableVoices.map((voice) => (
-            <Picker.Item key={voice.identifier} label={voice.name} value={voice.identifier} />
+            <Picker.Item
+              key={voice.identifier}
+              label={voice.name}
+              value={voice.identifier}
+            />
           ))}
         </Picker>
       </View>
@@ -440,6 +549,25 @@ const handleMusic = async (mood, category, subcategory, isDefault = false) => {
         keyExtractor={(item, index) => index.toString()}
         renderItem={renderStoryPart}
       />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Story Name"
+        value={storyName}
+        onChangeText={setStoryName}
+      />
+
+      {storyParts.length > 0 && (
+        <TouchableOpacity
+          style={[styles.button]}
+          onPress={handleSaveStory}
+          disabled={saving}
+        >
+          <Text style={styles.buttonText}>
+            {saving ? "Saving..." : "Save Story"}
+          </Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 };

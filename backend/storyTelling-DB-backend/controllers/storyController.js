@@ -4,10 +4,10 @@ const StorySection = require('../models/storySectionModel');
 
 // Create a new story
 const createStory = asyncHandler(async (req, res) => {
-    const { user_id, storyName, story, storyTextColor, storyTextSize, storyTextStyle, storySections } = req.body;
+    const { user_id, storyName, story, storyTextColor, storyTextSize, storyTextStyle, backgroundMusicURL, storySections } = req.body;
 
     // Validate input
-    if (!user_id || !storyName || !story || !storyTextColor || !storyTextSize || !storyTextStyle || !storySections) {
+    if (!user_id || !storyName || !story || !storyTextColor || !storyTextSize || !storyTextStyle || !backgroundMusicURL || !storySections) {
         res.status(400);
         throw new Error("All fields are required.");
     }
@@ -18,14 +18,13 @@ const createStory = asyncHandler(async (req, res) => {
         throw new Error("storySections must be a non-empty array.");
     }
 
-    // Save StorySections and get their ObjectIds
-    const sectionIds = await Promise.all(
-        storySections.map(async (section) => {
-            const newSection = new StorySection(section);
-            const savedSection = await newSection.save();
-            return savedSection._id;
-        })
-    );
+    // Save StorySections sequentially to maintain order
+    const sectionIds = [];
+    for (const section of storySections) {
+        const newSection = new StorySection(section);
+        const savedSection = await newSection.save();
+        sectionIds.push(savedSection._id);
+    }
 
     // Create the Story
     const newStory = new Story({
@@ -35,7 +34,8 @@ const createStory = asyncHandler(async (req, res) => {
         storyTextColor,
         storyTextSize,
         storyTextStyle,
-        storySection: sectionIds,
+        backgroundMusicURL,
+        storySection: sectionIds, // Sections are now stored in correct order
     });
 
     const savedStory = await newStory.save();
@@ -45,6 +45,7 @@ const createStory = asyncHandler(async (req, res) => {
         story: savedStory
     });
 });
+
 
 // Get a story with populated sections
 const getStoryWithSections = asyncHandler(async (req, res) => {
@@ -98,9 +99,25 @@ const deleteStory = asyncHandler(async (req, res) => {
     });
 });
 
+const getStoriesByUserId = asyncHandler(async (req, res) => {
+    const { user_id } = req.params;
+
+    // Fetch stories by user_id
+    const stories = await Story.find({ user_id }, 'storyName _id');
+
+    if (!stories || stories.length === 0) {
+        res.status(404);
+        throw new Error("No stories found for this user.");
+    }
+
+    res.status(200).json(stories);
+});
+
+
 module.exports = {
     createStory,
     getStoryWithSections,
     getStorySectionById,
-    deleteStory
+    deleteStory,
+    getStoriesByUserId
 };
