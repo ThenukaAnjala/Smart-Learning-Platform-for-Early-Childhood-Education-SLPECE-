@@ -9,7 +9,7 @@ import os
 app = Flask(__name__)
 
 # Path to your trained model
-MODEL_PATH = os.path.join(os.getcwd(), "models", "resnet50_quick_draw_finetuned_accurate.h5")
+MODEL_PATH = os.path.join(os.getcwd(), "models", "resnet50_quick_draw_finetuned_accurate004.h5")
 
 print("Loading model from:", MODEL_PATH)
 model = tf.keras.models.load_model(MODEL_PATH)
@@ -52,6 +52,9 @@ def predict_drawing():
     preds = model.predict(arr)
     class_idx = int(np.argmax(preds, axis=1)[0])
     predicted_label = labels[class_idx] if class_idx < len(labels) else 'unknown'
+    confidence = preds[0][class_idx]
+    if confidence > 0.6:
+        return jsonify({'label': predicted_label})
 
     # 6) Now remove white background from original image (not just threshold)
     #    We'll assume "white" is near 255,255,255, so we create an RGBA copy
