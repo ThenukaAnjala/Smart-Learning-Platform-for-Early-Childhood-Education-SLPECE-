@@ -45,37 +45,17 @@ const Toast = ({ visible, message, onDismiss, isCorrect }) => {
     );
 };
 
-// Timer Component
+// Timer Component (Updated: Still and Larger)
 const Timer = ({ timeLeft, isTimeUp }) => {
-    const clockAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        Animated.loop(
-            Animated.timing(clockAnim, {
-                toValue: 1,
-                duration: 1000,
-                useNativeDriver: true,
-            })
-        ).start();
-    }, [clockAnim]);
-
     return (
         <View style={styles.timerContainer}>
-            <Animated.View
-                style={{
-                    transform: [
-                        { rotate: clockAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
-                    ],
-                }}
-            >
-                <Text style={styles.timerText}>⏰ {timeLeft}s</Text>
-            </Animated.View>
+            <Text style={styles.timerText}>⏰ {timeLeft}s</Text>
             {isTimeUp && <Text style={styles.timeUpText}>Time's Up!</Text>}
         </View>
     );
 };
 
-// Draggable Element Component (Updated for Post-Time-Up Interaction)
+// Draggable Element Component
 const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget, isTimeUp }) => {
     const pan = useRef(new Animated.ValueXY()).current;
 
@@ -85,7 +65,7 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget, isTimeU
 
     const panResponder = useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => !isTimeUp, // Disable dragging when time is up
+            onStartShouldSetPanResponder: () => !isTimeUp,
             onPanResponderGrant: () => {
                 pan.setOffset({ x: pan.x._value, y: pan.y._value });
                 pan.setValue({ x: 0, y: 0 });
@@ -103,7 +83,7 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget, isTimeU
             style={[
                 styles.element,
                 { transform: pan.getTranslateTransform() },
-                isTimeUp && isTarget && styles.targetElement, // Yellow ribbon when time is up
+                isTimeUp && isTarget && styles.targetElement,
             ]}
             {...panResponder.panHandlers}
         >
@@ -308,7 +288,6 @@ const OrderIrrelevance = () => {
     const handleTouch = (number, timeUp) => {
         if (timeUp) {
             if (number === targetNumber) {
-                // User tapped the correct answer after time up, start new round
                 initializeElements();
             }
             return;
@@ -330,7 +309,7 @@ const OrderIrrelevance = () => {
     const dismissToast = () => {
         setToastVisible(false);
         if (isCorrect) {
-            initializeElements(); // Restart only if correct within time
+            initializeElements();
         }
     };
 
@@ -404,7 +383,7 @@ const styles = StyleSheet.create({
     },
     targetElement: {
         borderWidth: 4,
-        borderColor: 'yellow', // Yellow ribbon when time is up
+        borderColor: 'yellow',
     },
     elementText: { color: 'white', fontSize: 24, fontWeight: 'bold' },
     targetTextContainer: {
@@ -452,7 +431,7 @@ const styles = StyleSheet.create({
         zIndex: 1500,
     },
     timerText: {
-        fontSize: 24,
+        fontSize: 36, // Increased size
         color: '#FFF',
         fontWeight: 'bold',
         textShadowColor: '#000',
