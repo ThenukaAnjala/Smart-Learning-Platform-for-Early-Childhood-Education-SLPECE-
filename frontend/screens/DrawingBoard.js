@@ -1,3 +1,4 @@
+// frontend/screens/DrawingBoard.js
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -7,26 +8,29 @@ import {
   PanResponder,
   Alert,
   Platform,
+  Image,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import ViewShot from 'react-native-view-shot';
+import * as ImagePicker from 'expo-image-picker';
 import Pen from '../components/Pen';
-import * as ImagePicker from 'react-native-image-picker';
 
 export default function DrawingBoard({ navigation }) {
-  // State for completed strokes
+  // State for completed strokes.
   const [previousStrokes, setPreviousStrokes] = useState([]);
-  // Drawing attributes
+  // Drawing attributes.
   const [color, setColor] = useState('#000000');
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [isEraser, setIsEraser] = useState(false);
   const [recognizedLabel, setRecognizedLabel] = useState(null);
+  // State for an uploaded image URI.
+  const [uploadedImage, setUploadedImage] = useState(null);
 
-  // Ref for capturing the drawing board
+  // Ref for capturing the drawing board.
   const viewShotRef = useRef(null);
-  // Pen helper
+  // Pen helper to convert drawn points into an SVG path.
   const [pen] = useState(new Pen());
-  // Use a ref for the current stroke to allow drawing over multiple touches.
+  // Ref for the current stroke (to allow multi-stroke drawing).
   const currentStrokeRef = useRef([]);
 
   // Network configuration: update COMPUTER_IP with your computer’s LAN IP.
@@ -70,13 +74,31 @@ export default function DrawingBoard({ navigation }) {
     })
   ).current;
 
-  // Shared function to process prediction from the backend.
+  // Function to pick an image from the gallery.
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission Denied', 'Permission to access gallery is required!');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      base64: false,
+    });
+    if (!result.cancelled) {
+      setUploadedImage(result.uri);
+    }
+  };
+
+  // Shared function to process prediction response from backend.
   const processPrediction = (data) => {
     console.log('Response from backend:', data);
     if (data.label) {
       setRecognizedLabel(data.label);
       Alert.alert('Prediction', `Recognized: ${data.label}`);
       const label = data.label.toLowerCase();
+      // Branch logic for various labels (fish, rabbit, bird, etc.) remains unchanged.
       if (label === 'fish' && data.processedBase64) {
         Alert.alert(
           "Fish Head Direction",
@@ -100,7 +122,7 @@ export default function DrawingBoard({ navigation }) {
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -144,14 +166,14 @@ export default function DrawingBoard({ navigation }) {
                     },
                     {
                       text: "Wrong",
-                      onPress: handleReportWrong,
+                      onPress: () => handleReportWrong(),
                     },
                   ]
                 ),
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -178,7 +200,7 @@ export default function DrawingBoard({ navigation }) {
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -205,7 +227,7 @@ export default function DrawingBoard({ navigation }) {
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -232,7 +254,7 @@ export default function DrawingBoard({ navigation }) {
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -259,7 +281,7 @@ export default function DrawingBoard({ navigation }) {
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -286,7 +308,7 @@ export default function DrawingBoard({ navigation }) {
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -313,7 +335,7 @@ export default function DrawingBoard({ navigation }) {
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -340,7 +362,7 @@ export default function DrawingBoard({ navigation }) {
             },
             {
               text: "Wrong",
-              onPress: handleReportWrong,
+              onPress: () => handleReportWrong(),
             },
           ]
         );
@@ -372,7 +394,7 @@ export default function DrawingBoard({ navigation }) {
       // POST the drawing to the backend.
       const response = await fetch(BACKEND_URL, {
         method: 'POST',
-        body: formData, // Let fetch set the proper multipart/form-data headers automatically.
+        body: formData,
       });
       const data = await response.json();
       processPrediction(data);
@@ -382,22 +404,19 @@ export default function DrawingBoard({ navigation }) {
     }
   };
 
-  // New: Handle Upload Photo press – pick an image, have the backend remove its background, then process prediction.
+  // Handle Upload Photo press – pick an image from the gallery, then send to backend.
   const handleUploadPhoto = async () => {
-    if (!ImagePicker.launchImageLibrary) {
-      Alert.alert('Error', 'Image Picker is not available.');
-      return;
-    }
     try {
       const options = {
-        mediaType: 'photo',
-        selectionLimit: 1, // instantly pick a single photo
+        mediaType: ImagePicker.MediaTypeOptions.Images,
+        selectionLimit: 1,
       };
-      const result = await ImagePicker.launchImageLibrary(options);
-      if (result.didCancel || !result.assets || result.assets.length === 0) return;
+      const result = await ImagePicker.launchImageLibraryAsync(options);
+      if (result.cancelled || !result.assets || result.assets.length === 0) return;
 
       const asset = result.assets[0];
       const { uri, type } = asset;
+      setUploadedImage(uri); // Immediately display the uploaded image.
 
       // Build FormData for file upload.
       const formData = new FormData();
@@ -407,7 +426,7 @@ export default function DrawingBoard({ navigation }) {
         name: 'upload.jpg',
       });
 
-      // POST the photo to the backend's /upload endpoint which removes the background.
+      // POST the photo to the backend's /upload endpoint.
       const response = await fetch(BACKEND_URL + '/upload', {
         method: 'POST',
         body: formData,
@@ -438,13 +457,14 @@ export default function DrawingBoard({ navigation }) {
   const handleClear = () => {
     setPreviousStrokes([]);
     currentStrokeRef.current = [];
+    setUploadedImage(null);
   };
 
   return (
     <View style={styles.container}>
       {/* Toolbar mimicking Windows Paint */}
       <View style={styles.toolbar}>
-        {/* <Text style={styles.toolbarTitle}>Windows Paint</Text> */}
+        <Text style={styles.toolbarTitle}>Windows Paint</Text>
         <View style={styles.toolbarButtons}>
           <TouchableOpacity style={styles.toolbarButton} onPress={() => setIsEraser(false)}>
             <Text style={styles.buttonLabel}>Pencil</Text>
@@ -473,6 +493,10 @@ export default function DrawingBoard({ navigation }) {
       {/* Drawing area capture */}
       <ViewShot style={styles.canvasContainer} ref={viewShotRef}>
         <View style={styles.drawingAreaWrapper}>
+          {/* If an image was uploaded, display it as a background */}
+          {uploadedImage && (
+            <Image source={{ uri: uploadedImage }} style={styles.uploadedImage} resizeMode="contain" />
+          )}
           {/* Fixed layer: render completed strokes */}
           <View style={styles.fixedLayer} pointerEvents="none">
             <Svg style={styles.svg}>
@@ -511,14 +535,11 @@ export default function DrawingBoard({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#FFF3E0', // soft pastel orange for a cheerful background
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   toolbar: {
     height: 50,
     width: '100%',
-    backgroundColor: '#FFAB91', // warm, child-friendly color
+    backgroundColor: '#E0E0E0',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
@@ -529,9 +550,8 @@ const styles = StyleSheet.create({
   toolbarTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#4E342E',
+    color: '#333',
     flex: 1,
-    fontFamily: 'Comic Sans MS', // playful font (fallback to system font if unavailable)
   },
   toolbarButtons: {
     flexDirection: 'row',
@@ -539,37 +559,24 @@ const styles = StyleSheet.create({
   },
   toolbarButton: {
     marginHorizontal: 5,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#FFF8E1',
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#FBC02D',
-    borderRadius: 15, // rounded buttons for a friendlier look
+    borderColor: '#ccc',
+    borderRadius: 3,
   },
   buttonLabel: {
     fontSize: 14,
-    color: '#4E342E',
-    fontFamily: 'Comic Sans MS',
-    fontWeight: '600'
+    color: '#333',
   },
-  canvasContainer: { 
-    flex: 1, 
-    backgroundColor: '#FFF3E0' 
-  },
-  drawingAreaWrapper: { 
-    flex: 1,
-    borderRadius: 10, // subtle rounding for the drawing area edges
-    overflow: 'hidden'
-  },
-  fixedLayer: { 
-    ...StyleSheet.absoluteFillObject, 
-    zIndex: 1 
-  },
-  interactiveLayer: { 
-    flex: 1, 
-    zIndex: 2 
-  },
-  svg: { 
-    flex: 1 
+  canvasContainer: { flex: 1, backgroundColor: '#fff' },
+  drawingAreaWrapper: { flex: 1 },
+  fixedLayer: { ...StyleSheet.absoluteFillObject, zIndex: 1 },
+  interactiveLayer: { flex: 1, zIndex: 2 },
+  svg: { flex: 1 },
+  uploadedImage: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
   },
 });
