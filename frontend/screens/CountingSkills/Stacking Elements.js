@@ -6,7 +6,7 @@ const ELEMENT_SIZE = 80; // used for both element size & collision threshold
 const DUSTBIN_SIZE = 60;
 const DUSTBIN_PADDING = 20;
 
-const DraggableElement = ({ id, x, y, onDrop }) => {
+const DraggableElement = ({ id, x, y, color, onDrop }) => {
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
     const panResponder = useRef(
         PanResponder.create({
@@ -31,6 +31,7 @@ const DraggableElement = ({ id, x, y, onDrop }) => {
             style={[
                 styles.element,
                 { transform: pan.getTranslateTransform() },
+                { backgroundColor: color }, // Apply the color dynamically
             ]}
             {...panResponder.panHandlers}
         />
@@ -39,11 +40,16 @@ const DraggableElement = ({ id, x, y, onDrop }) => {
 
 const StackingElements = () => {
     const [elements, setElements] = useState([]);
+    const idCounter = useRef(0); // Added to ensure unique IDs
 
     const addElement = () => {
         const randomX = Math.random() * (width - ELEMENT_SIZE);
         const randomY = Math.random() * (height - 150);
-        setElements([...elements, { x: randomX, y: randomY, id: elements.length }]);
+        const colors = ['red', 'blue', 'yellow', 'green'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        const uniqueId = idCounter.current++; // Use a unique ID instead of elements.length
+
+        setElements([...elements, { x: randomX, y: randomY, id: uniqueId, color: randomColor }]);
     };
 
     // Update the position of an element when dropped.
@@ -118,6 +124,7 @@ const StackingElements = () => {
                         id={el.id}
                         x={el.x}
                         y={el.y}
+                        color={el.color}
                         onDrop={handleDrop}
                     />
                 ))}
@@ -153,16 +160,17 @@ const StackingElements = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#24bbed',
+        backgroundColor: '#FFFFFF',
+        position: 'relative',
     },
     workspace: {
-        backgroundColor: '#24bbed',
+        backgroundColor: '#FFFFFF',
         flex: 1,
+        
     },
     element: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
-        backgroundColor: 'red',
         borderRadius: 50,
         position: 'absolute',
         shadowColor: '#000',
