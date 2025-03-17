@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, TouchableWithoutFee
 import { useNavigation } from '@react-navigation/native';
 
 // Import the bird asset from the assets folder
-import birdGif from '../assets/images/animate_bird.gif'; // Adjusted path
+import birdGif from '../assets/images/bluebird.gif'; // Adjusted path
 
 // Get screen dimensions
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
