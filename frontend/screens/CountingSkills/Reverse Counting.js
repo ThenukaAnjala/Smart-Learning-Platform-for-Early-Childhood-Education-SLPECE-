@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native'; // Import useFocusEffect
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 60;
@@ -11,6 +11,7 @@ const GAP = 10;
 
 const DraggableElement = ({ id, x, y, rowIndex, onDrop, label }) => {
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
+    const opacity = useRef(new Animated.Value(1)).current; // Added opacity ref
 
     useEffect(() => {
         Animated.spring(pan, {
@@ -32,13 +33,19 @@ const DraggableElement = ({ id, x, y, rowIndex, onDrop, label }) => {
             ),
             onPanResponderRelease: (evt, gestureState) => {
                 pan.flattenOffset();
-                onDrop(rowIndex, id, gestureState.dx, gestureState.dy);
+                onDrop(rowIndex, id, gestureState.dx, gestureState.dy, pan, opacity);
             },
         })
     ).current;
 
     return (
-        <Animated.View style={[styles.element, { transform: pan.getTranslateTransform() }]} {...panResponder.panHandlers}>
+        <Animated.View
+            style={[
+                styles.element,
+                { transform: pan.getTranslateTransform(), opacity }, // Apply opacity animation
+            ]}
+            {...panResponder.panHandlers}
+        >
             <Text style={styles.labelText}>{label}</Text>
         </Animated.View>
     );
@@ -70,6 +77,7 @@ const generateRows = () => {
 
 const ThreeLineElements = () => {
     const [rows, setRows] = useState([]); // Initially empty
+    const [isDarkMode, setIsDarkMode] = useState(false); // Added dark mode state
 
     // Use useFocusEffect to reset state when the screen comes into focus
     useFocusEffect(
@@ -78,33 +86,48 @@ const ThreeLineElements = () => {
         }, [])
     );
 
-    const handleDrop = (rowIndex, id, deltaX, deltaY) => {
-        setRows(prevRows =>
-            prevRows.map(r => {
+    const handleDrop = (rowIndex, id, deltaX, deltaY, pan, opacity) => {
+        const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
+        const dustbinY = DUSTBIN_PADDING;
+
+        setRows(prevRows => {
+            const updatedRows = prevRows.map(r => {
                 if (r.rowIndex !== rowIndex) return r;
-    
+
                 const element = r.elements.find(el => el.id === id);
                 if (!element) return r;
-    
+
                 const currentX = element.x + deltaX;
                 const currentY = element.y + deltaY;
-                const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
-                const dustbinY = DUSTBIN_PADDING;
-    
-                const isInDustbin = 
+
+                const isInDustbin =
                     currentX + ELEMENT_SIZE > dustbinX &&
                     currentX < dustbinX + DUSTBIN_SIZE &&
                     currentY + ELEMENT_SIZE > dustbinY &&
                     currentY < dustbinY + DUSTBIN_SIZE;
-    
+
                 if (isInDustbin) {
-                    const updatedElements = r.elements.filter(el => el.id !== id);
-                    return { ...r, elements: recalcRowElements(updatedElements, r.y) };
-                } else {
-                    return r;
+                    // Fade out the element instead of moving it
+                    Animated.timing(opacity, {
+                        toValue: 0,
+                        duration: 200, // Quick fade-out for smoothness
+                        useNativeDriver: false,
+                    }).start(() => {
+                        // Remove element after fade-out
+                        setRows(prevRows =>
+                            prevRows.map(r => {
+                                if (r.rowIndex !== rowIndex) return r;
+                                const updatedElements = r.elements.filter(el => el.id !== id);
+                                return { ...r, elements: recalcRowElements(updatedElements, r.y) };
+                            })
+                        );
+                    });
+                    return r; // Return unchanged row initially
                 }
-            })
-        );
+                return r;
+            });
+            return updatedRows;
+        });
     };
 
     const addElement = () => {
@@ -119,8 +142,13 @@ const ThreeLineElements = () => {
         );
     };
 
+    // Toggle dark mode
+    const toggleDarkMode = () => {
+        setIsDarkMode(prevMode => !prevMode);
+    };
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#24bbed' }]}>
             <View style={styles.workspace}>
                 {rows.map(row =>
                     row.elements.map(el => (
@@ -136,11 +164,23 @@ const ThreeLineElements = () => {
                     ))
                 )}
             </View>
-            <View style={styles.dustbin}>
+            <View style={[styles.dustbin, { backgroundColor: isDarkMode ? '#333333' : '#eee', borderColor: isDarkMode ? '#555' : '#ccc' }]}>
                 <Text style={styles.dustbinText}>🗑️</Text>
             </View>
+            {/* Dark Mode Toggle Button - Positioned below dustbin */}
+            <TouchableOpacity
+                style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
+                onPress={toggleDarkMode}
+            >
+                <Text style={styles.darkModeIcon}>
+                    {isDarkMode ? '☀️' : '🌙'}
+                </Text>
+            </TouchableOpacity>
             <View style={styles.controls}>
-                <TouchableOpacity onPress={addElement} style={styles.button}>
+                <TouchableOpacity
+                    onPress={addElement}
+                    style={[styles.button, { backgroundColor: isDarkMode ? '#555' : 'blue' }]}
+                >
                     <Text style={styles.buttonText}>Add Element</Text>
                 </TouchableOpacity>
             </View>
@@ -151,7 +191,6 @@ const ThreeLineElements = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#24bbed',
     },
     workspace: {
         flex: 1,
@@ -182,7 +221,6 @@ const styles = StyleSheet.create({
         padding: 10,
     },
     button: {
-        backgroundColor: 'blue',
         padding: 10,
         borderRadius: 5,
     },
@@ -198,14 +236,28 @@ const styles = StyleSheet.create({
         height: DUSTBIN_SIZE,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#eee',
         borderRadius: DUSTBIN_SIZE / 2,
         borderWidth: 1,
-        borderColor: '#ccc',
         zIndex: 1000,
     },
     dustbinText: {
         fontSize: 30,
+    },
+    darkModeButton: {
+        position: 'absolute',
+        top: DUSTBIN_PADDING + DUSTBIN_SIZE + 10, // Positioned below dustbin with 10px gap
+        right: DUSTBIN_PADDING,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 5,
+        zIndex: 1000,
+    },
+    darkModeIcon: {
+        fontSize: 24,
+        color: '#000',
     },
 });
 
