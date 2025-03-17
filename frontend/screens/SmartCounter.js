@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, TouchableWithoutFeedback, Image, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -18,6 +18,7 @@ const Y_MAX = SCREEN_HEIGHT - BIRD_SIZE - PADDING;
 
 export default function SmartCounter() {
     const navigation = useNavigation();
+    const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode toggle
     const skills = [
         'Stacking Elements',
         'Reverse Counting',
@@ -142,9 +143,14 @@ export default function SmartCounter() {
         });
     };
 
+    // Toggle dark mode
+    const toggleDarkMode = () => {
+        setIsDarkMode(prevMode => !prevMode);
+    };
+
     return (
         <TouchableWithoutFeedback onPress={handleBackgroundTap}>
-            <View style={styles.container}>
+            <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF' }]}>
                 {/* Background Birds */}
                 {birdAnims.map((anim, index) => (
                     <Animated.Image
@@ -157,7 +163,7 @@ export default function SmartCounter() {
                                     { translateX: anim.x },
                                     { translateY: anim.y },
                                     { scale: anim.scale },
-                                    { scaleX: anim.direction }, // Flip based on direction
+                                    { scaleX: anim.direction },
                                 ],
                             },
                         ]}
@@ -180,6 +186,7 @@ export default function SmartCounter() {
                                         { scale: bounceAnim[index] },
                                         { rotate: rotateInterpolate },
                                     ],
+                                    borderColor: isDarkMode ? '#333333' : '#FFFFFF',
                                 },
                             ]}
                         >
@@ -190,12 +197,23 @@ export default function SmartCounter() {
                                     onPress={() => navigation.navigate(skill)}
                                     style={styles.touchable}
                                 >
-                                    <Text style={styles.buttonText}>{skill}</Text>
+                                    <Text style={[styles.buttonText, { color: isDarkMode ? '#E0E0E0' : '#FFFFFF' }]}>
+                                        {skill}
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         </Animated.View>
                     );
                 })}
+                {/* Dark Mode Toggle Button */}
+                <TouchableOpacity
+                    style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
+                    onPress={toggleDarkMode}
+                >
+                    <Text style={styles.darkModeIcon}>
+                        {isDarkMode ? '☀️' : '🌙'}
+                    </Text>
+                </TouchableOpacity>
             </View>
         </TouchableWithoutFeedback>
     );
@@ -210,7 +228,6 @@ const getColor = (index) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF', // White background
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'row',
@@ -220,27 +237,24 @@ const styles = StyleSheet.create({
     },
     bird: {
         position: 'absolute',
-        width: 80, // Size unchanged
+        width: 80,
         height: 80,
         opacity: 0.9,
-        inset: 0,
     },
     buttonContainer: {
         margin: 35,
         borderRadius: 40,
         borderWidth: 3,
-        borderColor: '#FFFFFF',
         shadowColor: '#000',
         shadowOffset: { width: 2, height: 6 },
         shadowOpacity: 0.4,
         shadowRadius: 8,
         elevation: 10,
-        zIndex: 1, // Buttons above background elements
+        zIndex: 1,
     },
     buttonGradient: {
         borderRadius: 36,
         padding: 4,
-        backgroundColor: '#FFFFFF',
         overflow: 'hidden',
     },
     touchable: {
@@ -251,12 +265,27 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
     },
     buttonText: {
-        color: '#FFFFFF',
         fontSize: 18,
         fontWeight: '900',
         textAlign: 'center',
         textShadowColor: '#000',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
+    },
+    darkModeButton: {
+        position: 'absolute',
+        top: 20,
+        right: 20,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 5,
+        zIndex: 2,
+    },
+    darkModeIcon: {
+        fontSize: 24,
+        color: '#000',
     },
 });
