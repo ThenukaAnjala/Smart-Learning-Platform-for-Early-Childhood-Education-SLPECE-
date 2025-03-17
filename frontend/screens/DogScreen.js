@@ -39,7 +39,7 @@ export default function DogScreen({ route }) {
       style={styles.background}
     >
       <View style={styles.container}>
-        <Text style={styles.title}>Dog Full Body Screen</Text>
+        {/* <Text style={styles.title}>Dog Full Body Screen</Text> */}
         {dogImageBase64 ? (
           <Image
             source={{ uri: `data:image/png;base64,${dogImageBase64}` }}
@@ -107,8 +107,8 @@ const styles = StyleSheet.create({
   },
   wallObject: {
     position: 'absolute',
-    width: 60,    // adjust as needed
-    height: 60,   // adjust as needed
+    width: 70,    // adjust as needed
+    height: 100,   // adjust as needed
     bottom: 100,  // place it above the fence
     left: '50%',  // horizontally center
     marginLeft: -30, // shift left by half the width
