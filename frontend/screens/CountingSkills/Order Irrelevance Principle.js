@@ -45,7 +45,7 @@ const Toast = ({ visible, message, onDismiss, isCorrect }) => {
     );
 };
 
-// Timer Component (Updated: Still and Larger)
+// Timer Component
 const Timer = ({ timeLeft, isTimeUp }) => {
     return (
         <View style={styles.timerContainer}>
@@ -94,8 +94,8 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget, isTimeU
     );
 };
 
-// Sea Background Component (unchanged)
-const SeaBackground = () => {
+// Sea Background Component
+const SeaBackground = ({ isDarkMode }) => {
     const waveAnim = useRef(new Animated.Value(0)).current;
     const NUMBER_OF_FISH = 25;
     const fishAnimations = useRef(
@@ -140,9 +140,9 @@ const SeaBackground = () => {
     };
 
     return (
-        <View style={styles.seaBackground}>
-            <Animated.View style={{ ...styles.wave, transform: [{ translateY: waveAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) }] }} />
-            <Animated.View style={{ ...styles.wave, transform: [{ translateY: waveAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }] }} />
+        <View style={[styles.seaBackground, { backgroundColor: isDarkMode ? '#0A2E38' : '#00CED1' }]}>
+            <Animated.View style={[styles.wave, { transform: [{ translateY: waveAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) }], backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)' }]} />
+            <Animated.View style={[styles.wave, { transform: [{ translateY: waveAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }], backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)' }]} />
             {fishAnimations.map((fish, index) => (
                 <TouchableWithoutFeedback key={index} onPress={() => handleFishPress(fish)}>
                     <Animated.View
@@ -170,6 +170,7 @@ const OrderIrrelevance = () => {
     const [isCorrect, setIsCorrect] = useState(false);
     const [timeLeft, setTimeLeft] = useState(TIMER_DURATION);
     const [isTimeUp, setIsTimeUp] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(false); // Added dark mode state
     const targetAnim = useRef(new Animated.Value(0)).current;
 
     const placeElementRandomly = (existingElements, currentX, currentY) => {
@@ -247,8 +248,6 @@ const OrderIrrelevance = () => {
         if (isTimeUp) return;
         setElements((prevElements) => {
             const shuffledElements = [...prevElements];
-            console.log("Before shuffle:", prevElements.map(el => ({ number: el.number, x: el.x, y: el.y })));
-
             for (let i = shuffledElements.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 const tempX = shuffledElements[i].x;
@@ -271,7 +270,6 @@ const OrderIrrelevance = () => {
                 }
             });
 
-            console.log("After shuffle:", shuffledElements.map(el => ({ number: el.number, x: el.x, y: el.y })));
             setTargetNumber(Math.floor(Math.random() * shuffledElements.length) + 1);
             setTimeLeft(TIMER_DURATION);
             setIsTimeUp(false);
@@ -320,9 +318,14 @@ const OrderIrrelevance = () => {
         ]).start();
     };
 
+    // Toggle dark mode
+    const toggleDarkMode = () => {
+        setIsDarkMode(prevMode => !prevMode);
+    };
+
     return (
-        <View style={styles.container}>
-            <SeaBackground />
+        <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#24bbed' }]}>
+            <SeaBackground isDarkMode={isDarkMode} />
             <View style={styles.workspace}>
                 {targetNumber && (
                     <Animated.View
@@ -333,10 +336,14 @@ const OrderIrrelevance = () => {
                                     { scale: targetAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) },
                                     { rotate: targetAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '10deg'] }) },
                                 ],
+                                backgroundColor: isDarkMode ? 'rgba(50, 50, 50, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                                borderColor: isDarkMode ? '#FFD700' : '#FFD700',
                             },
                         ]}
                     >
-                        <Text style={styles.targetText}>SHOW NUMBER {targetNumber}</Text>
+                        <Text style={[styles.targetText, { color: isDarkMode ? '#FF8C00' : '#FF4500' }]}>
+                            SHOW NUMBER {targetNumber}
+                        </Text>
                     </Animated.View>
                 )}
                 {elements.map((el) => (
@@ -354,18 +361,33 @@ const OrderIrrelevance = () => {
                 ))}
             </View>
             <View style={styles.controls}>
-                <TouchableOpacity onPress={shuffleElements} style={styles.button} disabled={isTimeUp}>
-                    <Text style={styles.buttonText}>Shuffle</Text>
+                <TouchableOpacity
+                    onPress={shuffleElements}
+                    style={[styles.button, { backgroundColor: isDarkMode ? '#333333' : '#ccc' }]}
+                    disabled={isTimeUp}
+                >
+                    <Text style={[styles.buttonText, { color: isDarkMode ? '#E0E0E0' : 'black' }]}>
+                        Shuffle
+                    </Text>
                 </TouchableOpacity>
             </View>
             <Timer timeLeft={timeLeft} isTimeUp={isTimeUp} />
             <Toast visible={toastVisible} message={toastMessage} onDismiss={dismissToast} isCorrect={isCorrect} />
+            {/* Dark Mode Toggle Button */}
+            <TouchableOpacity
+                style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
+                onPress={toggleDarkMode}
+            >
+                <Text style={styles.darkModeIcon}>
+                    {isDarkMode ? '☀️' : '🌙'}
+                </Text>
+            </TouchableOpacity>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#24bbed' },
+    container: { flex: 1 },
     workspace: { backgroundColor: 'transparent', flex: 1, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
     element: {
         width: ELEMENT_SIZE,
@@ -391,21 +413,18 @@ const styles = StyleSheet.create({
         top: 30,
         left: width / 2 - 120,
         zIndex: 1500,
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         padding: 15,
         borderRadius: 10,
         borderWidth: 2,
-        borderColor: '#FFD700',
     },
     targetText: {
-        color: '#FF4500',
         fontSize: 28,
         fontWeight: 'bold',
         textAlign: 'center',
     },
     controls: { flexDirection: 'row', justifyContent: 'flex-end', marginRight: 20, marginBottom: 20, padding: 10 },
-    button: { backgroundColor: '#ccc', padding: 10, borderRadius: 5 },
-    buttonText: { fontSize: 20, color: 'black' },
+    button: { padding: 10, borderRadius: 5 },
+    buttonText: { fontSize: 20 },
     toastContainer: {
         position: 'absolute',
         bottom: 50,
@@ -420,8 +439,8 @@ const styles = StyleSheet.create({
     toastText: { color: 'white', fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
     nextButton: { marginTop: 10, padding: 10, backgroundColor: '#FFEB3B', borderRadius: 10 },
     nextButtonText: { color: '#333', fontSize: 18, fontWeight: 'bold' },
-    seaBackground: { flex: 1, backgroundColor: '#00CED1', overflow: 'hidden' },
-    wave: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 50, backgroundColor: 'rgba(255, 255, 255, 0.3)', borderRadius: 50 },
+    seaBackground: { flex: 1, overflow: 'hidden' },
+    wave: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 50, borderRadius: 50 },
     fishImage: { width: '100%', height: '100%', resizeMode: 'contain' },
     timerContainer: {
         position: 'absolute',
@@ -431,7 +450,7 @@ const styles = StyleSheet.create({
         zIndex: 1500,
     },
     timerText: {
-        fontSize: 36, // Increased size
+        fontSize: 36,
         color: '#FFF',
         fontWeight: 'bold',
         textShadowColor: '#000',
@@ -443,6 +462,23 @@ const styles = StyleSheet.create({
         color: '#FF4500',
         marginTop: 5,
         fontWeight: 'bold',
+    },
+    darkModeButton: {
+        position: 'absolute',
+        top: 20,
+        right: 80, // Adjusted to avoid overlap with timer
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 5,
+        zIndex: 2000,
+        marginRight: 60,
+    },
+    darkModeIcon: {
+        fontSize: 24,
+        color: '#000',
     },
 });
 
