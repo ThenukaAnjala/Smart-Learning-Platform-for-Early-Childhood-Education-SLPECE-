@@ -6,20 +6,22 @@ export default function DogScreen({ route }) {
 
   // Animation value for tilting the object
   const tiltAnim = useRef(new Animated.Value(0)).current;
+  // New animation value for head sticking out motion
+  const headAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Loop an animation from 0 -> 1 -> 0, which we map to 0deg -> 10deg -> 0deg
+    // Loop an animation from 0 -> 1 -> 0, which we map to 0deg -> 90deg -> 0deg
     Animated.loop(
       Animated.sequence([
         Animated.timing(tiltAnim, {
           toValue: 1,
-          duration: 2000,
+          duration: 3000,
           useNativeDriver: true,
           easing: Easing.inOut(Easing.ease),
         }),
         Animated.timing(tiltAnim, {
           toValue: 0,
-          duration: 2000,
+          duration: 3000,
           useNativeDriver: true,
           easing: Easing.inOut(Easing.ease),
         }),
@@ -27,10 +29,30 @@ export default function DogScreen({ route }) {
     ).start();
   }, [tiltAnim]);
 
-  // Map tiltAnim [0..1] to a rotation from 0deg..10deg
+  // New effect: animate head sticking out when wallObject rises
+  useEffect(() => {
+    if (isHeadOnly) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(headAnim, {
+            toValue: -15, // move upward by 15 units
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(headAnim, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [headAnim, isHeadOnly]);
+
+  // Map tiltAnim [0..1] to a rotation from 0deg..90deg
   const tilt = tiltAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '10deg'],
+    outputRange: ['0deg', '90deg'],
   });
 
   return (
@@ -39,7 +61,6 @@ export default function DogScreen({ route }) {
       style={styles.background}
     >
       <View style={styles.container}>
-        {/* <Text style={styles.title}>Dog Full Body Screen</Text> */}
         {dogImageBase64 ? (
           <Image
             source={{ uri: `data:image/png;base64,${dogImageBase64}` }}
@@ -61,12 +82,12 @@ export default function DogScreen({ route }) {
         resizeMode="cover"
       />
 
-      {/* The tilting object on top of the fence */}
+      {/* The tilting and animated wall object */}
       <Animated.Image
         source={require('../assets/dogWallObject.png')}
         style={[
           styles.wallObject,
-          { transform: [{ rotate: tilt }] },
+          { transform: [{ rotate: tilt }, { translateY: headAnim }] },
         ]}
         resizeMode="contain"
       />
@@ -107,10 +128,10 @@ const styles = StyleSheet.create({
   },
   wallObject: {
     position: 'absolute',
-    width: 70,    // adjust as needed
-    height: 100,   // adjust as needed
-    bottom: 100,  // place it above the fence
+    width: 40,    // adjust as needed
+    height: 130,   // adjust as needed
+    bottom: -20,  // lowered from 130 to 110
     left: '50%',  // horizontally center
-    marginLeft: -30, // shift left by half the width
+    marginLeft: -200, // shift left by half the width
   },
 });
