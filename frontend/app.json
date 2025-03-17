@@ -3,6 +3,7 @@
     "name": "frontend",
     "slug": "frontend",
     "version": "1.0.0",
+    "assetBundlePatterns": ["assets/*"],
     "orientation": "landscape", // Ensures the app always launches in landscape mode
     "icon": "./assets/icon.png", // Path to your app icon
     "userInterfaceStyle": "light", // Light or dark mode support

@@ -1,0 +1,308 @@
+{
+  "easy": [
+    {
+      "answer": "dog",
+      "hints": ["I bark to greet you.", "I have a wagging tail.", "I am a common pet."],
+      "options": ["cat", "bird", "dog"]
+    },
+    {
+      "answer": "cat",
+      "hints": ["I purr when happy.", "I have whiskers.", "I love to nap."],
+      "options": ["fish", "dog", "cat"]
+    },
+    {
+      "answer": "cow",
+      "hints": ["I moo on the farm.", "I give you milk.", "I have black and white spots."],
+      "options": ["sheep", "horse", "cow"]
+    },
+    {
+      "answer": "horse",
+      "hints": ["I neigh loudly.", "I help with riding.", "I have a long mane."],
+      "options": ["pig", "cow", "horse"]
+    },
+    {
+      "answer": "sheep",
+      "hints": ["I baa in the field.", "I have woolly fur.", "I am raised for clothing."],
+      "options": ["dog", "goat", "sheep"]
+    },
+    {
+      "answer": "pig",
+      "hints": ["I oink in the mud.", "I am pink or black.", "I love to roll around."],
+      "options": ["chicken", "cow", "pig"]
+    },
+    {
+      "answer": "chicken",
+      "hints": ["I cluck in the coop.", "I lay eggs.", "I have feathers."],
+      "options": ["pig", "duck", "chicken"]
+    },
+    {
+      "answer": "duck",
+      "hints": ["I quack by the pond.", "I have webbed feet.", "I swim well."],
+      "options": ["horse", "goat", "duck"]
+    },
+    {
+      "answer": "goat",
+      "hints": ["I bleat on hills.", "I eat almost anything.", "I have small horns."],
+      "options": ["cow", "sheep", "goat"]
+    },
+    {
+      "answer": "rabbit",
+      "hints": ["I hop in gardens.", "I have long ears.", "I love carrots."],
+      "options": ["cat", "dog", "rabbit"]
+    },
+    {
+      "answer": "fish",
+      "hints": ["I swim in tanks.", "I have fins.", "I come in many colors."],
+      "options": ["duck", "bird", "fish"]
+    },
+    {
+      "answer": "bird",
+      "hints": ["I chirp in trees.", "I have wings.", "I build nests."],
+      "options": ["cat", "chicken", "bird"]
+    },
+    {
+      "answer": "mouse",
+      "hints": ["I squeak quietly.", "I am small and gray.", "I like cheese."],
+      "options": ["dog", "rabbit", "mouse"]
+    },
+    {
+      "answer": "frog",
+      "hints": ["I croak near water.", "I have long legs.", "I can jump high."],
+      "options": ["duck", "fish", "frog"]
+    },
+    {
+      "answer": "turkey",
+      "hints": ["I gobble at Thanksgiving.", "I have colorful feathers.", "I am a big bird."],
+      "options": ["bird", "chicken", "turkey"]
+    },
+    {
+      "answer": "donkey",
+      "hints": ["I bray loudly.", "I carry heavy loads.", "I have long ears."],
+      "options": ["cow", "horse", "donkey"]
+    },
+    {
+      "answer": "goose",
+      "hints": ["I honk by the lake.", "I have a long neck.", "I am a water bird."],
+      "options": ["chicken", "duck", "goose"]
+    },
+    {
+      "answer": "hamster",
+      "hints": ["I run in a wheel.", "I am a small pet.", "I have fluffy cheeks."],
+      "options": ["rabbit", "mouse", "hamster"]
+    },
+    {
+      "answer": "deer",
+      "hints": ["I have antlers.", "I live in forests.", "I am a gentle animal."],
+      "options": ["horse", "cow", "deer"]
+    },
+    {
+      "answer": "squirrel",
+      "hints": ["I climb trees.", "I collect nuts.", "I have a bushy tail."],
+      "options": ["mouse", "rabbit", "squirrel"]
+    }
+  ],
+  "medium": [
+    {
+      "answer": "elephant",
+      "hints": ["I have a long trunk.", "I am the largest land animal."],
+      "options": ["hippo", "bear", "elephant", "rhino"]
+    },
+    {
+      "answer": "giraffe",
+      "hints": ["I have a long neck.", "I eat leaves from tall trees."],
+      "options": ["zebra", "elephant", "giraffe", "camel"]
+    },
+    {
+      "answer": "zebra",
+      "hints": ["I have black and white stripes.", "I live in Africa."],
+      "options": ["donkey", "horse", "zebra", "giraffe"]
+    },
+    {
+      "answer": "camel",
+      "hints": ["I have humps on my back.", "I live in deserts."],
+      "options": ["horse", "giraffe", "camel", "elephant"]
+    },
+    {
+      "answer": "hippo",
+      "hints": ["I have a big mouth.", "I live near water."],
+      "options": ["cow", "elephant", "hippo", "rhino"]
+    },
+    {
+      "answer": "rhino",
+      "hints": ["I have a horn on my nose.", "I am very strong."],
+      "options": ["camel", "hippo", "rhino", "bear"]
+    },
+    {
+      "answer": "kangaroo",
+      "hints": ["I hop with a pouch.", "I come from Australia."],
+      "options": ["deer", "zebra", "rabbit", "kangaroo"]
+    },
+    {
+      "answer": "koala",
+      "hints": ["I eat eucalyptus leaves.", "I look like a bear."],
+      "options": ["squirrel", "kangaroo", "koala", "panda"]
+    },
+    {
+      "answer": "panda",
+      "hints": ["I am black and white.", "I eat bamboo."],
+      "options": ["zebra", "bear", "panda", "koala"]
+    },
+    {
+      "answer": "monkey",
+      "hints": ["I swing from trees.", "I am very playful."],
+      "options": ["giraffe", "kangaroo", "monkey", "squirrel"]
+    },
+    {
+      "answer": "parrot",
+      "hints": ["I can talk like humans.", "I have colorful feathers."],
+      "options": ["duck", "turkey", "parrot", "bird"]
+    },
+    {
+      "answer": "penguin",
+      "hints": ["I waddle on ice.", "I cannot fly."],
+      "options": ["goose", "parrot", "penguin", "duck"]
+    },
+    {
+      "answer": "seal",
+      "hints": ["I bark near the ocean.", "I have flippers."],
+      "options": ["hippo", "fish", "seal", "penguin"]
+    },
+    {
+      "answer": "walrus",
+      "hints": ["I have long tusks.", "I live in cold water."],
+      "options": ["elephant", "rhino", "walrus", "seal"]
+    },
+    {
+      "answer": "wolf",
+      "hints": ["I howl at the moon.", "I live in packs."],
+      "options": ["deer", "bear", "wolf", "dog"]
+    },
+    {
+      "answer": "fox",
+      "hints": ["I am clever and red.", "I live in forests."],
+      "options": ["deer", "wolf", "fox", "squirrel"]
+    },
+    {
+      "answer": "raccoon",
+      "hints": ["I have a masked face.", "I search for food at night."],
+      "options": ["squirrel", "mouse", "raccoon", "fox"]
+    },
+    {
+      "answer": "otter",
+      "hints": ["I play in rivers.", "I have a sleek body."],
+      "options": ["fish", "frog", "otter", "seal"]
+    },
+    {
+      "answer": "beaver",
+      "hints": ["I build dams.", "I have big teeth."],
+      "options": ["rabbit", "squirrel", "beaver", "otter"]
+    },
+    {
+      "answer": "skunk",
+      "hints": ["I have a strong smell.", "I am black and white."],
+      "options": ["panda", "fox", "skunk", "raccoon"]
+    }
+  ],
+  "hard": [
+    {
+      "answer": "tiger",
+      "hints": ["I have orange and black stripes."],
+      "options": ["lion", "cheetah", "tiger", "leopard"]
+    },
+    {
+      "answer": "lion",
+      "hints": ["I am the king of the jungle."],
+      "options": ["bear", "wolf", "lion", "tiger"]
+    },
+    {
+      "answer": "leopard",
+      "hints": ["I have spots all over."],
+      "options": ["tiger", "lion", "leopard", "cheetah"]
+    },
+    {
+      "answer": "cheetah",
+      "hints": ["I am the fastest runner."],
+      "options": ["horse", "tiger", "cheetah", "leopard"]
+    },
+    {
+      "answer": "bear",
+      "hints": ["I hibernate in winter."],
+      "options": ["wolf", "lion", "bear", "panda"]
+    },
+    {
+      "answer": "crocodile",
+      "hints": ["I have a long snout."],
+      "options": ["seal", "hippo", "crocodile", "alligator"]
+    },
+    {
+      "answer": "alligator",
+      "hints": ["I live in swamps."],
+      "options": ["otter", "frog", "alligator", "crocodile"]
+    },
+    {
+      "answer": "snake",
+      "hints": ["I slither on the ground."],
+      "options": ["frog", "crocodile", "snake", "lizard"]
+    },
+    {
+      "answer": "lizard",
+      "hints": ["I can change color."],
+      "options": ["frog", "turtle", "lizard", "snake"]
+    },
+    {
+      "answer": "turtle",
+      "hints": ["I carry a hard shell."],
+      "options": ["penguin", "crocodile", "turtle", "lizard"]
+    },
+    {
+      "answer": "eagle",
+      "hints": ["I soar high in the sky."],
+      "options": ["hawk", "penguin", "eagle", "parrot"]
+    },
+    {
+      "answer": "hawk",
+      "hints": ["I have sharp talons."],
+      "options": ["parrot", "eagle", "hawk", "owl"]
+    },
+    {
+      "answer": "owl",
+      "hints": ["I hunt at night."],
+      "options": ["penguin", "eagle", "owl", "hawk"]
+    },
+    {
+      "answer": "shark",
+      "hints": ["I have many teeth."],
+      "options": ["fish", "seal", "shark", "whale"]
+    },
+    {
+      "answer": "whale",
+      "hints": ["I am the biggest ocean animal."],
+      "options": ["otter", "walrus", "whale", "shark"]
+    },
+    {
+      "answer": "dolphin",
+      "hints": ["I am very smart."],
+      "options": ["fish", "seal", "dolphin", "whale"]
+    },
+    {
+      "answer": "buffalo",
+      "hints": ["I have curved horns."],
+      "options": ["bear", "deer", "buffalo", "cow"]
+    },
+    {
+      "answer": "moose",
+      "hints": ["I have large antlers."],
+      "options": ["horse", "buffalo", "moose", "deer"]
+    },
+    {
+      "answer": "hyena",
+      "hints": ["I laugh like a human."],
+      "options": ["lion", "fox", "hyena", "wolf"]
+    },
+    {
+      "answer": "jackal",
+      "hints": ["I look like a small wolf."],
+      "options": ["dog", "fox", "jackal", "hyena"]
+    }
+  ]
+}
