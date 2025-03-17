@@ -63,22 +63,14 @@ const generateRow = () => {
     return { rowIndex: 0, y: rowY, elements };
 };
 
-const generateExtraElement = () => {
-    const extraX = LEFT_MARGIN; // Position below the row
-    const extraY = height / 2 + ELEMENT_SIZE + GAP * 2;
-    return { id: `extra-${Date.now()}`, label: 'X', x: extraX, y: extraY };
-};
-
 const SingleRowElements = () => {
     const [elements, setElements] = useState([]); // Initially empty
-    const [extraElement, setExtraElement] = useState(null);
     const [isDarkMode, setIsDarkMode] = useState(false); // Added dark mode state
 
     // Use useFocusEffect to reset state when the screen comes into focus
     useFocusEffect(
         React.useCallback(() => {
             setElements(generateRow().elements);
-            setExtraElement(generateExtraElement());
         }, [])
     );
 
@@ -114,34 +106,6 @@ const SingleRowElements = () => {
             });
             return updatedElements;
         });
-
-        if (extraElement && extraElement.id === id) {
-            setExtraElement(prev => {
-                if (!prev) return null;
-
-                const currentX = prev.x + deltaX;
-                const currentY = prev.y + deltaY;
-
-                const isInDustbin =
-                    currentX + ELEMENT_SIZE > dustbinX &&
-                    currentX < dustbinX + DUSTBIN_SIZE &&
-                    currentY + ELEMENT_SIZE > dustbinY &&
-                    currentY < dustbinY + DUSTBIN_SIZE;
-
-                if (isInDustbin) {
-                    // Fade out the extra element
-                    Animated.timing(opacity, {
-                        toValue: 0,
-                        duration: 200,
-                        useNativeDriver: false,
-                    }).start(() => {
-                        setExtraElement(null);
-                    });
-                    return prev; // Return unchanged element initially
-                }
-                return prev;
-            });
-        }
     };
 
     // Toggle dark mode
@@ -162,16 +126,6 @@ const SingleRowElements = () => {
                         onDrop={handleDrop}
                     />
                 ))}
-                {extraElement && (
-                    <DraggableElement
-                        key={extraElement.id}
-                        id={extraElement.id}
-                        x={extraElement.x}
-                        y={extraElement.y}
-                        label={extraElement.label}
-                        onDrop={handleDrop}
-                    />
-                )}
             </View>
             <View style={[styles.dustbin, { backgroundColor: isDarkMode ? '#333333' : '#eee', borderColor: isDarkMode ? '#555' : '#ccc' }]}>
                 <Text style={styles.dustbinText}>🗑️</Text>
