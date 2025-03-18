@@ -51,9 +51,19 @@ const DraggableElement = ({ id, x, y, onDrop, label }) => {
     );
 };
 
+// Function to recalculate element positions and labels after changes
+const recalcRowElements = (elements, rowY) => {
+    return elements.map((el, idx) => ({
+        ...el,
+        x: LEFT_MARGIN + idx * (ELEMENT_SIZE + GAP),
+        y: rowY,
+        label: idx + 1,
+    }));
+};
+
 const generateRow = () => {
     const rowY = height / 2; // Single row at middle
-    const count = 10; // Fixed to 10 elements
+    const count = 10; // Fixed to 10 elements initially
     const elements = Array.from({ length: count }, (_, i) => ({
         id: `0-${i}`,
         label: i + 1,
@@ -64,16 +74,17 @@ const generateRow = () => {
 };
 
 const SingleRowElements = () => {
-    const [elements, setElements] = useState([]); // Initially empty
-    const [isDarkMode, setIsDarkMode] = useState(false); // Added dark mode state
+    const [elements, setElements] = useState([]); // State to store the row elements
+    const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode toggle
 
-    // Use useFocusEffect to reset state when the screen comes into focus
+    // Reset the row elements when the screen comes into focus
     useFocusEffect(
         React.useCallback(() => {
             setElements(generateRow().elements);
         }, [])
     );
 
+    // Handle dropping an element (for deletion in the dustbin)
     const handleDrop = (id, deltaX, deltaY, pan, opacity) => {
         const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
         const dustbinY = DUSTBIN_PADDING;
@@ -92,19 +103,33 @@ const SingleRowElements = () => {
                     currentY < dustbinY + DUSTBIN_SIZE;
 
                 if (isInDustbin) {
-                    // Fade out the element
+                    // Fade out the element when dropped in the dustbin
                     Animated.timing(opacity, {
                         toValue: 0,
                         duration: 200,
                         useNativeDriver: false,
                     }).start(() => {
-                        setElements(prevElements => prevElements.filter(el => el.id !== id));
+                        setElements(prevElements => {
+                            const filteredElements = prevElements.filter(el => el.id !== id);
+                            return recalcRowElements(filteredElements, height / 2); // Recalculate positions
+                        });
                     });
                     return el; // Return unchanged element initially
                 }
                 return el;
             });
             return updatedElements;
+        });
+    };
+
+    // Function to add a new element to the row
+    const addElement = () => {
+        setElements(prevElements => {
+            // Check if the row already has 10 elements
+            if (prevElements.length >= 10) return prevElements; // Prevent adding if limit reached
+            const newEl = { id: `0-${Date.now()}`, x: 0, y: height / 2 }; // New element
+            const newElements = [...prevElements, newEl];
+            return recalcRowElements(newElements, height / 2); // Recalculate positions
         });
     };
 
@@ -139,6 +164,15 @@ const SingleRowElements = () => {
                     {isDarkMode ? '☀️' : '🌙'}
                 </Text>
             </TouchableOpacity>
+            {/* Add Element Button - Positioned at the bottom */}
+            <View style={styles.controls}>
+                <TouchableOpacity
+                    onPress={addElement}
+                    style={[styles.button, { backgroundColor: isDarkMode ? '#555' : 'blue' }]}
+                >
+                    <Text style={styles.buttonText}>Add Element</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 };
@@ -199,6 +233,20 @@ const styles = StyleSheet.create({
     darkModeIcon: {
         fontSize: 24,
         color: '#000',
+    },
+    controls: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginBottom: 20,
+        padding: 10,
+    },
+    button: {
+        padding: 10,
+        borderRadius: 5,
+    },
+    buttonText: {
+        fontSize: 20,
+        color: 'white',
     },
 });
 

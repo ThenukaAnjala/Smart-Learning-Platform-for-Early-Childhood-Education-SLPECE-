@@ -34,7 +34,10 @@ const DraggableElement = ({ id, x, y, color, onDrop }) => {
                 { backgroundColor: color }, // Apply the color dynamically
             ]}
             {...panResponder.panHandlers}
-        />
+        >
+            {/* Added empty Text component to ensure there are no direct text children in View */}
+            <Text></Text>
+        </Animated.View>
     );
 };
 

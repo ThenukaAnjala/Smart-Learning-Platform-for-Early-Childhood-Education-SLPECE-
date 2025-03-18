@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 50;
 const FLOWER_CENTER_SIZE = 50;
-const MIDDLE_FLOWER_CENTER_SIZE = 70;
+const MIDDLE_FLOWER_CENTER_SIZE = 50;
 const DUSTBIN_SIZE = 50;
 const DUSTBIN_PADDING = 20;
 const STEM_HEIGHT = height * 0.6;
