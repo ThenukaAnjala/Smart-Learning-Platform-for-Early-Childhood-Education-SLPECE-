@@ -74,7 +74,7 @@ const GenerateStory = () => {
   ];
 
   // Font sizes for dropdown
-  const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40];
+  const fontSizes = [12, 14, 16, 18, 20, 22, 24, 26];
 
   // Corrected implementation
   useEffect(() => {
@@ -298,6 +298,7 @@ const GenerateStory = () => {
     try {
       if (sound) {
         await sound.unloadAsync();
+        setSound(null);
       }
 
       console.log("Attempting to play from URL:", url);
@@ -335,6 +336,8 @@ const GenerateStory = () => {
   const stopMusic = async () => {
     if (sound) {
       await sound.stopAsync();
+      setSound(null); // Clear the sound state
+      console.log("Music stopped successfully");
     }
   };
 
@@ -394,10 +397,27 @@ const GenerateStory = () => {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      Alert.alert("Success", "Story saved successfully!");
-      console.log("Saved story:", response.data);
+      // Stop music when the story is saved successfully
+    await stopMusic();
 
-      navigation.navigate('StoryTellingHome');
+    Speech.stop();
+    
+    // Use the Alert callback to navigate after OK is pressed
+    Alert.alert(
+      "Success", 
+      "Story saved successfully!", 
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            // Add a small delay before navigating
+            setTimeout(() => {
+              navigation.navigate('StoryTellingHome');
+            }, 500); // 1 second delay
+          }
+        }
+      ]
+    );
     } catch (error) {
       console.error("Save error:", error);
       Alert.alert(

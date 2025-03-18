@@ -4,13 +4,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
 import DrawingBoard from '../screens/DrawingBoard';
-// import ImageGenerator from '../screens/storyTellingComponent/ImageGenerator';
 import TextToSpeech from '../screens/storyTellingComponent/TextToSpeech';
 import StoryTellingHome from '../screens/storyTellingComponent/storyTellingHome';
 import StoryAbout from '../screens/storyTellingComponent/storyAbout';
-import GenerateStory from '../screens/storyTellingComponent/GenerateStory'; // Import GenerateStory
-import SingleStory from '../screens/storyTellingComponent/singleStory'; // Import SingleStory
-
+import GenerateStory from '../screens/storyTellingComponent/GenerateStory';
+import SingleStory from '../screens/storyTellingComponent/singleStory'; // Ensure the case matches the file name
+import StoryQuiz from '../screens/storyTellingComponent/storyQuiz';
 
 const Stack = createStackNavigator();
 
@@ -21,12 +20,12 @@ const AppNavigator = () => {
         <Stack.Screen name="Landing" component={LandingScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="DrawingBoard" component={DrawingBoard} />
-        {/* <Stack.Screen name="ImageGenerator" component={ImageGenerator} /> */}
         <Stack.Screen name="TextToSpeech" component={TextToSpeech} />
         <Stack.Screen name="StoryTellingHome" component={StoryTellingHome} />
         <Stack.Screen name="StoryAbout" component={StoryAbout} />
-        <Stack.Screen name="GenerateStory" component={GenerateStory} /> 
+        <Stack.Screen name="GenerateStory" component={GenerateStory} />
         <Stack.Screen name="SingleStory" component={SingleStory} />
+        <Stack.Screen name="StoryQuiz" component={StoryQuiz} />
       </Stack.Navigator>
     </NavigationContainer>
   );

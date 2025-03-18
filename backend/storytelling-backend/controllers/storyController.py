@@ -263,6 +263,7 @@ def segment_story_by_sentences(story_text):
         if not segment.endswith("."):
             segment += "."
         segments.append(segment)
+        
 
     return segments
 
@@ -290,7 +291,7 @@ def generate_story():
         story_text = response.choices[0].message.content
 
         # Segment the story
-        story_segments = segment_story_by_sentences(story_text)
+        story_segments = segment_story_by_sentences(story_prompt)
 
         results = []
         for segment in story_segments:
@@ -300,7 +301,7 @@ def generate_story():
             results.append({"text": segment, "image_url": image_url, "audio_url": audio_url})
 
         return jsonify({
-            "story": story_text,
+            "story": story_prompt,
             "segments": results
         })
 
@@ -318,7 +319,15 @@ def analyze_story(story_text):
         f"emotional tone of the story (either 'happy' or 'sad'). The category and subcategory "
         f"should be chosen based on the story’s theme, setting, and key elements.\n\n"
         f"### Category List ###\n"
-        f"- Fairy Tale\n  - Dragon's Lair\n  - Enchanted Garden\n  - Royal Castle\n"
+        f"City Life  (Busy Street, City Market, School)"
+	    f"Fairy Tale  (Dragon's Lair, Enchanted Garden, Royal Castle)"
+	    f"Farm Life  (Barnyard, Harvest Time, Farmer's Market)"
+	    f"Jungle Expedition  (Happy Summer, jungle explore, River Adventure)"
+	    f"Magical Adventure  (Enchanted Forest, Wizard's Tower, Fairy Village)"
+	    f"night sky  (calm)"
+	    f"Pirate Adventure  (Pirate Ship, Treasure Island, Stormy Seas)"
+	    f"Underwater Adventure  (Underwater Adventure)"
+
         # f"- Farm Life\n  - Barnyard\n  - Farmer's Market\n  - Harvest Time\n\n"
         f"### Story ###\n{story_text}\n\n"
         f"Return the result in JSON format:\n"

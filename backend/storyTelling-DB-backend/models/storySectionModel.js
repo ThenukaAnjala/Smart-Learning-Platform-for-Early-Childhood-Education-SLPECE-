@@ -9,12 +9,9 @@ const StorySectionSchema = mongoose.Schema(
     storyImage: {
         type: String,
         required: true
-    },
-
-    storyAudio: {
-        type: String,
-        required: true
     }
+
+
     
 });
 

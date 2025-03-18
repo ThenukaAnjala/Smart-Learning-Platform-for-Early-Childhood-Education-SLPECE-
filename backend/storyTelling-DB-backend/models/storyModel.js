@@ -32,6 +32,11 @@ const StorySchema = mongoose.Schema(
         required: true
     },
 
+    backgroundMusicURL: {
+        type: String,
+        required: true
+    },
+
     storySection: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'StorySection'

@@ -31,7 +31,7 @@ const StoryLibrary = () => {
 
   const renderStory = ({ item }) => (
     <TouchableOpacity style={styles.storyCard} onPress={() => handleOpenStory(item)}>
-      <Image style={styles.storyImage} source={{ uri: item.image }} />
+      <Image style={styles.storyImage} source={require("../../assets/bookcover.jpg")} />
       <Text style={styles.storyTitle}>{item.storyName}</Text>
     </TouchableOpacity>
   );
@@ -52,6 +52,8 @@ const StoryLibrary = () => {
         renderItem={renderStory}
         keyExtractor={(item) => item._id.toString()}
         contentContainerStyle={styles.storyList}
+        numColumns={3}
+        key={3}
       />
     </View>
   );
@@ -71,10 +73,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   storyCard: {
-    width: "90%",
+    width: 200,
     backgroundColor: "#fff",
     borderRadius: 10,
-    marginBottom: 20,
+    margin: 20,
     alignItems: "center",
     padding: 15,
     shadowColor: "#000",
@@ -84,13 +86,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   storyImage: {
-    width: 100,
-    height: 100,
+    width: 150,
+    height: 150,
     borderRadius: 5,
     marginBottom: 10,
   },
   storyTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#333",
   },
