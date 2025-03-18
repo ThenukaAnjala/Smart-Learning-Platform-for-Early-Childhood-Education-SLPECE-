@@ -4,8 +4,8 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LottieView from 'lottie-react-native';
 
-// Background image
-const backgroundImage = require('../assets/images/Background/Animal-DiscovererBG.jpg');
+// Background image (replace with your file name, e.g., 'AnimalQuizFullScreenBG.jpg')
+const backgroundImage = require('../assets/images/Background/NewAnimalQuizBG.jpg');
 
 // Load questions from JSON file using require
 const questions = require('../assets/data/questions.json');
@@ -27,13 +27,12 @@ const hamsterAnimation = require('../assets/Animations/Animal-Animation/hamster.
 const horseAnimation = require('../assets/Animations/Animal-Animation/horse.json');
 const pigAnimation = require('../assets/Animations/Animal-Animation/pig.json');
 const rabbitAnimation = require('../assets/Animations/Animal-Animation/rabbit.json');
-const mouseAnimation = require('../assets/Animations/Animal-Animation/rat.json'); // Assuming "rat.json" is for "mouse"
+const mouseAnimation = require('../assets/Animations/Animal-Animation/rat.json');
 const sheepAnimation = require('../assets/Animations/Animal-Animation/sheep.json');
 const squirrelAnimation = require('../assets/Animations/Animal-Animation/squirrel.json');
 const turkeyAnimation = require('../assets/Animations/Animal-Animation/turkey.json');
-// const defaultAnimation = require('../assets/Animations/Animal-Animation/celebration.json'); // Default for Medium, Hard, and "chicken"
+// const defaultAnimation = require('../assets/Animations/Animal-Animation/celebration.json');
 
-// Map animal answers to their respective animations (Easy level only)
 const animalAnimations = {
   bird: birdAnimation,
   cat: catAnimation,
@@ -50,12 +49,12 @@ const animalAnimations = {
   horse: horseAnimation,
   pig: pigAnimation,
   rabbit: rabbitAnimation,
-  mouse: mouseAnimation, // Using "rat.json" for "mouse"
+  mouse: mouseAnimation,
   sheep: sheepAnimation,
   squirrel: squirrelAnimation,
   turkey: turkeyAnimation,
   chicken: chickenAnimation,
-  // default: defaultAnimation, // Fallback for missing animations
+  // default: defaultAnimation,
 };
 
 const AnimalQuizScreen = ({ navigation, route }) => {
@@ -74,8 +73,8 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   const [hasCheckedBadge, setHasCheckedBadge] = useState(false);
   const [retryCount, setRetryCount] = useState({ easy: 0, medium: 0, hard: 0 });
   const QUESTIONS_PER_LEVEL = 8;
+  const MINIMUM_SCORE_TO_PROGRESS = 4;
 
-  // Create a ref to control the LottieView animation
   const animationRef = useRef(null);
 
   useEffect(() => {
@@ -143,7 +142,6 @@ const AnimalQuizScreen = ({ navigation, route }) => {
       setTotalScore(totalScore + 1);
       setFeedbackText('Correct! 🎉');
       setIsCorrectAnswer(true);
-      // Play the animation when the answer is correct
       if (animationRef.current) {
         animationRef.current.play();
       }
@@ -170,7 +168,6 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   const nextQuestion = () => {
     setShowFeedback(false);
     setIsCorrectAnswer(false);
-    // Reset the animation when moving to the next question
     if (animationRef.current) {
       animationRef.current.reset();
     }
@@ -179,6 +176,12 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   };
 
   const nextLevel = () => {
+    if (score[currentLevel] < MINIMUM_SCORE_TO_PROGRESS) {
+      setFeedbackText(`You need at least ${MINIMUM_SCORE_TO_PROGRESS}/8 to unlock the next level. Try again! 😊`);
+      setShowFeedback(true);
+      return;
+    }
+
     setCurrentQuestionIndex(0);
     setShowFeedback(false);
     if (animationRef.current) {
@@ -197,8 +200,6 @@ const AnimalQuizScreen = ({ navigation, route }) => {
 
     if (score[currentLevel] < 4) {
       setExtraHint(true);
-      setFeedbackText('Great effort! Let’s try again to unlock the next level.');
-      setShowFeedback(true);
     } else {
       setExtraHint(false);
     }
@@ -268,9 +269,15 @@ const AnimalQuizScreen = ({ navigation, route }) => {
             You earned the {currentLevel === 'easy' ? 'Explorer' : currentLevel === 'medium' ? 'Adventurer' : 'Master'} badge!
           </Text>
         )}
-        <TouchableOpacity style={styles.nextButton} onPress={nextLevel}>
-          <Text style={styles.nextButtonText}>Next Level</Text>
-        </TouchableOpacity>
+        {score[currentLevel] >= MINIMUM_SCORE_TO_PROGRESS ? (
+          <TouchableOpacity style={styles.nextButton} onPress={nextLevel}>
+            <Text style={styles.nextButtonText}>Next Level</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.retryMessage}>
+            You need at least {MINIMUM_SCORE_TO_PROGRESS}/8 to unlock the next level. Try again! 😊
+          </Text>
+        )}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('LevelSelection')}>
           <Text style={styles.backButtonText}>Choose Level</Text>
         </TouchableOpacity>
@@ -305,12 +312,11 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   const displayedOptions = shuffleOptions(currentOptions, currentQuestion.answer);
   const displayedHints = extraHint ? [...currentHints, 'Ask for help if needed!'] : currentHints;
 
-  // Select the animation based on the correct answer (if correct)
   const currentAnswer = currentQuestion.answer;
   const selectedAnimation = isCorrectAnswer
     ? currentLevel === 'easy'
-      ? animalAnimations[currentAnswer] || animalAnimations.default // Use specific animation for Easy, or default
-      : animalAnimations.default // Use default for Medium and Hard
+      ? animalAnimations[currentAnswer] || animalAnimations.default
+      : animalAnimations.default
     : null;
 
   return (
@@ -344,7 +350,7 @@ const AnimalQuizScreen = ({ navigation, route }) => {
                 ref={animationRef}
                 source={selectedAnimation}
                 autoPlay
-                loop={true} // Set loop to true to play infinitely
+                loop={true}
                 style={styles.animation}
               />
             )}
@@ -361,12 +367,29 @@ const AnimalQuizScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'space-evenly', padding: 20 },
-  backgroundImage: { position: 'absolute', width: '100%', height: '100%', resizeMode: 'cover' },
-  title: { fontSize: 40, color: '#8B4513', fontFamily: 'Schoolbell', textAlign: 'center', marginTop: 10 },
+  container: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    padding: 20,
+    backgroundColor: 'transparent', // Ensure container doesn’t interfere with background
+  },
+  backgroundImage: { 
+    position: 'absolute', 
+    width: '100%', 
+    height: '100%', 
+    resizeMode: 'cover', // Ensures full screen coverage
+  },
+  title: { 
+    fontSize: 40, 
+    color: '#8B4513', 
+    fontFamily: 'Schoolbell', 
+    textAlign: 'center', 
+    marginTop: 40, // Increased to avoid overlap with status bar
+  },
   questionContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    padding: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)', // Slightly more opaque for readability
+    padding: 20,
     borderRadius: 20,
     marginVertical: 10,
     alignItems: 'center',
@@ -374,7 +397,12 @@ const styles = StyleSheet.create({
   },
   questionText: { fontSize: 24, color: '#333', fontFamily: 'Poppins', textAlign: 'center' },
   hintText: { fontSize: 18, color: '#333', fontFamily: 'Poppins', textAlign: 'center', marginVertical: 5 },
-  optionsContainer: { flexDirection: 'column', alignItems: 'center', width: '90%' },
+  optionsContainer: { 
+    flexDirection: 'column', 
+    alignItems: 'center', 
+    width: '90%',
+    marginBottom: 120, // Increased to ensure options don’t overlap with grass/animals
+  },
   optionButton: {
     backgroundColor: '#D2691E',
     padding: 15,
@@ -425,10 +453,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButtonText: { color: '#FFF', fontSize: 20, fontFamily: 'Poppins' },
-  scoreText: { position: 'absolute', top: 50, color: '#FFF', fontSize: 20, fontFamily: 'Poppins' },
+  scoreText: { 
+    position: 'absolute', 
+    bottom: 80, // Adjusted to sit above the grass/animals
+    color: '#FFF', 
+    fontSize: 20, 
+    fontFamily: 'Poppins',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Added background for readability
+    padding: 5,
+    borderRadius: 10,
+  },
   score: { fontSize: 24, color: '#FFF', fontFamily: 'Poppins', marginVertical: 10 },
   levelScore: { fontSize: 20, color: '#FFF', fontFamily: 'Poppins', marginVertical: 5 },
   badgesText: { fontSize: 20, color: '#FFF', fontFamily: 'Poppins', marginVertical: 10 },
+  retryMessage: { fontSize: 18, color: '#FFF', fontFamily: 'Poppins', textAlign: 'center', marginVertical: 10 },
 });
 
 export default AnimalQuizScreen;

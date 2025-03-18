@@ -3,12 +3,12 @@
     {
       "answer": "dog",
       "hints": ["I bark to greet you.", "I have a wagging tail.", "I am a common pet."],
-      "options": ["cat", "bird", "dog"]
+      "options": ["cat", "parrot", "dog"]
     },
     {
       "answer": "cat",
       "hints": ["I purr when happy.", "I have whiskers.", "I love to nap."],
-      "options": ["fish", "dog", "cat"]
+      "options": ["cow", "dog", "cat"]
     },
     {
       "answer": "cow",
@@ -53,7 +53,7 @@
     {
       "answer": "fish",
       "hints": ["I swim in tanks.", "I have fins.", "I come in many colors."],
-      "options": ["duck", "bird", "fish"]
+      "options": ["duck", "parrot", "fish"]
     },
     {
       "answer": "bird",
@@ -73,7 +73,7 @@
     {
       "answer": "turkey",
       "hints": ["I gobble at Thanksgiving.", "I have colorful feathers.", "I am a big bird."],
-      "options": ["bird", "chicken", "turkey"]
+      "options": ["parrot", "chicken", "turkey"]
     },
     {
       "answer": "donkey",
