@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     dustbinText: {
-        fontSize: 30,
+        fontSize: 20,
     },
     addButton: {
         position: 'absolute',
