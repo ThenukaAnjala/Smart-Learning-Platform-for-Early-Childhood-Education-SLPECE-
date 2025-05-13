@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
-const ELEMENT_SIZE = 80; // used for both element size & collision threshold
+const ELEMENT_SIZE = 80;
 const DUSTBIN_SIZE = 60;
 const DUSTBIN_PADDING = 20;
 
@@ -17,7 +17,15 @@ const DraggableElement = ({ id, x, y, color, onDrop }) => {
             },
             onPanResponderMove: Animated.event(
                 [null, { dx: pan.x, dy: pan.y }],
-                { useNativeDriver: false }
+                {
+                    useNativeDriver: false,
+                    listener: (event, gestureState) => {
+                        // Clamp the position to stay within screen boundaries
+                        const newX = Math.max(0, Math.min(gestureState.dx + pan.x._offset, width - ELEMENT_SIZE));
+                        const newY = Math.max(0, Math.min(gestureState.dy + pan.y._offset, height - ELEMENT_SIZE));
+                        pan.setValue({ x: newX - pan.x._offset, y: newY - pan.y._offset });
+                    },
+                }
             ),
             onPanResponderRelease: () => {
                 pan.flattenOffset();
@@ -31,11 +39,10 @@ const DraggableElement = ({ id, x, y, color, onDrop }) => {
             style={[
                 styles.element,
                 { transform: pan.getTranslateTransform() },
-                { backgroundColor: color }, // Apply the color dynamically
+                { backgroundColor: color },
             ]}
             {...panResponder.panHandlers}
         >
-            {/* Added empty Text component to ensure there are no direct text children in View */}
             <Text></Text>
         </Animated.View>
     );
@@ -43,20 +50,18 @@ const DraggableElement = ({ id, x, y, color, onDrop }) => {
 
 const StackingElements = () => {
     const [elements, setElements] = useState([]);
-    const idCounter = useRef(0); // Added to ensure unique IDs
+    const idCounter = useRef(0);
 
     const addElement = () => {
         const randomX = Math.random() * (width - ELEMENT_SIZE);
-        const randomY = Math.random() * (height - 150);
+        const randomY = Math.random() * (height - ELEMENT_SIZE);
         const colors = ['red', 'blue', 'yellow', 'green'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        const uniqueId = idCounter.current++; // Use a unique ID instead of elements.length
+        const uniqueId = idCounter.current++;
 
         setElements([...elements, { x: randomX, y: randomY, id: uniqueId, color: randomColor }]);
     };
 
-    // Update the position of an element when dropped.
-    // Delete the element if it's dropped inside the dustbin region.
     const handleDrop = (id, newX, newY) => {
         const centerX = newX + ELEMENT_SIZE / 2;
         const centerY = newY + ELEMENT_SIZE / 2;
@@ -69,10 +74,8 @@ const StackingElements = () => {
             centerY >= dustbinY &&
             centerY <= dustbinY + DUSTBIN_SIZE
         ) {
-            // Remove the element if dropped in dustbin region.
             setElements(prevElements => prevElements.filter(el => el.id !== id));
         } else {
-            // Update the element's position.
             setElements((prevElements) =>
                 prevElements.map((el) =>
                     el.id === id ? { ...el, x: newX, y: newY } : el
@@ -81,7 +84,6 @@ const StackingElements = () => {
         }
     };
 
-    // Compute clusters (stacks) by grouping touching elements.
     const getClusters = (elementsList) => {
         const clusters = [];
         const visited = new Set();
@@ -139,7 +141,7 @@ const StackingElements = () => {
                             {
                                 position: 'absolute',
                                 left: cluster.x,
-                                top: cluster.y - 25, // position above the cluster
+                                top: cluster.y - 25,
                             },
                         ]}
                     >
@@ -147,7 +149,6 @@ const StackingElements = () => {
                     </Text>
                 ))}
             </View>
-            {/* Dustbin icon */}
             <View style={styles.dustbin}>
                 <Text style={styles.dustbinText}>🗑️</Text>
             </View>
@@ -164,12 +165,13 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        position: 'relative',
     },
     workspace: {
-        backgroundColor: '#FFFFFF',
         flex: 1,
-        
+        backgroundColor: '#FFFFFF',
+        borderLeftWidth: 2, // Vertical border on left
+        borderRightWidth: 2, // Vertical border on right
+        borderColor: '#000',
     },
     element: {
         width: ELEMENT_SIZE,
