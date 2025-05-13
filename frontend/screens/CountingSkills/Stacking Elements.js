@@ -1,122 +1,128 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
+import { debounce } from 'lodash';
 
 const { width, height } = Dimensions.get('window');
-const ELEMENT_SIZE = 80; // used for both element size & collision threshold
+const ELEMENT_SIZE = 80; // Used for both element size & collision threshold
 const DUSTBIN_SIZE = 60;
 const DUSTBIN_PADDING = 20;
+const THRESHOLD_SQUARED = ELEMENT_SIZE * ELEMENT_SIZE;
 
-const DraggableElement = ({ id, x, y, color, onDrop }) => {
+const DraggableElement = React.memo(({ id, x, y, color, onDrop }) => {
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onPanResponderGrant: () => {
-                pan.setOffset({ x: pan.x._value, y: pan.y._value });
-                pan.setValue({ x: 0, y: 0 });
-            },
-            onPanResponderMove: Animated.event(
-                [null, { dx: pan.x, dy: pan.y }],
-                { useNativeDriver: false }
-            ),
-            onPanResponderRelease: () => {
-                pan.flattenOffset();
-                onDrop(id, pan.x._value, pan.y._value);
-            },
-        })
-    ).current;
+
+    const panResponder = useMemo(
+        () =>
+            PanResponder.create({
+                onStartShouldSetPanResponder: () => true,
+                onPanResponderGrant: () => {
+                    pan.setOffset({ x: pan.x._value, y: pan.y._value });
+                    pan.setValue({ x: 0, y: 0 });
+                },
+                onPanResponderMove: Animated.event(
+                    [null, { dx: pan.x, dy: pan.y }],
+                    { useNativeDriver: true }
+                ),
+                onPanResponderRelease: () => {
+                    pan.flattenOffset();
+                    onDrop(id, pan.x._value, pan.y._value);
+                },
+            }),
+        [pan, onDrop, id]
+    );
 
     return (
         <Animated.View
             style={[
                 styles.element,
                 { transform: pan.getTranslateTransform() },
-                { backgroundColor: color }, // Apply the color dynamically
+                { backgroundColor: color },
             ]}
             {...panResponder.panHandlers}
         >
-            {/* Added empty Text component to ensure there are no direct text children in View */}
-            <Text></Text>
+            <Text />
         </Animated.View>
     );
-};
+});
 
 const StackingElements = () => {
     const [elements, setElements] = useState([]);
-    const idCounter = useRef(0); // Added to ensure unique IDs
+    const [isOverDustbin, setIsOverDustbin] = useState(false);
+    const idCounter = useRef(0);
 
-    const addElement = () => {
+    const addElement = useCallback(() => {
         const randomX = Math.random() * (width - ELEMENT_SIZE);
         const randomY = Math.random() * (height - 150);
         const colors = ['red', 'blue', 'yellow', 'green'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        const uniqueId = idCounter.current++; // Use a unique ID instead of elements.length
+        const uniqueId = idCounter.current++;
 
-        setElements([...elements, { x: randomX, y: randomY, id: uniqueId, color: randomColor }]);
-    };
+        setElements(prev => [
+            ...prev,
+            { x: randomX, y: randomY, id: uniqueId, color: randomColor },
+        ]);
+    }, []);
 
-    // Update the position of an element when dropped.
-    // Delete the element if it's dropped inside the dustbin region.
-    const handleDrop = (id, newX, newY) => {
+    const handleDrop = useCallback((id, newX, newY) => {
         const centerX = newX + ELEMENT_SIZE / 2;
         const centerY = newY + ELEMENT_SIZE / 2;
         const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
         const dustbinY = DUSTBIN_PADDING;
 
-        if (
+        const overDustbin =
             centerX >= dustbinX &&
             centerX <= dustbinX + DUSTBIN_SIZE &&
             centerY >= dustbinY &&
-            centerY <= dustbinY + DUSTBIN_SIZE
-        ) {
-            // Remove the element if dropped in dustbin region.
-            setElements(prevElements => prevElements.filter(el => el.id !== id));
-        } else {
-            // Update the element's position.
-            setElements((prevElements) =>
-                prevElements.map((el) =>
-                    el.id === id ? { ...el, x: newX, y: newY } : el
-                )
+            centerY <= dustbinY + DUSTBIN_SIZE;
+
+        setIsOverDustbin(overDustbin);
+
+        setElements(prev => {
+            if (overDustbin) {
+                return prev.filter(el => el.id !== id);
+            }
+            return prev.map(el =>
+                el.id === id ? { ...el, x: newX, y: newY } : el
             );
-        }
-    };
+        });
+    }, []);
 
-    // Compute clusters (stacks) by grouping touching elements.
-    const getClusters = (elementsList) => {
-        const clusters = [];
-        const visited = new Set();
-        const threshold = ELEMENT_SIZE;
+    const getClusters = useCallback(
+        debounce((elementsList) => {
+            const clusters = [];
+            const visited = new Set();
 
-        for (const el of elementsList) {
-            if (visited.has(el.id)) continue;
-            const cluster = [];
-            const stack = [el];
+            for (const el of elementsList) {
+                if (visited.has(el.id)) continue;
+                const cluster = [];
+                const stack = [el];
 
-            while (stack.length > 0) {
-                const current = stack.pop();
-                if (visited.has(current.id)) continue;
-                visited.add(current.id);
-                cluster.push(current);
-                elementsList.forEach((candidate) => {
-                    if (
-                        !visited.has(candidate.id) &&
-                        Math.abs(candidate.x - current.x) <= threshold &&
-                        Math.abs(candidate.y - current.y) <= threshold
-                    ) {
-                        stack.push(candidate);
-                    }
-                });
+                while (stack.length > 0) {
+                    const current = stack.pop();
+                    if (visited.has(current.id)) continue;
+                    visited.add(current.id);
+                    cluster.push(current);
+                    elementsList.forEach((candidate) => {
+                        if (
+                            !visited.has(candidate.id) &&
+                            (candidate.x - current.x) ** 2 + (candidate.y - current.y) ** 2 <= THRESHOLD_SQUARED
+                        ) {
+                            stack.push(candidate);
+                        }
+                    });
+                }
+                if (cluster.length > 1) {
+                    const avgX = cluster.reduce((sum, item) => sum + item.x, 0) / cluster.length;
+                    const avgY = cluster.reduce((sum, item) => sum + item.y, 0) / cluster.length;
+                    clusters.push({ x: avgX, y: avgY, count: cluster.length });
+                }
             }
-            if (cluster.length > 1) {
-                const avgX = cluster.reduce((sum, item) => sum + item.x, 0) / cluster.length;
-                const avgY = cluster.reduce((sum, item) => sum + item.y, 0) / cluster.length;
-                clusters.push({ x: avgX, y: avgY, count: cluster.length });
-            }
-        }
-        return clusters;
-    };
+            return clusters;
+        }, 200),
+        []
+    );
 
-    const clusters = getClusters(elements);
+    const clusters = useMemo(() => getClusters(elements), [elements, getClusters]);
 
     return (
         <View style={styles.container}>
@@ -137,9 +143,8 @@ const StackingElements = () => {
                         style={[
                             styles.stackText,
                             {
-                                position: 'absolute',
                                 left: cluster.x,
-                                top: cluster.y - 25, // position above the cluster
+                                top: cluster.y - 25,
                             },
                         ]}
                     >
@@ -147,8 +152,12 @@ const StackingElements = () => {
                     </Text>
                 ))}
             </View>
-            {/* Dustbin icon */}
-            <View style={styles.dustbin}>
+            <View
+                style={[
+                    styles.dustbin,
+                    isOverDustbin && { backgroundColor: '#ddd' },
+                ]}
+            >
                 <Text style={styles.dustbinText}>🗑️</Text>
             </View>
             <View style={styles.controls}>
@@ -169,7 +178,6 @@ const styles = StyleSheet.create({
     workspace: {
         backgroundColor: '#FFFFFF',
         flex: 1,
-        
     },
     element: {
         width: ELEMENT_SIZE,
@@ -187,6 +195,7 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingoint: absolute,
         paddingHorizontal: 5,
         borderRadius: 5,
     },
