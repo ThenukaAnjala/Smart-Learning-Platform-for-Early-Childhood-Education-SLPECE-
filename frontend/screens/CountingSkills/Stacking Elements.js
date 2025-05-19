@@ -20,7 +20,6 @@ const DraggableElement = ({ id, x, y, color, onDrop }) => {
                 {
                     useNativeDriver: false,
                     listener: (event, gestureState) => {
-                        // Clamp the position to stay within screen boundaries
                         const newX = Math.max(0, Math.min(gestureState.dx + pan.x._offset, width - ELEMENT_SIZE));
                         const newY = Math.max(0, Math.min(gestureState.dy + pan.y._offset, height - ELEMENT_SIZE));
                         pan.setValue({ x: newX - pan.x._offset, y: newY - pan.y._offset });
@@ -51,6 +50,8 @@ const DraggableElement = ({ id, x, y, color, onDrop }) => {
 const StackingElements = () => {
     const [elements, setElements] = useState([]);
     const idCounter = useRef(0);
+    const backScale = useRef(new Animated.Value(1)).current;
+    const addScale = useRef(new Animated.Value(1)).current;
 
     const addElement = () => {
         const randomX = Math.random() * (width - ELEMENT_SIZE);
@@ -82,6 +83,10 @@ const StackingElements = () => {
                 )
             );
         }
+    };
+
+    const handleBackPress = () => {
+        console.log('Back button pressed');
     };
 
     const getClusters = (elementsList) => {
@@ -120,9 +125,44 @@ const StackingElements = () => {
 
     const clusters = getClusters(elements);
 
+    const animateButton = (scale, toValue, pressIn) => {
+        Animated.spring(scale, {
+            toValue: pressIn ? 0.95 : 1,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    // Generate star positions
+    const stars = [
+        { left: width * 0.1, top: height * 0.1 },
+        { left: width * 0.8, top: height * 0.15 },
+        { left: width * 0.3, top: height * 0.3 },
+        { left: width * 0.7, top: height * 0.4 },
+        { left: width * 0.2, top: height * 0.6 },
+        { left: width * 0.9, top: height * 0.7 },
+        { left: width * 0.4, top: height * 0.8 },
+    ];
+
     return (
         <View style={styles.container}>
+            {/* Starry Background Overlay */}
+            <View style={styles.starOverlay}>
+                {stars.map((star, index) => (
+                    <Text key={index} style={[styles.star, { left: star.left, top: star.top }]}>•</Text>
+                ))}
+            </View>
             <View style={styles.workspace}>
+                {/* Back Button */}
+                <TouchableOpacity
+                    onPress={handleBackPress}
+                    onPressIn={() => animateButton(backScale, true)}
+                    onPressOut={() => animateButton(backScale, false)}
+                    activeOpacity={0.8}
+                >
+                    <Animated.View style={[styles.backButton, { transform: [{ scale: backScale }], backgroundColor: '#40C4FF' }]}>
+                        <Text style={styles.backButtonText}>← Back</Text>
+                    </Animated.View>
+                </TouchableOpacity>
                 {elements.map((el) => (
                     <DraggableElement
                         key={el.id}
@@ -153,8 +193,15 @@ const StackingElements = () => {
                 <Text style={styles.dustbinText}>🗑️</Text>
             </View>
             <View style={styles.controls}>
-                <TouchableOpacity onPress={addElement} style={styles.button}>
-                    <Text style={styles.buttonText}>Add Element</Text>
+                <TouchableOpacity
+                    onPress={addElement}
+                    onPressIn={() => animateButton(addScale, true)}
+                    onPressOut={() => animateButton(addScale, false)}
+                    activeOpacity={0.8}
+                >
+                    <Animated.View style={[styles.button, { transform: [{ scale: addScale }], backgroundColor: '#FFCA28' }]}>
+                        <Text style={styles.buttonText}>+ Add Element</Text>
+                    </Animated.View>
                 </TouchableOpacity>
             </View>
         </View>
@@ -164,13 +211,24 @@ const StackingElements = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#1B263B', // Starry blue for space background
+    },
+    starOverlay: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        zIndex: 0, // Below interactive elements
+    },
+    star: {
+        position: 'absolute',
+        color: 'rgba(255, 255, 255, 0.7)', // Semi-transparent white
+        fontSize: 10,
     },
     workspace: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderLeftWidth: 2, // Vertical border on left
-        borderRightWidth: 2, // Vertical border on right
+        backgroundColor: 'transparent', // Allow container background to show
+        borderLeftWidth: 2,
+        borderRightWidth: 2,
         borderColor: '#000',
     },
     element: {
@@ -200,13 +258,20 @@ const styles = StyleSheet.create({
         padding: 10,
     },
     button: {
-        backgroundColor: 'blue',
-        padding: 10,
-        borderRadius: 5,
+        borderRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
     },
     buttonText: {
-        fontSize: 20,
-        color: 'white',
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#fff',
+        letterSpacing: 0.5,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
     },
     dustbin: {
         position: 'absolute',
@@ -224,6 +289,28 @@ const styles = StyleSheet.create({
     },
     dustbinText: {
         fontSize: 30,
+    },
+    backButton: {
+        borderRadius: 50,
+        shadowColor: '#000',
+        height: 50,
+        width: 100,
+        position: 'absolute',
+        top: 20,
+        left: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    backButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#fff',
+        letterSpacing: 0.5,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
     },
 });
 
