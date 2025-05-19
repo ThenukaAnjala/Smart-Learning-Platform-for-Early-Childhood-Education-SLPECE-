@@ -79,13 +79,55 @@ const StackingElements = () => {
     const addScale = useRef(new Animated.Value(1)).current;
 
     const addElement = () => {
-        const randomX = Math.random() * (width - ELEMENT_SIZE);
-        const randomY = Math.random() * (height - ELEMENT_SIZE);
         const colors = ['red', 'blue', 'yellow', 'green'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
         const uniqueKey = keyCounter.current++;
-        const pan = new Animated.ValueXY({ x: randomX, y: randomY });
+        let randomX, randomY;
+        let attempts = 0;
+        const maxAttempts = 100;
+        let isValidPosition = false;
 
+        while (attempts < maxAttempts) {
+            randomX = Math.random() * (width - ELEMENT_SIZE);
+            randomY = Math.random() * (height - ELEMENT_SIZE);
+            isValidPosition = true;
+
+            for (const el of elements) {
+                const dx = randomX - el.pan.x._value;
+                const dy = randomY - el.pan.y._value;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < ELEMENT_SIZE) {
+                    isValidPosition = false;
+                    break;
+                }
+            }
+
+            if (isValidPosition) break;
+            attempts++;
+        }
+
+        if (!isValidPosition) {
+            randomX = 10;
+            randomY = 10;
+            let offset = 0;
+            while (!isValidPosition && offset < Math.min(width, height)) {
+                randomX = 10 + offset;
+                randomY = 10 + offset;
+                isValidPosition = true;
+                for (const el of elements) {
+                    const dx = randomX - el.pan.x._value;
+                    const dy = randomY - el.pan.y._value;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < ELEMENT_SIZE) {
+                        isValidPosition = false;
+                        break;
+                    }
+                }
+                offset += ELEMENT_SIZE;
+            }
+        }
+
+        const pan = new Animated.ValueXY({ x: randomX, y: randomY });
         setElements(prev => [...prev, { key: uniqueKey, internalId: uniqueKey, pan, color: randomColor }]);
     };
 
