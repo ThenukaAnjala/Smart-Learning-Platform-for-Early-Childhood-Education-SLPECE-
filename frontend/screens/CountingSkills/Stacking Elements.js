@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -6,14 +6,18 @@ const ELEMENT_SIZE = 80;
 const DUSTBIN_SIZE = 60;
 const DUSTBIN_PADDING = 20;
 
-const DraggableElement = ({ id, x, y, color, onDrop }) => {
-    const pan = useRef(new Animated.ValueXY({ x, y })).current;
+const DraggableElement = ({ id, internalId, color, pan, onDrop }) => {
+    const scale = useRef(new Animated.Value(1)).current;
     const panResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
             onPanResponderGrant: () => {
                 pan.setOffset({ x: pan.x._value, y: pan.y._value });
                 pan.setValue({ x: 0, y: 0 });
+                Animated.spring(scale, {
+                    toValue: 1.1,
+                    useNativeDriver: true,
+                }).start();
             },
             onPanResponderMove: Animated.event(
                 [null, { dx: pan.x, dy: pan.y }],
@@ -28,7 +32,21 @@ const DraggableElement = ({ id, x, y, color, onDrop }) => {
             ),
             onPanResponderRelease: () => {
                 pan.flattenOffset();
-                onDrop(id, pan.x._value, pan.y._value);
+                Animated.sequence([
+                    Animated.spring(scale, {
+                        toValue: 1.2,
+                        friction: 3,
+                        tension: 80,
+                        useNativeDriver: true,
+                    }),
+                    Animated.spring(scale, {
+                        toValue: 1,
+                        friction: 5,
+                        tension: 60,
+                        useNativeDriver: true,
+                    }),
+                ]).start();
+                onDrop(internalId, pan.x._value, pan.y._value);
             },
         })
     ).current;
@@ -37,19 +55,26 @@ const DraggableElement = ({ id, x, y, color, onDrop }) => {
         <Animated.View
             style={[
                 styles.element,
-                { transform: pan.getTranslateTransform() },
-                { backgroundColor: color },
+                {
+                    transform: [
+                        ...pan.getTranslateTransform(),
+                        { scale },
+                    ],
+                    backgroundColor: color,
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    borderWidth: 3,
+                },
             ]}
             {...panResponder.panHandlers}
         >
-            <Text></Text>
+            <Text style={styles.elementText}>{id}</Text>
         </Animated.View>
     );
 };
 
 const StackingElements = () => {
     const [elements, setElements] = useState([]);
-    const idCounter = useRef(0);
+    const keyCounter = useRef(0);
     const backScale = useRef(new Animated.Value(1)).current;
     const addScale = useRef(new Animated.Value(1)).current;
 
@@ -58,12 +83,13 @@ const StackingElements = () => {
         const randomY = Math.random() * (height - ELEMENT_SIZE);
         const colors = ['red', 'blue', 'yellow', 'green'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        const uniqueId = idCounter.current++;
+        const uniqueKey = keyCounter.current++;
+        const pan = new Animated.ValueXY({ x: randomX, y: randomY });
 
-        setElements([...elements, { x: randomX, y: randomY, id: uniqueId, color: randomColor }]);
+        setElements(prev => [...prev, { key: uniqueKey, internalId: uniqueKey, pan, color: randomColor }]);
     };
 
-    const handleDrop = (id, newX, newY) => {
+    const handleDrop = (internalId, newX, newY) => {
         const centerX = newX + ELEMENT_SIZE / 2;
         const centerY = newY + ELEMENT_SIZE / 2;
         const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
@@ -75,12 +101,16 @@ const StackingElements = () => {
             centerY >= dustbinY &&
             centerY <= dustbinY + DUSTBIN_SIZE
         ) {
-            setElements(prevElements => prevElements.filter(el => el.id !== id));
+            setElements(prevElements => prevElements.filter(el => el.internalId !== internalId));
         } else {
-            setElements((prevElements) =>
-                prevElements.map((el) =>
-                    el.id === id ? { ...el, x: newX, y: newY } : el
-                )
+            setElements(prevElements =>
+                prevElements.map(el => {
+                    if (el.internalId === internalId) {
+                        el.pan.setValue({ x: newX, y: newY });
+                        return { ...el };
+                    }
+                    return el;
+                })
             );
         }
     };
@@ -95,35 +125,35 @@ const StackingElements = () => {
         const threshold = ELEMENT_SIZE;
 
         for (const el of elementsList) {
-            if (visited.has(el.id)) continue;
+            if (visited.has(el.key)) continue;
             const cluster = [];
             const stack = [el];
 
             while (stack.length > 0) {
                 const current = stack.pop();
-                if (visited.has(current.id)) continue;
-                visited.add(current.id);
+                if (visited.has(current.key)) continue;
+                visited.add(current.key);
                 cluster.push(current);
                 elementsList.forEach((candidate) => {
                     if (
-                        !visited.has(candidate.id) &&
-                        Math.abs(candidate.x - current.x) <= threshold &&
-                        Math.abs(candidate.y - current.y) <= threshold
+                        !visited.has(candidate.key) &&
+                        Math.abs(candidate.pan.x._value - current.pan.x._value) <= threshold &&
+                        Math.abs(candidate.pan.y._value - current.pan.y._value) <= threshold
                     ) {
                         stack.push(candidate);
                     }
                 });
             }
             if (cluster.length > 1) {
-                const avgX = cluster.reduce((sum, item) => sum + item.x, 0) / cluster.length;
-                const avgY = cluster.reduce((sum, item) => sum + item.y, 0) / cluster.length;
+                const avgX = cluster.reduce((sum, item) => sum + item.pan.x._value, 0) / cluster.length;
+                const avgY = cluster.reduce((sum, item) => sum + item.pan.y._value, 0) / cluster.length;
                 clusters.push({ x: avgX, y: avgY, count: cluster.length });
             }
         }
         return clusters;
     };
 
-    const clusters = getClusters(elements);
+    const clusters = useMemo(() => getClusters(elements), [elements]);
 
     const animateButton = (scale, toValue, pressIn) => {
         Animated.spring(scale, {
@@ -132,7 +162,6 @@ const StackingElements = () => {
         }).start();
     };
 
-    // Generate star positions
     const stars = [
         { left: width * 0.1, top: height * 0.1 },
         { left: width * 0.8, top: height * 0.15 },
@@ -145,14 +174,12 @@ const StackingElements = () => {
 
     return (
         <View style={styles.container}>
-            {/* Starry Background Overlay */}
             <View style={styles.starOverlay}>
                 {stars.map((star, index) => (
                     <Text key={index} style={[styles.star, { left: star.left, top: star.top }]}>•</Text>
                 ))}
             </View>
             <View style={styles.workspace}>
-                {/* Back Button */}
                 <TouchableOpacity
                     onPress={handleBackPress}
                     onPressIn={() => animateButton(backScale, true)}
@@ -163,13 +190,13 @@ const StackingElements = () => {
                         <Text style={styles.backButtonText}>← Back</Text>
                     </Animated.View>
                 </TouchableOpacity>
-                {elements.map((el) => (
+                {elements.map((el, index) => (
                     <DraggableElement
-                        key={el.id}
-                        id={el.id}
-                        x={el.x}
-                        y={el.y}
+                        key={el.key}
+                        id={index + 1}
+                        internalId={el.internalId}
                         color={el.color}
+                        pan={el.pan}
                         onDrop={handleDrop}
                     />
                 ))}
@@ -211,22 +238,22 @@ const StackingElements = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#1B263B', // Starry blue for space background
+        backgroundColor: '#1B263B',
     },
     starOverlay: {
         position: 'absolute',
         width: '100%',
         height: '100%',
-        zIndex: 0, // Below interactive elements
+        zIndex: 0,
     },
     star: {
         position: 'absolute',
-        color: 'rgba(255, 255, 255, 0.7)', // Semi-transparent white
+        color: 'rgba(255, 255, 255, 0.7)',
         fontSize: 10,
     },
     workspace: {
         flex: 1,
-        backgroundColor: 'transparent', // Allow container background to show
+        backgroundColor: 'transparent',
         borderLeftWidth: 2,
         borderRightWidth: 2,
         borderColor: '#000',
@@ -241,6 +268,19 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.8,
         shadowRadius: 5,
         elevation: 10,
+        shadowColor: '#fff',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    elementText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
     stackText: {
         color: 'white',
