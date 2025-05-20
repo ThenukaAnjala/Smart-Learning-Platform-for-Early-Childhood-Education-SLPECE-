@@ -464,7 +464,7 @@ export default function DrawingBoard({ navigation }) {
     <View style={styles.container}>
       {/* Toolbar mimicking Windows Paint */}
       <View style={styles.toolbar}>
-        <Text style={styles.toolbarTitle}>Windows Paint</Text>
+        {/* <Text style={styles.toolbarTitle}>Windows Paint</Text> */}
         <View style={styles.toolbarButtons}>
           <TouchableOpacity style={styles.toolbarButton} onPress={() => setIsEraser(false)}>
             <Text style={styles.buttonLabel}>Pencil</Text>
@@ -537,38 +537,51 @@ export default function DrawingBoard({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   toolbar: {
-    height: 50,
+    height: 54,
     width: '100%',
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#f5f5f7',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    borderBottomColor: '#b0b0b0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 3,
     zIndex: 15,
-  },
-  toolbarTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
+    // Optional: rounded top corners for a softer look
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   toolbarButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
   },
   toolbarButton: {
-    marginHorizontal: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    marginHorizontal: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 3,
+    borderColor: '#b0b0b0',
+    borderRadius: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 1,
+    elevation: 1,
+    // Simulate a button press effect
+    // (for actual press feedback, use TouchableOpacity's activeOpacity)
   },
   buttonLabel: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: 15,
+    color: '#222',
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   canvasContainer: { flex: 1, backgroundColor: '#fff' },
   drawingAreaWrapper: { flex: 1 },

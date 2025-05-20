@@ -75,7 +75,7 @@ export default function RabbitScreen() {
       style={styles.background}
       resizeMode="cover"
     >
-      <Text style={styles.title}>Rabbit's World</Text>
+      {/* <Text style={styles.title}>Rabbit's World</Text> */}
 
       {/* Container for both the rabbit drawing and the bush */}
       <View style={[styles.rabbitContainer, { left: basePosition.left, top: basePosition.top }]}>
