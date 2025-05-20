@@ -1,44 +1,86 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
-// Setting up constants for element size, dustbin size, padding, margin, and gap between elements
-const ELEMENT_SIZE = 60;
-const DUSTBIN_SIZE = 70;
+const ELEMENT_SIZE = 70;
+const DUSTBIN_SIZE = 80;
 const DUSTBIN_PADDING = 20;
 const LEFT_MARGIN = 20;
 const GAP = 10;
+const MAX_ELEMENTS = 10;
+const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
 
-const DraggableElement = ({ id, x, y, rowIndex, onDrop, label }) => {
+const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest }) => {
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
-    const opacity = useRef(new Animated.Value(1)).current; // Reference to control the fade-out effect
+    const opacity = useRef(new Animated.Value(1)).current;
+    const scale = useRef(new Animated.Value(1)).current;
+    const shake = useRef(new Animated.Value(0)).current;
+    const pulse = useRef(new Animated.Value(1)).current;
+    const isTouchable = useRef(true);
 
-    // This effect ensures the element animates back to its starting position when x or y changes
     useEffect(() => {
-        Animated.spring(pan, {
-            toValue: { x, y },
-            useNativeDriver: false,
-        }).start();
+        if (pan && typeof pan.setValue === 'function') {
+            Animated.spring(pan, {
+                toValue: { x, y },
+                useNativeDriver: true,
+            }).start();
+        }
     }, [x, y]);
 
-    // Sets up the drag functionality using PanResponder for each element
+    useEffect(() => {
+        if (isHighest) {
+            const pulseAnimation = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulse, {
+                        toValue: 1.1,
+                        duration: 500,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulse, {
+                        toValue: 1,
+                        duration: 500,
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            pulseAnimation.start();
+            return () => pulseAnimation.stop();
+        }
+    }, [isHighest]);
+
     const panResponder = useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => true, // Allows dragging to start
+            onStartShouldSetPanResponder: () => isTouchable.current,
             onPanResponderGrant: () => {
-                // Saves the current position when the drag begins
-                pan.setOffset({ x: pan.x._value, y: pan.y._value });
-                pan.setValue({ x: 0, y: 0 }); // Resets the base value for movement
+                if (pan && typeof pan.setOffset === 'function') {
+                    pan.setOffset({ x: pan.x._value, y: pan.y._value });
+                    pan.setValue({ x: 0, y: 0 });
+                    Animated.spring(scale, {
+                        toValue: 1.1,
+                        duration: 100,
+                        useNativeDriver: true,
+                    }).start();
+                }
             },
             onPanResponderMove: Animated.event(
                 [null, { dx: pan.x, dy: pan.y }],
                 { useNativeDriver: false }
-            ), // Updates the element's position as the user drags
-            onPanResponderRelease: (evt, gestureState) => {
-                // Flattens the offset and triggers the drop action when dragging ends
-                pan.flattenOffset();
-                onDrop(rowIndex, id, gestureState.dx, gestureState.dy, pan, opacity);
+            ),
+            onPanResponderRelease: () => {
+                if (pan && typeof pan.flattenOffset === 'function') {
+                    pan.flattenOffset();
+                    Animated.spring(scale, {
+                        toValue: 1,
+                        duration: 100,
+                        useNativeDriver: true,
+                    }).start();
+                    isTouchable.current = false;
+                    onDrop(id, pan.x._value, pan.y._value, opacity, shake, { x, y }, () => {
+                        isTouchable.current = true;
+                        console.log('Touch re-enabled for element:', { id, label });
+                    });
+                }
             },
         })
     ).current;
@@ -47,164 +89,470 @@ const DraggableElement = ({ id, x, y, rowIndex, onDrop, label }) => {
         <Animated.View
             style={[
                 styles.element,
-                { transform: pan.getTranslateTransform(), opacity }, // Applies position and opacity animations
+                {
+                    transform: [
+                        ...pan.getTranslateTransform(),
+                        { scale: Animated.multiply(scale, pulse) },
+                        { translateX: Animated.multiply(shake, 15) },
+                    ],
+                    opacity,
+                    backgroundColor: COLORS[label % COLORS.length],
+                    zIndex: 10,
+                    shadowOpacity: isHighest ? 0.5 : 0.3,
+                    shadowRadius: isHighest ? 8 : 4,
+                },
             ]}
             {...panResponder.panHandlers}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
             <Text style={styles.labelText}>{label}</Text>
         </Animated.View>
     );
-};
+});
 
-// Recalculates the positions and renumbers the labels of elements in a row after changes
-const recalcRowElements = (elements, rowY) => {
-    // Loops through the elements and updates their positions and labels based on their new index
-    return elements.map((el, idx) => ({
-        ...el, // Keeps all existing properties
-        x: LEFT_MARGIN + idx * (ELEMENT_SIZE + GAP), // Sets new x position with margin and gap
-        y: rowY, // Keeps the row's y position
-        label: idx + 1, // Updates the label to reflect the new order (1, 2, 3, ...)
-    }));
-};
+const ReverseCountingGame = () => {
+    const [elements, setElements] = useState([]);
+    const [isTutorialActive, setIsTutorialActive] = useState(true);
+    const [tutorialText, setTutorialText] = useState('Welcome! Drag the highest number (10) to the dustbin.');
+    const [tutorialStep, setTutorialStep] = useState(0);
+    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [messageColor, setMessageColor] = useState('rgba(255, 0, 0, 0.7)');
+    const keyCounter = useRef(0);
+    const elementsRef = useRef([]);
+    const tutorialCompleted = useRef(false);
+    const animationRef = useRef(null);
+    const skipScale = useRef(new Animated.Value(1)).current;
+    const mounted = useRef(true);
+    const hasSkipped = useRef(false);
+    const isDropping = useRef(false);
 
-// Generates the initial set of rows with random numbers of elements
-const generateRows = () => {
-    const rowYs = [height / 4, height / 2, (3 * height) / 4]; // Defines the y positions for the three rows
-    return rowYs.map((rowY, rowIndex) => {
-        const count = Math.floor(Math.random() * 10) + 1; // Picks a random number of elements (1 to 10)
-        const elements = Array.from({ length: count }, (_, i) => ({
-            id: `${rowIndex}-${i}`, // Creates a unique ID for each element
-            label: i + 1, // Sets the label from 1 to the random count
-            x: LEFT_MARGIN + i * (ELEMENT_SIZE + GAP), // Calculates the initial x position
-            y: rowY, // Assigns the row's y position
-            rowIndex, // Stores the row index for reference
-        }));
-        return { rowIndex, y: rowY, elements: recalcRowElements(elements, rowY) }; // Returns the row with recalculated elements
-    });
-};
+    useEffect(() => {
+        return () => {
+            mounted.current = false;
+            if (animationRef.current) {
+                animationRef.current.stop();
+                animationRef.current = null;
+            }
+        };
+    }, []);
 
-const ThreeLineElements = () => {
-    const [rows, setRows] = useState(generateRows()); // Initialize with generated rows
-    const [isDarkMode, setIsDarkMode] = useState(false); // State to toggle between light and dark modes
+    const initializeElements = useCallback(() => {
+        const rowY = height / 2;
+        const newElements = Array.from({ length: MAX_ELEMENTS }, (_, i) => {
+            const id = keyCounter.current++;
+            const x = LEFT_MARGIN + i * (ELEMENT_SIZE + GAP);
+            return {
+                id,
+                label: i + 1,
+                x,
+                y: rowY,
+                originalX: x,
+                originalY: rowY,
+                pan: new Animated.ValueXY({ x, y: rowY }),
+                opacity: new Animated.Value(1),
+                shake: new Animated.Value(0),
+            };
+        });
+        if (mounted.current) {
+            setElements(newElements);
+            elementsRef.current = newElements;
+            console.log('Initialized elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x })));
+        }
+    }, []);
 
-    // Resets the rows to a fresh state whenever the screen is focused
+    useEffect(() => {
+        elementsRef.current = elements;
+    }, [elements]);
+
     useFocusEffect(
-        React.useCallback(() => {
-            setRows(generateRows());
-            return () => {}; // Cleanup function
-        }, [])
+        useCallback(() => {
+            if (!elements.length) {
+                initializeElements();
+            }
+            if (!tutorialCompleted.current) {
+                setIsTutorialActive(true);
+                setTutorialStep(0);
+                hasSkipped.current = false;
+            }
+            return () => {
+                if (animationRef.current) {
+                    animationRef.current.stop();
+                    animationRef.current = null;
+                }
+            };
+        }, [initializeElements, elements.length])
     );
 
-    // Handles the action when an element is dropped, such as into the dustbin
-    const handleDrop = (rowIndex, id, deltaX, deltaY, pan, opacity) => {
-        const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING; // Determines the dustbin's x position
-        const dustbinY = DUSTBIN_PADDING; // Sets the dustbin's y position
+    const validatePosition = useCallback((x, y) => {
+        if (x < 0 || x > width - ELEMENT_SIZE || y < 0 || y > height - ELEMENT_SIZE) return false;
+        for (const el of elementsRef.current) {
+            const dx = x - el.x;
+            const dy = y - el.y;
+            if (Math.abs(dx) < ELEMENT_SIZE && Math.abs(dy) < ELEMENT_SIZE) return false;
+        }
+        return true;
+    }, []);
 
-        setRows(prevRows => {
-            const updatedRows = prevRows.map(r => {
-                if (r.rowIndex !== rowIndex) return r; // Skips if not the target row
+    const addElement = useCallback(() => {
+        if (elementsRef.current.length >= MAX_ELEMENTS || isTutorialActive) return;
+        const rowY = height / 2;
+        let x = LEFT_MARGIN + elementsRef.current.length * (ELEMENT_SIZE + GAP);
+        if (!validatePosition(x, rowY)) return;
 
-                const element = r.elements.find(el => el.id === id); // Finds the dropped element
-                if (!element) return r; // Skips if the element isn't found
-
-                const currentX = element.x + deltaX; // Calculates the new x position after drag
-                const currentY = element.y + deltaY; // Calculates the new y position after drag
-
-                const isInDustbin =
-                    currentX + ELEMENT_SIZE > dustbinX &&
-                    currentX < dustbinX + DUSTBIN_SIZE &&
-                    currentY + ELEMENT_SIZE > dustbinY &&
-                    currentY < dustbinY + DUSTBIN_SIZE; // Checks if the element is over the dustbin
-
-                if (isInDustbin) {
-                    // Starts a fade-out animation when the element is dropped in the dustbin
-                    Animated.timing(opacity, {
-                        toValue: 0, // Fades the element out
-                        duration: 200, // Smooth 200ms animation
-                        useNativeDriver: false,
-                    }).start(() => {
-                        // Removes the element from the row after the fade-out completes
-                        setRows(prevRows =>
-                            prevRows.map(r => {
-                                if (r.rowIndex !== rowIndex) return r;
-                                const updatedElements = r.elements.filter(el => el.id !== id); // Filters out the dropped element
-                                return { ...r, elements: recalcRowElements(updatedElements, r.y) }; // Recalculates positions and labels
-                            })
-                        );
-                    });
-                    return r; // Returns the unchanged row initially
-                }
-                return r; // Returns the row unchanged if not in the dustbin
+        const id = keyCounter.current++;
+        const newElement = {
+            id,
+            label: elementsRef.current.length + 1,
+            x,
+            y: rowY,
+            originalX: x,
+            originalY: rowY,
+            pan: new Animated.ValueXY({ x, y: rowY }),
+            opacity: new Animated.Value(1),
+            shake: new Animated.Value(0),
+        };
+        if (mounted.current) {
+            setElements(prev => {
+                const newElements = [...prev, newElement];
+                console.log('Added element:', { id, label: newElement.label, x });
+                return newElements;
             });
-            return updatedRows;
-        });
-    };
+        }
+    }, [isTutorialActive, validatePosition]);
 
-    // Adds a new element to a randomly selected row
-    const addElement = () => {
-        if (rows.length === 0) {
-            // Handle the case where rows might be empty
-            setRows(generateRows());
+    const handleDrop = useCallback((id, newX, newY, opacity, shake, originalPos, callback, isTutorial = false) => {
+        if (!elementsRef.current.length || isDropping.current) {
+            console.log('No elements to drop or drop in progress');
+            callback?.();
             return;
         }
-        
-        const randomRowIndex = Math.floor(Math.random() * rows.length); // Picks a random row
-        setRows(prevRows =>
-            prevRows.map(r => {
-                if (r.rowIndex !== randomRowIndex) return r; // Skips if not the selected row
-                const newEl = { 
-                    id: `${r.rowIndex}-${Date.now()}`, 
-                    rowIndex: r.rowIndex,
-                    label: r.elements.length + 1 // Ensure new element has a label
-                }; // Creates a new element with a unique ID
-                const newElements = [...r.elements, newEl]; // Adds the new element to the existing ones
-                return { ...r, elements: recalcRowElements(newElements, r.y) }; // Recalculates positions and labels
-            })
-        );
-    };
 
-    // Toggles the dark mode on or off
-    const toggleDarkMode = () => {
-        setIsDarkMode(prevMode => !prevMode); // Switches the dark mode state
-    };
+        isDropping.current = true;
+        setTimeout(() => {
+            isDropping.current = false;
+        }, 500);
+
+        const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
+        const dustbinY = DUSTBIN_PADDING;
+        const centerX = newX + ELEMENT_SIZE / 2;
+        const centerY = newY + ELEMENT_SIZE / 2;
+
+        const isInDustbin =
+            centerX >= dustbinX &&
+            centerX <= dustbinX + DUSTBIN_SIZE &&
+            centerY >= dustbinY &&
+            centerY <= dustbinY + DUSTBIN_SIZE;
+
+        const element = elementsRef.current.find(el => el.id === id);
+        if (!element) {
+            console.warn('Element not found:', id);
+            isDropping.current = false;
+            callback?.();
+            return;
+        }
+
+        const target = elementsRef.current[elementsRef.current.length - 1];
+
+        if (isInDustbin && !isTutorial && (!target || target.id !== id)) {
+            // Wrong element dropped in dustbin
+            setErrorMessage('You have picked the wrong number');
+            setMessageColor('rgba(255, 0, 0, 0.7)');
+            setTimeout(() => {
+                if (mounted.current) setErrorMessage('');
+            }, 2000);
+            Animated.sequence([
+                Animated.timing(shake, {
+                    toValue: 1,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(shake, {
+                    toValue: -1,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(shake, {
+                    toValue: 1,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(shake, {
+                    toValue: 0,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+            ]).start(() => {
+                Animated.spring(element.pan, {
+                    toValue: { x: element.originalX, y: element.originalY },
+                    duration: 300,
+                    friction: 8,
+                    tension: 40,
+                    useNativeDriver: true,
+                }).start(() => {
+                    element.pan.setValue({ x: element.originalX, y: element.originalY });
+                    console.log(`Repositioned wrong element ${element.label} to original position: (${element.originalX}, ${element.originalY})`);
+                    isDropping.current = false;
+                    callback?.();
+                });
+            });
+            return;
+        }
+
+        if (isInDustbin && (isTutorial || (target && target.id === id))) {
+            // Correct element dropped in dustbin
+            setErrorMessage('Yayy, you have deleted the correct one');
+            setMessageColor('rgba(0, 128, 0, 0.7)');
+            setTimeout(() => {
+                if (mounted.current) setErrorMessage('');
+            }, 2000);
+            Animated.timing(opacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }).start(() => {
+                if (mounted.current) {
+                    setElements(prev => {
+                        const newElements = prev.filter(el => el.id !== id);
+                        const updatedElements = newElements.map((el, i) => {
+                            const newX = LEFT_MARGIN + i * (ELEMENT_SIZE + GAP);
+                            return {
+                                ...el,
+                                label: i + 1,
+                                x: newX,
+                                originalX: newX,
+                                pan: new Animated.ValueXY({ x: newX, y: el.y }),
+                                opacity: new Animated.Value(1),
+                                shake: new Animated.Value(0),
+                            };
+                        });
+                        console.log('Deleted element', { id, label: element.label }, 'New count:', updatedElements.length, 'Labels:', updatedElements.map(el => el.label));
+                        return updatedElements;
+                    });
+                }
+                isDropping.current = false;
+                callback?.();
+            });
+        } else if (!isInDustbin) {
+            Animated.spring(element.pan, {
+                toValue: { x: element.originalX, y: element.originalY },
+                duration: 300,
+                friction: 8,
+                tension: 40,
+                useNativeDriver: true,
+            }).start(() => {
+                element.pan.setValue({ x: element.originalX, y: element.originalY });
+                console.log('Repositioned element outside dustbin:', { id, label: element.label, toX: element.originalX });
+                isDropping.current = false;
+                callback?.();
+            });
+        }
+    }, []);
+
+    const animateElementTo = useCallback((element, toX, toY, callback) => {
+        if (!element || !element.pan) {
+            console.warn('Invalid element for animation');
+            callback();
+            return;
+        }
+        const anim = Animated.timing(element.pan, {
+            toValue: { x: toX, y: toY },
+            duration: 1000,
+            useNativeDriver: true,
+        });
+        animationRef.current = anim;
+        anim.start(() => {
+            callback();
+            animationRef.current = null;
+        });
+    }, []);
+
+    const skipTutorial = useCallback(() => {
+        if (hasSkipped.current || !mounted.current) return;
+        hasSkipped.current = true;
+        if (animationRef.current) {
+            animationRef.current.stop();
+            animationRef.current = null;
+        }
+        setIsTutorialActive(false);
+        setTutorialStep(3);
+        tutorialCompleted.current = true;
+        console.log('Tutorial skipped');
+    }, []);
+
+    const advanceTutorial = useCallback(() => {
+        if (!mounted.current) return;
+        setTutorialStep(prev => prev + 1);
+    }, []);
+
+    useEffect(() => {
+        if (!isTutorialActive || tutorialCompleted.current || !mounted.current || !elements.length) return;
+
+        const runTutorial = () => {
+            const secondLastElement = elementsRef.current[elementsRef.current.length - 2];
+            const lastElement = elementsRef.current[elementsRef.current.length - 1];
+            const dustbinCenterX = width - DUSTBIN_SIZE - DUSTBIN_PADDING + DUSTBIN_SIZE / 2;
+            const dustbinCenterY = DUSTBIN_PADDING + DUSTBIN_SIZE / 2;
+            const elementX = dustbinCenterX - ELEMENT_SIZE / 2;
+            const elementY = dustbinCenterY - ELEMENT_SIZE / 2;
+
+            if (tutorialStep === 0) {
+                setTutorialText('Welcome! Drag the highest number (10) to the dustbin.');
+            } else if (tutorialStep === 1) {
+                if (!secondLastElement) {
+                    console.warn('Tutorial failed: Not enough elements');
+                    skipTutorial();
+                    return;
+                }
+                setTutorialText(`Try dragging ${MAX_ELEMENTS - 1}. It’s not the highest, so it’ll go back!`);
+                animateElementTo(secondLastElement, elementX, elementY, () => {
+                    if (!mounted.current) return;
+                    Animated.sequence([
+                        Animated.timing(secondLastElement.shake, {
+                            toValue: 1,
+                            duration: 100,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(secondLastElement.shake, {
+                            toValue: -1,
+                            duration: 100,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(secondLastElement.shake, {
+                            toValue: 1,
+                            duration: 100,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(secondLastElement.shake, {
+                            toValue: 0,
+                            duration: 100,
+                            useNativeDriver: true,
+                        }),
+                    ]).start();
+                    Animated.timing(secondLastElement.pan, {
+                        toValue: { x: secondLastElement.originalX, y: secondLastElement.originalY },
+                        duration: 300,
+                        useNativeDriver: true,
+                    }).start(() => {
+                        secondLastElement.pan.setValue({ x: secondLastElement.originalX, y: secondLastElement.originalY });
+                        console.log('Repositioned tutorial element:', { id: secondLastElement.id, label: secondLastElement.label });
+                    });
+                });
+            } else if (tutorialStep === 2) {
+                if (!lastElement) {
+                    console.warn('Tutorial failed: No last element');
+                    skipTutorial();
+                    return;
+                }
+                setTutorialText(`Now drag ${MAX_ELEMENTS} to the dustbin to delete it!`);
+                animateElementTo(lastElement, elementX, elementY, () => {
+                    if (!mounted.current) return;
+                    handleDrop(lastElement.id, elementX, elementY, lastElement.opacity, lastElement.shake, { x: lastElement.originalX, y: lastElement.originalY }, () => {}, true);
+                });
+            } else if (tutorialStep === 3) {
+                setTutorialText('Great! Keep dragging the highest number to count down.');
+                setTimeout(() => {
+                    if (mounted.current) {
+                        setIsTutorialActive(false);
+                        tutorialCompleted.current = true;
+                    }
+                }, 2000);
+            }
+        };
+
+        runTutorial();
+        return () => {
+            if (animationRef.current) {
+                animationRef.current.stop();
+                animationRef.current = null;
+            }
+        };
+    }, [isTutorialActive, tutorialStep, animateElementTo, handleDrop, skipTutorial, elements.length]);
+
+    const toggleDarkMode = useCallback(() => {
+        if (mounted.current) {
+            setIsDarkMode(prev => !prev);
+        }
+    }, []);
+
+    const animateButton = useCallback((scale, pressIn) => {
+        Animated.spring(scale, {
+            toValue: pressIn ? 0.95 : 1,
+            duration: 100,
+            useNativeDriver: true,
+        }).start();
+    }, []);
 
     return (
-        <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#24bbed' }]}>
+        <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#E6F3FF' }]}>
             <View style={styles.workspace}>
-                {rows.map(row =>
-                    row.elements.map(el => (
-                        <DraggableElement
-                            key={el.id}
-                            id={el.id}
-                            rowIndex={row.rowIndex}
-                            x={el.x}
-                            y={el.y}
-                            label={el.label}
-                            onDrop={handleDrop}
-                        />
-                    ))
-                )}
+                {elements.map((el, index) => (
+                    <DraggableElement
+                        key={el.id}
+                        id={el.id}
+                        label={el.label}
+                        x={el.x}
+                        y={el.y}
+                        onDrop={handleDrop}
+                        isHighest={index === elements.length - 1}
+                    />
+                ))}
             </View>
-            <View style={[styles.dustbin, { backgroundColor: isDarkMode ? '#333333' : '#eee', borderColor: isDarkMode ? '#555' : '#ccc' }]}>
+            <View style={styles.dustbin}>
                 <Text style={styles.dustbinText}>🗑️</Text>
             </View>
-            {/* Dark Mode Toggle Button - Positioned below dustbin */}
             <TouchableOpacity
-                style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
+                style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333' : '#FFF' }]}
                 onPress={toggleDarkMode}
+                onPressIn={() => animateButton(skipScale, true)}
+                onPressOut={() => animateButton(skipScale, false)}
             >
-                <Text style={styles.darkModeIcon}>
-                    {isDarkMode ? '☀️' : '🌙'}
-                </Text>
+                <Text style={styles.darkModeIcon}>{isDarkMode ? '☀️' : '🌙'}</Text>
             </TouchableOpacity>
             <View style={styles.controls}>
                 <TouchableOpacity
                     onPress={addElement}
-                    style={[styles.button, { backgroundColor: isDarkMode ? '#555' : 'blue' }]}
+                    style={[styles.button, { backgroundColor: isDarkMode ? '#555' : '#FF6B6B' }]}
+                    disabled={isTutorialActive}
+                    onPressIn={() => animateButton(skipScale, true)}
+                    onPressOut={() => animateButton(skipScale, false)}
                 >
-                    <Text style={[styles.buttonText, { color: 'white' }]}>Add Element</Text>
+                    <Text style={styles.buttonText}>+ Add Number</Text>
                 </TouchableOpacity>
             </View>
+            <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>Numbers left: {elements.length}</Text>
+            </View>
+            {isTutorialActive && (
+                <View style={styles.tutorialOverlay}>
+                    <Text style={styles.tutorialText}>{tutorialText}</Text>
+                    <TouchableOpacity
+                        onPress={advanceTutorial}
+                        style={styles.gotItButton}
+                        onPressIn={() => animateButton(skipScale, true)}
+                        onPressOut={() => animateButton(skipScale, false)}
+                    >
+                        <Animated.View style={[styles.gotItButtonInner, { transform: [{ scale: skipScale }] }]}>
+                            <Text style={styles.gotItButtonText}>Got it</Text>
+                        </Animated.View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={skipTutorial}
+                        style={styles.skipButton}
+                        onPressIn={() => animateButton(skipScale, true)}
+                        onPressOut={() => animateButton(skipScale, false)}
+                    >
+                        <Animated.View style={[styles.skipButtonInner, { transform: [{ scale: skipScale }] }]}>
+                            <Text style={styles.skipButtonText}>Skip Tutorial</Text>
+                        </Animated.View>
+                    </TouchableOpacity>
+                </View>
+            )}
+            {errorMessage ? (
+                <View style={styles.errorOverlay}>
+                    <Text style={[styles.errorText, { backgroundColor: messageColor }]}>{errorMessage}</Text>
+                </View>
+            ) : null}
         </View>
     );
 };
@@ -219,37 +567,23 @@ const styles = StyleSheet.create({
     element: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
-        backgroundColor: 'red',
-        borderRadius: 50,
+        borderRadius: 10,
         position: 'absolute',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 5, height: 5 },
-        shadowOpacity: 0.8,
-        shadowRadius: 5,
-        elevation: 10,
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
     },
     labelText: {
-        color: 'white',
-        fontSize: 20,
+        color: '#FFF',
+        fontSize: 24,
         fontWeight: 'bold',
-    },
-    controls: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginBottom: 20,
-        padding: 10,
-    },
-    button: {
-        padding: 10,
-        borderRadius: 5,
-        minWidth: 120,
-        alignItems: 'center',
-    },
-    buttonText: {
-        fontSize: 20,
-        color: 'white',
+        textShadowColor: 'rgba(0,0,0,0.2)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
     dustbin: {
         position: 'absolute',
@@ -259,22 +593,24 @@ const styles = StyleSheet.create({
         height: DUSTBIN_SIZE,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: DUSTBIN_SIZE / 2,
-        borderWidth: 1,
-        zIndex: 1000,
+        zIndex: 0,
     },
     dustbinText: {
-        fontSize: 30,
+        fontSize: 40,
     },
     darkModeButton: {
         position: 'absolute',
-        top: DUSTBIN_PADDING + DUSTBIN_SIZE + 10, // Positioned below dustbin with 10px gap
+        top: DUSTBIN_PADDING + DUSTBIN_SIZE + 10,
         right: DUSTBIN_PADDING,
         width: 50,
         height: 50,
         borderRadius: 25,
         justifyContent: 'center',
         alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
         elevation: 5,
         zIndex: 1000,
     },
@@ -282,6 +618,120 @@ const styles = StyleSheet.create({
         fontSize: 24,
         color: '#000',
     },
+    controls: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginBottom: 20,
+        padding: 10,
+    },
+    button: {
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    buttonText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#FFF',
+    },
+    progressContainer: {
+        position: 'absolute',
+        top: DUSTBIN_PADDING + (DUSTBIN_SIZE - 24) / 2, // Center vertically with dustbin
+        right: DUSTBIN_PADDING + DUSTBIN_SIZE + 20, // Further left of the dustbin
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        padding: 8,
+        borderRadius: 8,
+        zIndex: 1000,
+    },
+    progressText: {
+        fontSize: 16,
+        color: '#FFF',
+        fontWeight: '600',
+    },
+    tutorialOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 2000,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    tutorialText: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#FFF',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        padding: 15,
+        borderRadius: 10,
+        textAlign: 'center',
+        maxWidth: '80%',
+    },
+    gotItButton: {
+        position: 'absolute',
+        bottom: 100,
+    },
+    gotItButtonInner: {
+        backgroundColor: '#4CAF50',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    gotItButtonText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#FFF',
+        textAlign: 'center',
+    },
+    skipButton: {
+        position: 'absolute',
+        bottom: 30,
+    },
+    skipButtonInner: {
+        backgroundColor: '#FFCA28',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    skipButtonText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+        textAlign: 'center',
+    },
+    errorOverlay: {
+        position: 'absolute',
+        top: 50, // Higher up on the screen
+        left: 0,
+        right: 0,
+        zIndex: 1500,
+        alignItems: 'center', // Center horizontally
+    },
+    errorText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFF',
+        padding: 10,
+        borderRadius: 8,
+        textAlign: 'center',
+        maxWidth: '80%',
+    },
 });
 
-export default ThreeLineElements;
+export default ReverseCountingGame;
