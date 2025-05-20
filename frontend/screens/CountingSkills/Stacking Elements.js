@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback, memo } from 'react';
+import React, { useState, useRef, useMemo, useCallback, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -77,13 +77,185 @@ const DraggableElement = memo(({ id, internalId, color, pan, onDrop }) => {
 
 const StackingElements = () => {
     const [elements, setElements] = useState([]);
+    const [isTutorialActive, setIsTutorialActive] = useState(true);
+    const [tutorialText, setTutorialText] = useState('Watch how to create stacks!');
     const keyCounter = useRef(0);
     const backScale = useRef(new Animated.Value(1)).current;
     const addScale = useRef(new Animated.Value(1)).current;
+    const arrowOpacity = useRef(new Animated.Value(0)).current;
     const elementsRef = useRef([]);
+    const tutorialCompleted = useRef(false);
+    const tutorialStep = useRef(0);
+    const animationRef = useRef(null);
+
+    const validatePosition = useCallback((x, y) => {
+        if (x < 0 || x > width - ELEMENT_SIZE || y < 0 || y > height - ELEMENT_SIZE) return false;
+        for (const el of elementsRef.current) {
+            const dx = x - el.pan.x._value;
+            const dy = y - el.pan.y._value;
+            if (Math.abs(dx) < ELEMENT_SIZE && Math.abs(dy) < ELEMENT_SIZE) return false;
+        }
+        return true;
+    }, []);
+
+    const addElementAtPosition = useCallback((x, y, color) => {
+        if (elementsRef.current.length >= MAX_ELEMENTS || !validatePosition(x, y)) {
+            console.warn('Failed to add tutorial element at', x, y);
+            return null;
+        }
+        const uniqueKey = keyCounter.current++;
+        const pan = new Animated.ValueXY({ x, y });
+        const newElement = { key: uniqueKey, internalId: uniqueKey, pan, color };
+        setElements(prev => {
+            const newElements = [...prev, newElement];
+            elementsRef.current = newElements;
+            return newElements;
+        });
+        return newElement;
+    }, [validatePosition]);
+
+    const animateElementTo = useCallback((pan, toX, toY, callback) => {
+        const anim = Animated.timing(pan, {
+            toValue: { x: toX, y: toY },
+            duration: 1000,
+            useNativeDriver: true,
+        });
+        animationRef.current = anim;
+        anim.start(() => {
+            console.log('Animation completed to x:', toX, 'y:', toY);
+            callback();
+            animationRef.current = null;
+        });
+    }, []);
+
+    const handleDrop = useCallback((internalId, newX, newY, isTutorial = false) => {
+        const centerX = newX + ELEMENT_SIZE / 2;
+        const centerY = newY + ELEMENT_SIZE / 2;
+        const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
+        const dustbinY = DUSTBIN_PADDING;
+
+        if (
+            centerX >= dustbinX &&
+            centerX <= dustbinX + DUSTBIN_SIZE &&
+            centerY >= dustbinY &&
+            centerY <= dustbinY + DUSTBIN_SIZE ||
+            isTutorial
+        ) {
+            setElements(prev => {
+                const newElements = prev.filter(el => el.internalId !== internalId);
+                elementsRef.current = newElements;
+                console.log('Deleted element', internalId, 'New count:', newElements.length);
+                return newElements;
+            });
+        } else if (!isTutorial) {
+            elementsRef.current = elementsRef.current.map(el => {
+                if (el.internalId === internalId) {
+                    el.pan.setValue({ x: newX, y: newY });
+                    return { ...el };
+                }
+                return el;
+            });
+            setElements([...elementsRef.current]);
+        }
+    }, []);
+
+    const skipTutorial = useCallback(() => {
+        if (animationRef.current) {
+            animationRef.current.stop();
+            animationRef.current = null;
+        }
+        Animated.timing(arrowOpacity, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+        }).start();
+        setIsTutorialActive(false);
+        setElements([]);
+        elementsRef.current = [];
+        tutorialCompleted.current = true;
+        tutorialStep.current = 2;
+        console.log('Tutorial skipped');
+    }, []);
+
+    useEffect(() => {
+        if (!isTutorialActive || tutorialCompleted.current) return;
+
+        const runTutorial = () => {
+            if (tutorialStep.current === 0) {
+                setTutorialText('Adding elements to form stacks...');
+                const stack1X = width * 0.3;
+                const stack1Y = height * 0.4;
+                const stack2X = width * 0.6;
+                const stack2Y = height * 0.4;
+
+                Animated.sequence([
+                    Animated.timing(new Animated.Value(0), { toValue: 1, duration: 500, useNativeDriver: false }),
+                    Animated.timing(new Animated.Value(0), { toValue: 1, duration: 500, useNativeDriver: false }),
+                    Animated.timing(new Animated.Value(0), { toValue: 1, duration: 500, useNativeDriver: false }),
+                    Animated.timing(new Animated.Value(0), { toValue: 1, duration: 500, useNativeDriver: false }),
+                    Animated.timing(new Animated.Value(0), { toValue: 1, duration: 500, useNativeDriver: false }),
+                    Animated.timing(new Animated.Value(0), { toValue: 1, duration: 500, useNativeDriver: false }),
+                ]).start(() => {
+                    const el1 = addElementAtPosition(stack1X, stack1Y, 'red');
+                    const el2 = addElementAtPosition(stack1X + 20, stack1Y + 20, 'blue');
+                    const el3 = addElementAtPosition(stack1X - 20, stack1Y - 20, 'yellow');
+                    const el4 = addElementAtPosition(stack2X, stack2Y, 'green');
+                    const el5 = addElementAtPosition(stack2X + 20, stack2Y + 20, 'red');
+                    const el6 = addElementAtPosition(stack2X - 20, stack2Y - 20, 'blue');
+
+                    if (!el1 || !el2 || !el3 || !el4 || !el5 || !el6) {
+                        console.warn('Tutorial failed: Could not add all elements');
+                        skipTutorial();
+                        return;
+                    }
+
+                    tutorialStep.current = 1;
+                    setTutorialText('Dragging an element to the dustbin to delete...');
+                    Animated.timing(arrowOpacity, {
+                        toValue: 1,
+                        duration: 500,
+                        useNativeDriver: true,
+                    }).start();
+
+                    const dustbinCenterX = width - DUSTBIN_SIZE - DUSTBIN_PADDING + DUSTBIN_SIZE / 2;
+                    const dustbinCenterY = DUSTBIN_PADDING + DUSTBIN_SIZE / 2;
+                    const elementX = dustbinCenterX - ELEMENT_SIZE / 2;
+                    const elementY = dustbinCenterY - ELEMENT_SIZE / 2;
+
+                    animateElementTo(el6.pan, elementX, elementY, () => {
+                        handleDrop(el6.internalId, elementX, elementY, true);
+                        tutorialStep.current = 2;
+                        setTutorialText('Tutorial complete! Try it yourself!');
+                        Animated.timing(arrowOpacity, {
+                            toValue: 0,
+                            duration: 500,
+                            useNativeDriver: true,
+                        }).start();
+                        Animated.timing(new Animated.Value(0), {
+                            toValue: 1,
+                            duration: 2000,
+                            useNativeDriver: false,
+                        }).start(() => {
+                            setIsTutorialActive(false);
+                            tutorialCompleted.current = true;
+                        });
+                    });
+                });
+            }
+        };
+
+        runTutorial();
+        return () => {
+            if (animationRef.current) {
+                animationRef.current.stop();
+                animationRef.current = null;
+            }
+            Animated.timing(arrowOpacity, { toValue: 0, duration: 0, useNativeDriver: true }).start();
+        };
+    }, [isTutorialActive, addElementAtPosition, animateElementTo, handleDrop, skipTutorial]);
 
     const addElement = useCallback(() => {
-        if (elementsRef.current.length >= MAX_ELEMENTS) return;
+        if (elementsRef.current.length >= MAX_ELEMENTS || isTutorialActive) return;
 
         const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
         const uniqueKey = keyCounter.current++;
@@ -137,36 +309,7 @@ const StackingElements = () => {
             elementsRef.current = newElements;
             return newElements;
         });
-    }, []);
-
-    const handleDrop = useCallback((internalId, newX, newY) => {
-        const centerX = newX + ELEMENT_SIZE / 2;
-        const centerY = newY + ELEMENT_SIZE / 2;
-        const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
-        const dustbinY = DUSTBIN_PADDING;
-
-        if (
-            centerX >= dustbinX &&
-            centerX <= dustbinX + DUSTBIN_SIZE &&
-            centerY >= dustbinY &&
-            centerY <= dustbinY + DUSTBIN_SIZE
-        ) {
-            setElements(prev => {
-                const newElements = prev.filter(el => el.internalId !== internalId);
-                elementsRef.current = newElements;
-                return newElements;
-            });
-        } else {
-            elementsRef.current = elementsRef.current.map(el => {
-                if (el.internalId === internalId) {
-                    el.pan.setValue({ x: newX, y: newY });
-                    return { ...el };
-                }
-                return el;
-            });
-            setElements([...elementsRef.current]);
-        }
-    }, []);
+    }, [isTutorialActive]);
 
     const handleBackPress = useCallback(() => {
         console.log('Back button pressed');
@@ -205,6 +348,7 @@ const StackingElements = () => {
                 clusters.push({ x: avgX, y: avgY, count: cluster.length });
             }
         }
+        console.log('Clusters computed:', clusters);
         return clusters;
     }, []);
 
@@ -235,6 +379,7 @@ const StackingElements = () => {
                     onPressIn={() => animateButton(backScale, true)}
                     onPressOut={() => animateButton(backScale, false)}
                     activeOpacity={0.8}
+                    disabled={isTutorialActive}
                 >
                     <Animated.View style={[styles.backButton, { transform: [{ scale: backScale }], backgroundColor: '#40C4FF' }]}>
                         <Text style={styles.backButtonText}>← Back</Text>
@@ -275,12 +420,37 @@ const StackingElements = () => {
                     onPressIn={() => animateButton(addScale, true)}
                     onPressOut={() => animateButton(addScale, false)}
                     activeOpacity={0.8}
+                    disabled={isTutorialActive}
                 >
                     <Animated.View style={[styles.button, { transform: [{ scale: addScale }], backgroundColor: '#FFCA28' }]}>
                         <Text style={styles.buttonText}>+ Add Element</Text>
                     </Animated.View>
                 </TouchableOpacity>
             </View>
+            {isTutorialActive && (
+                <View style={styles.tutorialOverlay}>
+                    <Text style={styles.tutorialText}>{tutorialText}</Text>
+                    <Animated.View
+                        style={[
+                            styles.arrow,
+                            {
+                                opacity: arrowOpacity,
+                                top: DUSTBIN_PADDING - 50,
+                                right: DUSTBIN_PADDING + DUSTBIN_SIZE / 2,
+                            },
+                        ]}
+                    >
+                        <Text style={styles.arrowText}>↓</Text>
+                    </Animated.View>
+                    <TouchableOpacity
+                        onPress={skipTutorial}
+                        style={styles.skipButton}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.skipButtonText}>Skip Tutorial</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 };
@@ -401,6 +571,54 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
         paddingVertical: 10,
         paddingHorizontal: 16,
+    },
+    tutorialOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 2000,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    tutorialText: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#fff',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        padding: 10,
+        borderRadius: 10,
+        textAlign: 'center',
+    },
+    arrow: {
+        position: 'absolute',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    arrowText: {
+        fontSize: 40,
+        color: '#FFCA28',
+        fontWeight: 'bold',
+    },
+    skipButton: {
+        position: 'absolute',
+        bottom: 20,
+        backgroundColor: '#FF5722',
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    skipButtonText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#fff',
+        textAlign: 'center',
     },
 });
 
