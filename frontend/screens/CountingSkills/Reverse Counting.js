@@ -11,6 +11,33 @@ const GAP = 10;
 const MAX_ELEMENTS = 10;
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
 
+const SUCCESS_MESSAGES = [
+    'Super Job! 🌟',
+    'You’re a Star! ✨',
+    'Wow, You Did It! 🎉',
+    'Awesome Work! 👍',
+    'High Five! 🖐️',
+    'You’re Amazing! 😊',
+    'Great Going! 🚀',
+    'Way to Shine! 💫',
+    'Fantastic! 🏆',
+];
+
+const FAILURE_MESSAGES = [
+    'Try Again! 😄',
+    'You’re So Close! 🌈',
+    'Keep Going! 💪',
+    'Almost There! 🐾',
+    'Give It Another Go! 😊',
+    'You Can Do It! 🌟',
+    'Nice Try! 👍',
+    'Let’s Try Again! 🚀',
+];
+
+const getRandomMessage = (messages) => {
+    return messages[Math.floor(Math.random() * messages.length)];
+};
+
 const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest }) => {
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
     const opacity = useRef(new Animated.Value(1)).current;
@@ -57,7 +84,7 @@ const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest }) => {
                     pan.setOffset({ x: pan.x._value, y: pan.y._value });
                     pan.setValue({ x: 0, y: 0 });
                     Animated.spring(scale, {
-                        toValue: 1.1,
+                        toValue: 1.15,
                         duration: 100,
                         useNativeDriver: true,
                     }).start();
@@ -98,8 +125,6 @@ const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest }) => {
                     opacity,
                     backgroundColor: COLORS[label % COLORS.length],
                     zIndex: 10,
-                    shadowOpacity: isHighest ? 0.5 : 0.3,
-                    shadowRadius: isHighest ? 8 : 4,
                 },
             ]}
             {...panResponder.panHandlers}
@@ -112,30 +137,77 @@ const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest }) => {
 
 const ReverseCountingGame = () => {
     const [elements, setElements] = useState([]);
-    const [isTutorialActive, setIsTutorialActive] = useState(true);
-    const [tutorialText, setTutorialText] = useState('Welcome! Drag the highest number (10) to the dustbin.');
-    const [tutorialStep, setTutorialStep] = useState(0);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [messageColor, setMessageColor] = useState('rgba(255, 0, 0, 0.7)');
     const keyCounter = useRef(0);
     const elementsRef = useRef([]);
-    const tutorialCompleted = useRef(false);
     const animationRef = useRef(null);
     const skipScale = useRef(new Animated.Value(1)).current;
+    const toastOpacity = useRef(new Animated.Value(0)).current;
+    const toastTranslateY = useRef(new Animated.Value(-20)).current;
+    const dustbinPulse = useRef(new Animated.Value(1)).current;
     const mounted = useRef(true);
-    const hasSkipped = useRef(false);
     const isDropping = useRef(false);
 
     useEffect(() => {
+        const dustbinAnimation = Animated.loop(
+            Animated.sequence([
+                Animated.timing(dustbinPulse, {
+                    toValue: 1.05,
+                    duration: 1000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(dustbinPulse, {
+                    toValue: 1,
+                    duration: 1000,
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        dustbinAnimation.start();
         return () => {
             mounted.current = false;
+            dustbinAnimation.stop();
             if (animationRef.current) {
                 animationRef.current.stop();
                 animationRef.current = null;
             }
         };
     }, []);
+
+    useEffect(() => {
+        if (errorMessage) {
+            Animated.parallel([
+                Animated.timing(toastOpacity, {
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(toastTranslateY, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+            setTimeout(() => {
+                if (mounted.current) {
+                    Animated.parallel([
+                        Animated.timing(toastOpacity, {
+                            toValue: 0,
+                            duration: 300,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(toastTranslateY, {
+                            toValue: -20,
+                            duration: 300,
+                            useNativeDriver: true,
+                        }),
+                    ]).start(() => setErrorMessage(''));
+                }
+            }, 2000);
+        }
+    }, [errorMessage]);
 
     const initializeElements = useCallback(() => {
         const rowY = height / 2;
@@ -170,11 +242,6 @@ const ReverseCountingGame = () => {
             if (!elements.length) {
                 initializeElements();
             }
-            if (!tutorialCompleted.current) {
-                setIsTutorialActive(true);
-                setTutorialStep(0);
-                hasSkipped.current = false;
-            }
             return () => {
                 if (animationRef.current) {
                     animationRef.current.stop();
@@ -185,25 +252,41 @@ const ReverseCountingGame = () => {
     );
 
     const validatePosition = useCallback((x, y) => {
-        if (x < 0 || x > width - ELEMENT_SIZE || y < 0 || y > height - ELEMENT_SIZE) return false;
+        console.log('validatePosition called with:', { x, y, width, height, ELEMENT_SIZE });
+        if (x < 0 || x > width - ELEMENT_SIZE || y < 0 || y > height - ELEMENT_SIZE) {
+            console.log('Position out of bounds:', { x, y });
+            return false;
+        }
         for (const el of elementsRef.current) {
             const dx = x - el.x;
             const dy = y - el.y;
-            if (Math.abs(dx) < ELEMENT_SIZE && Math.abs(dy) < ELEMENT_SIZE) return false;
+            if (Math.abs(dx) < ELEMENT_SIZE && Math.abs(dy) < ELEMENT_SIZE) {
+                console.log('Position overlaps with existing element:', { x, y, el_x: el.x, el_y: el.y });
+                return false;
+            }
         }
+        console.log('Position valid:', { x, y });
         return true;
     }, []);
 
     const addElement = useCallback(() => {
-        if (elementsRef.current.length >= MAX_ELEMENTS || isTutorialActive) return;
+        console.log('addElement called', { currentLength: elementsRef.current.length, MAX_ELEMENTS });
+        if (elementsRef.current.length >= MAX_ELEMENTS) {
+            console.log('Cannot add element: MAX_ELEMENTS reached');
+            return;
+        }
         const rowY = height / 2;
         let x = LEFT_MARGIN + elementsRef.current.length * (ELEMENT_SIZE + GAP);
-        if (!validatePosition(x, rowY)) return;
+        console.log('Attempting to add element at:', { x, y: rowY });
+        if (!validatePosition(x, rowY)) {
+            console.log('validatePosition failed for:', { x, y: rowY });
+            return;
+        }
 
         const id = keyCounter.current++;
         const newElement = {
             id,
-            label: elementsRef.current.length + 1,
+            label: elementsRef.current.length === 0 ? 1 : Math.max(...elementsRef.current.map(el => el.label)) + 1,
             x,
             y: rowY,
             originalX: x,
@@ -212,16 +295,40 @@ const ReverseCountingGame = () => {
             opacity: new Animated.Value(1),
             shake: new Animated.Value(0),
         };
+        console.log('Adding new element:', { id, label: newElement.label, x, y: rowY });
         if (mounted.current) {
             setElements(prev => {
                 const newElements = [...prev, newElement];
-                console.log('Added element:', { id, label: newElement.label, x });
+                elementsRef.current = newElements; // Sync elementsRef
+                console.log('Updated elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x })));
                 return newElements;
             });
         }
-    }, [isTutorialActive, validatePosition]);
+    }, [validatePosition]);
 
-    const handleDrop = useCallback((id, newX, newY, opacity, shake, originalPos, callback, isTutorial = false) => {
+    const shuffleElements = useCallback(() => {
+        if (!elementsRef.current.length || isDropping.current) {
+            console.log('No elements to shuffle or drop in progress');
+            return;
+        }
+        const labels = elementsRef.current.map(el => el.label);
+        // Fisher-Yates shuffle
+        for (let i = labels.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [labels[i], labels[j]] = [labels[j], labels[i]];
+        }
+        const newElements = elementsRef.current.map((el, i) => ({
+            ...el,
+            label: labels[i],
+        }));
+        if (mounted.current) {
+            setElements(newElements);
+            elementsRef.current = newElements;
+            console.log('Shuffled elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x })));
+        }
+    }, []);
+
+    const handleDrop = useCallback((id, newX, newY, opacity, shake, originalPos, callback) => {
         if (!elementsRef.current.length || isDropping.current) {
             console.log('No elements to drop or drop in progress');
             callback?.();
@@ -252,15 +359,13 @@ const ReverseCountingGame = () => {
             return;
         }
 
-        const target = elementsRef.current[elementsRef.current.length - 1];
+        const maxLabel = Math.max(...elementsRef.current.map(el => el.label));
+        const target = elementsRef.current.find(el => el.label === maxLabel);
 
-        if (isInDustbin && !isTutorial && (!target || target.id !== id)) {
+        if (isInDustbin && (!target || target.id !== id)) {
             // Wrong element dropped in dustbin
-            setErrorMessage('You have picked the wrong number');
+            setErrorMessage(getRandomMessage(FAILURE_MESSAGES));
             setMessageColor('rgba(255, 0, 0, 0.7)');
-            setTimeout(() => {
-                if (mounted.current) setErrorMessage('');
-            }, 2000);
             Animated.sequence([
                 Animated.timing(shake, {
                     toValue: 1,
@@ -299,13 +404,10 @@ const ReverseCountingGame = () => {
             return;
         }
 
-        if (isInDustbin && (isTutorial || (target && target.id === id))) {
+        if (isInDustbin && target && target.id === id) {
             // Correct element dropped in dustbin
-            setErrorMessage('Yayy, you have deleted the correct one');
+            setErrorMessage(getRandomMessage(SUCCESS_MESSAGES));
             setMessageColor('rgba(0, 128, 0, 0.7)');
-            setTimeout(() => {
-                if (mounted.current) setErrorMessage('');
-            }, 2000);
             Animated.timing(opacity, {
                 toValue: 0,
                 duration: 200,
@@ -313,19 +415,11 @@ const ReverseCountingGame = () => {
             }).start(() => {
                 if (mounted.current) {
                     setElements(prev => {
-                        const newElements = prev.filter(el => el.id !== id);
-                        const updatedElements = newElements.map((el, i) => {
-                            const newX = LEFT_MARGIN + i * (ELEMENT_SIZE + GAP);
-                            return {
-                                ...el,
-                                label: i + 1,
-                                x: newX,
-                                originalX: newX,
-                                pan: new Animated.ValueXY({ x: newX, y: el.y }),
-                                opacity: new Animated.Value(1),
-                                shake: new Animated.Value(0),
-                            };
-                        });
+                        const updatedElements = prev.filter(el => el.id !== id).map(el => ({
+                            ...el,
+                            opacity: new Animated.Value(1),
+                            shake: new Animated.Value(0),
+                        }));
                         console.log('Deleted element', { id, label: element.label }, 'New count:', updatedElements.length, 'Labels:', updatedElements.map(el => el.label));
                         return updatedElements;
                     });
@@ -349,126 +443,6 @@ const ReverseCountingGame = () => {
         }
     }, []);
 
-    const animateElementTo = useCallback((element, toX, toY, callback) => {
-        if (!element || !element.pan) {
-            console.warn('Invalid element for animation');
-            callback();
-            return;
-        }
-        const anim = Animated.timing(element.pan, {
-            toValue: { x: toX, y: toY },
-            duration: 1000,
-            useNativeDriver: true,
-        });
-        animationRef.current = anim;
-        anim.start(() => {
-            callback();
-            animationRef.current = null;
-        });
-    }, []);
-
-    const skipTutorial = useCallback(() => {
-        if (hasSkipped.current || !mounted.current) return;
-        hasSkipped.current = true;
-        if (animationRef.current) {
-            animationRef.current.stop();
-            animationRef.current = null;
-        }
-        setIsTutorialActive(false);
-        setTutorialStep(3);
-        tutorialCompleted.current = true;
-        console.log('Tutorial skipped');
-    }, []);
-
-    const advanceTutorial = useCallback(() => {
-        if (!mounted.current) return;
-        setTutorialStep(prev => prev + 1);
-    }, []);
-
-    useEffect(() => {
-        if (!isTutorialActive || tutorialCompleted.current || !mounted.current || !elements.length) return;
-
-        const runTutorial = () => {
-            const secondLastElement = elementsRef.current[elementsRef.current.length - 2];
-            const lastElement = elementsRef.current[elementsRef.current.length - 1];
-            const dustbinCenterX = width - DUSTBIN_SIZE - DUSTBIN_PADDING + DUSTBIN_SIZE / 2;
-            const dustbinCenterY = DUSTBIN_PADDING + DUSTBIN_SIZE / 2;
-            const elementX = dustbinCenterX - ELEMENT_SIZE / 2;
-            const elementY = dustbinCenterY - ELEMENT_SIZE / 2;
-
-            if (tutorialStep === 0) {
-                setTutorialText('Welcome! Drag the highest number (10) to the dustbin.');
-            } else if (tutorialStep === 1) {
-                if (!secondLastElement) {
-                    console.warn('Tutorial failed: Not enough elements');
-                    skipTutorial();
-                    return;
-                }
-                setTutorialText(`Try dragging ${MAX_ELEMENTS - 1}. It’s not the highest, so it’ll go back!`);
-                animateElementTo(secondLastElement, elementX, elementY, () => {
-                    if (!mounted.current) return;
-                    Animated.sequence([
-                        Animated.timing(secondLastElement.shake, {
-                            toValue: 1,
-                            duration: 100,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(secondLastElement.shake, {
-                            toValue: -1,
-                            duration: 100,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(secondLastElement.shake, {
-                            toValue: 1,
-                            duration: 100,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(secondLastElement.shake, {
-                            toValue: 0,
-                            duration: 100,
-                            useNativeDriver: true,
-                        }),
-                    ]).start();
-                    Animated.timing(secondLastElement.pan, {
-                        toValue: { x: secondLastElement.originalX, y: secondLastElement.originalY },
-                        duration: 300,
-                        useNativeDriver: true,
-                    }).start(() => {
-                        secondLastElement.pan.setValue({ x: secondLastElement.originalX, y: secondLastElement.originalY });
-                        console.log('Repositioned tutorial element:', { id: secondLastElement.id, label: secondLastElement.label });
-                    });
-                });
-            } else if (tutorialStep === 2) {
-                if (!lastElement) {
-                    console.warn('Tutorial failed: No last element');
-                    skipTutorial();
-                    return;
-                }
-                setTutorialText(`Now drag ${MAX_ELEMENTS} to the dustbin to delete it!`);
-                animateElementTo(lastElement, elementX, elementY, () => {
-                    if (!mounted.current) return;
-                    handleDrop(lastElement.id, elementX, elementY, lastElement.opacity, lastElement.shake, { x: lastElement.originalX, y: lastElement.originalY }, () => {}, true);
-                });
-            } else if (tutorialStep === 3) {
-                setTutorialText('Great! Keep dragging the highest number to count down.');
-                setTimeout(() => {
-                    if (mounted.current) {
-                        setIsTutorialActive(false);
-                        tutorialCompleted.current = true;
-                    }
-                }, 2000);
-            }
-        };
-
-        runTutorial();
-        return () => {
-            if (animationRef.current) {
-                animationRef.current.stop();
-                animationRef.current = null;
-            }
-        };
-    }, [isTutorialActive, tutorialStep, animateElementTo, handleDrop, skipTutorial, elements.length]);
-
     const toggleDarkMode = useCallback(() => {
         if (mounted.current) {
             setIsDarkMode(prev => !prev);
@@ -477,11 +451,15 @@ const ReverseCountingGame = () => {
 
     const animateButton = useCallback((scale, pressIn) => {
         Animated.spring(scale, {
-            toValue: pressIn ? 0.95 : 1,
-            duration: 100,
+            toValue: pressIn ? 0.9 : 1,
+            friction: 7,
+            tension: 50,
             useNativeDriver: true,
         }).start();
     }, []);
+
+    // Find the maximum label for highlighting
+    const maxLabel = elements.length > 0 ? Math.max(...elements.map(el => el.label)) : 0;
 
     return (
         <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#E6F3FF' }]}>
@@ -494,64 +472,78 @@ const ReverseCountingGame = () => {
                         x={el.x}
                         y={el.y}
                         onDrop={handleDrop}
-                        isHighest={index === elements.length - 1}
+                        isHighest={el.label === maxLabel}
                     />
                 ))}
             </View>
-            <View style={styles.dustbin}>
+            <Animated.View style={[styles.dustbin, { transform: [{ scale: dustbinPulse }] }]}>
                 <Text style={styles.dustbinText}>🗑️</Text>
-            </View>
+            </Animated.View>
             <TouchableOpacity
-                style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333' : '#FFF' }]}
+                style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#444' : '#FFF' }]}
                 onPress={toggleDarkMode}
                 onPressIn={() => animateButton(skipScale, true)}
                 onPressOut={() => animateButton(skipScale, false)}
             >
-                <Text style={styles.darkModeIcon}>{isDarkMode ? '☀️' : '🌙'}</Text>
+                <Animated.View style={{ transform: [{ scale: skipScale }] }}>
+                    <Text style={styles.darkModeIcon}>{isDarkMode ? '☀️' : '🌙'}</Text>
+                </Animated.View>
             </TouchableOpacity>
             <View style={styles.controls}>
                 <TouchableOpacity
-                    onPress={addElement}
-                    style={[styles.button, { backgroundColor: isDarkMode ? '#555' : '#FF6B6B' }]}
-                    disabled={isTutorialActive}
+                    onPress={() => {
+                        console.log('Add Number button pressed');
+                        addElement();
+                    }}
+                    style={[styles.button, { backgroundColor: isDarkMode ? '#666' : '#FF6B6B' }]}
                     onPressIn={() => animateButton(skipScale, true)}
                     onPressOut={() => animateButton(skipScale, false)}
                 >
-                    <Text style={styles.buttonText}>+ Add Number</Text>
+                    <Animated.View style={{ transform: [{ scale: skipScale }] }}>
+                        <Text style={styles.buttonText}>+ Add Number</Text>
+                    </Animated.View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={shuffleElements}
+                    style={[styles.button, styles.shuffleButton, { backgroundColor: isDarkMode ? '#666' : '#FF6B6B' }]}
+                    onPressIn={() => animateButton(skipScale, true)}
+                    onPressOut={() => animateButton(skipScale, false)}
+                >
+                    <Animated.View style={{ transform: [{ scale: skipScale }] }}>
+                        <Text style={styles.shuffleButtonText}>Shuffle</Text>
+                    </Animated.View>
                 </TouchableOpacity>
             </View>
             <View style={styles.progressContainer}>
-                <Text style={styles.progressText}>Numbers left: {elements.length}</Text>
+                <Text style={[styles.progressText, { color: isDarkMode ? '#FFF' : '#333' }]}>
+                    Numbers left: {elements.length}
+                </Text>
             </View>
-            {isTutorialActive && (
-                <View style={styles.tutorialOverlay}>
-                    <Text style={styles.tutorialText}>{tutorialText}</Text>
-                    <TouchableOpacity
-                        onPress={advanceTutorial}
-                        style={styles.gotItButton}
-                        onPressIn={() => animateButton(skipScale, true)}
-                        onPressOut={() => animateButton(skipScale, false)}
-                    >
-                        <Animated.View style={[styles.gotItButtonInner, { transform: [{ scale: skipScale }] }]}>
-                            <Text style={styles.gotItButtonText}>Got it</Text>
-                        </Animated.View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={skipTutorial}
-                        style={styles.skipButton}
-                        onPressIn={() => animateButton(skipScale, true)}
-                        onPressOut={() => animateButton(skipScale, false)}
-                    >
-                        <Animated.View style={[styles.skipButtonInner, { transform: [{ scale: skipScale }] }]}>
-                            <Text style={styles.skipButtonText}>Skip Tutorial</Text>
-                        </Animated.View>
-                    </TouchableOpacity>
-                </View>
-            )}
             {errorMessage ? (
-                <View style={styles.errorOverlay}>
-                    <Text style={[styles.errorText, { backgroundColor: messageColor }]}>{errorMessage}</Text>
-                </View>
+                <Animated.View
+                    style={[
+                        styles.errorOverlay,
+                        {
+                            opacity: toastOpacity,
+                            transform: [{ translateY: toastTranslateY }],
+                        },
+                    ]}
+                >
+                    <View
+                        style={[
+                            styles.errorTextContainer,
+                            {
+                                backgroundColor: messageColor.includes('255, 0, 0') ? '#FF3333' : '#2E7D32',
+                            },
+                        ]}
+                    >
+                        <Text
+                            style={[styles.errorText, { color: isDarkMode ? '#FFF' : '#FFF' }]}
+                        >
+                            {errorMessage}
+                        </Text>
+                    </View>
+                </Animated.View>
             ) : null}
         </View>
     );
@@ -567,21 +559,21 @@ const styles = StyleSheet.create({
     element: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
-        borderRadius: 10,
+        borderRadius: 12,
         position: 'absolute',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 2, height: 2 },
+        shadowOffset: { width: 1, height: 1 },
         shadowOpacity: 0.3,
         shadowRadius: 4,
         elevation: 5,
     },
     labelText: {
         color: '#FFF',
-        fontSize: 24,
-        fontWeight: 'bold',
-        textShadowColor: 'rgba(0,0,0,0.2)',
+        fontSize: 26,
+        fontWeight: '700',
+        textShadowColor: 'rgba(0,0,0,0.3)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
     },
@@ -594,6 +586,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 12,
     },
     dustbinText: {
         fontSize: 40,
@@ -609,9 +603,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOpacity: 0.4,
+        shadowRadius: 5,
+        elevation: 6,
         zIndex: 1000,
     },
     darkModeIcon: {
@@ -626,111 +620,67 @@ const styles = StyleSheet.create({
     },
     button: {
         paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
+        paddingHorizontal: 24,
+        borderRadius: 10,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOpacity: 0.4,
+        shadowRadius: 5,
+        elevation: 6,
     },
     buttonText: {
         fontSize: 18,
         fontWeight: '600',
         color: '#FFF',
     },
+    shuffleButton: {
+        marginLeft: 10,
+    },
+    shuffleButtonText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#FFF',
+    },
     progressContainer: {
         position: 'absolute',
-        top: DUSTBIN_PADDING + (DUSTBIN_SIZE - 24) / 2, // Center vertically with dustbin
-        right: DUSTBIN_PADDING + DUSTBIN_SIZE + 20, // Further left of the dustbin
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        padding: 8,
-        borderRadius: 8,
+        top: DUSTBIN_PADDING + (DUSTBIN_SIZE - 24) / 2,
+        right: DUSTBIN_PADDING + DUSTBIN_SIZE + 20,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
         zIndex: 1000,
     },
     progressText: {
         fontSize: 16,
-        color: '#FFF',
         fontWeight: '600',
-    },
-    tutorialOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 2000,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    tutorialText: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#FFF',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        padding: 15,
-        borderRadius: 10,
-        textAlign: 'center',
-        maxWidth: '80%',
-    },
-    gotItButton: {
-        position: 'absolute',
-        bottom: 100,
-    },
-    gotItButtonInner: {
-        backgroundColor: '#4CAF50',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
-    },
-    gotItButtonText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#FFF',
-        textAlign: 'center',
-    },
-    skipButton: {
-        position: 'absolute',
-        bottom: 30,
-    },
-    skipButtonInner: {
-        backgroundColor: '#FFCA28',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
-    },
-    skipButtonText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#333',
-        textAlign: 'center',
     },
     errorOverlay: {
         position: 'absolute',
-        top: 50, // Higher up on the screen
+        top: 50,
         left: 0,
         right: 0,
         zIndex: 1500,
-        alignItems: 'center', // Center horizontally
+        alignItems: 'center',
+    },
+    errorTextContainer: {
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 8,
+        elevation: 10,
+        maxWidth: '90%',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
     },
     errorText: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#FFF',
-        padding: 10,
-        borderRadius: 8,
+        fontSize: 22,
+        fontWeight: '700',
         textAlign: 'center',
-        maxWidth: '80%',
+        letterSpacing: 0.5,
     },
 });
 
