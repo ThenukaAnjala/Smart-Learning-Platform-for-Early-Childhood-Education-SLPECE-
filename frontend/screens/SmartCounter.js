@@ -1,20 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, TouchableWithoutFeedback, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-
-// Import the bird asset from the assets folder
-import birdGif from '../assets/images/bluebird.gif'; // Adjusted path
 
 // Get screen dimensions
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// Define bird size and padding
-const BIRD_SIZE = 80;
-const PADDING = 20; // Padding from screen edges
-const X_MIN = PADDING;
-const X_MAX = SCREEN_WIDTH - BIRD_SIZE - PADDING;
-const Y_MIN = PADDING;
-const Y_MAX = SCREEN_HEIGHT - BIRD_SIZE - PADDING;
 
 export default function SmartCounter() {
     const navigation = useNavigation();
@@ -27,74 +16,57 @@ export default function SmartCounter() {
         'Stable Order Principle'
     ];
 
-    // Animation for buttons (scale and rotation)
+    // Animation for buttons (scale, rotation, shake, and fade-in)
     const bounceAnim = React.useRef(skills.map(() => new Animated.Value(1))).current;
     const rotateAnim = React.useRef(skills.map(() => new Animated.Value(0))).current;
-
-    // Animation for birds (6) with distributed positions
-    const birdAnims = React.useRef(
-        Array(6).fill().map((_, index) => {
-            const yStep = (Y_MAX - Y_MIN) / 5; // Divide height into 6 sections for spacing
-            return {
-                x: new Animated.Value(X_MIN), // Start at left edge with padding
-                y: new Animated.Value(Y_MIN + index * yStep), // Distribute vertically
-                scale: new Animated.Value(0.8 + Math.random() * 0.4),
-                direction: new Animated.Value(1), // 1 for right, -1 for left
-            };
-        })
-    ).current;
+    const shakeAnim = React.useRef(skills.map(() => new Animated.Value(0))).current;
+    const fadeAnim = React.useRef(skills.map(() => new Animated.Value(0))).current;
 
     useEffect(() => {
-        // Animate birds (left to right, then right to left within bounds)
-        birdAnims.forEach((anim, index) => {
-            Animated.loop(
-                Animated.sequence([
-                    // Fly left to right
-                    Animated.parallel([
-                        Animated.timing(anim.x, {
-                            toValue: X_MAX, // Right edge with padding
-                            duration: 2000 + index * 200,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(anim.direction, {
-                            toValue: 1, // Face right
-                            duration: 0,
-                            useNativeDriver: true,
-                        }),
-                    ]),
-                    // Fly right to left
-                    Animated.parallel([
-                        Animated.timing(anim.x, {
-                            toValue: X_MIN, // Left edge with padding
-                            duration: 2000 + index * 200,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(anim.direction, {
-                            toValue: -1, // Face left
-                            duration: 0,
-                            useNativeDriver: true,
-                        }),
-                    ]),
-                ])
-            ).start();
-
-            // Vertical drift within bounds
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(anim.y, {
-                        toValue: Y_MIN + Math.random() * (Y_MAX - Y_MIN),
-                        duration: 3000 + index * 300,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(anim.y, {
-                        toValue: Y_MIN + Math.random() * (Y_MAX - Y_MIN),
-                        duration: 3000 + index * 300,
-                        useNativeDriver: true,
-                    }),
-                ])
-            ).start();
+        // Fade-in animation on load
+        fadeAnim.forEach((anim, index) => {
+            Animated.timing(anim, {
+                toValue: 1,
+                duration: 500,
+                delay: index * 100, // Staggered fade-in for each button
+                useNativeDriver: true,
+            }).start();
         });
-    }, [birdAnims]);
+
+        // Periodic shake animation for buttons
+        const shakeSequence = () => {
+            shakeAnim.forEach((anim, index) => {
+                Animated.sequence([
+                    Animated.timing(anim, {
+                        toValue: 5,
+                        duration: 50, // Reduced from 100 to 50
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(anim, {
+                        toValue: -5,
+                        duration: 50, // Reduced from 100 to 50
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(anim, {
+                        toValue: 5,
+                        duration: 50, // Reduced from 100 to 50
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(anim, {
+                        toValue: 0,
+                        duration: 50, // Reduced from 100 to 50
+                        useNativeDriver: true,
+                    }),
+                ]).start();
+            });
+        };
+
+        // Trigger shake every 5 seconds
+        shakeSequence();
+        const shakeInterval = setInterval(shakeSequence, 5000);
+
+        return () => clearInterval(shakeInterval); // Clean up interval on unmount
+    }, [shakeAnim, fadeAnim]);
 
     const handlePressIn = (index) => {
         Animated.parallel([
@@ -109,6 +81,10 @@ export default function SmartCounter() {
                 useNativeDriver: true,
             })
         ]).start();
+
+        // Placeholder for sound effect (requires react-native-sound or similar library)
+        // Example: playSound('button_press.mp3');
+        console.log('Play sound: button_press.mp3');
     };
 
     const handlePressOut = (index) => {
@@ -126,96 +102,65 @@ export default function SmartCounter() {
         ]).start();
     };
 
-    // Interactive background tap
-    const handleBackgroundTap = () => {
-        birdAnims.forEach((anim) => {
-            Animated.spring(anim.scale, {
-                toValue: 1.2,
-                friction: 5,
-                useNativeDriver: true,
-            }).start(() => {
-                Animated.spring(anim.scale, {
-                    toValue: 0.8 + Math.random() * 0.4,
-                    friction: 5,
-                    useNativeDriver: true,
-                }).start();
-            });
-        });
-    };
-
     // Toggle dark mode
     const toggleDarkMode = () => {
         setIsDarkMode(prevMode => !prevMode);
     };
 
     return (
-        <TouchableWithoutFeedback onPress={handleBackgroundTap}>
-            <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF' }]}>
-                {/* Background Birds */}
-                {birdAnims.map((anim, index) => (
-                    <Animated.Image
-                        key={`bird-${index}`}
-                        source={birdGif}
+        <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF' }]}>
+            {/* Buttons */}
+            {skills.map((skill, index) => {
+                const rotateInterpolate = rotateAnim[index].interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '10deg'],
+                });
+                const shakeInterpolate = shakeAnim[index].interpolate({
+                    inputRange: [-5, 0, 5],
+                    outputRange: ['-5deg', '0deg', '5deg'],
+                });
+
+                return (
+                    <Animated.View
+                        key={index}
                         style={[
-                            styles.bird,
+                            styles.buttonContainer,
                             {
                                 transform: [
-                                    { translateX: anim.x },
-                                    { translateY: anim.y },
-                                    { scale: anim.scale },
-                                    { scaleX: anim.direction },
+                                    { scale: bounceAnim[index] },
+                                    { rotate: rotateInterpolate },
+                                    { rotate: shakeInterpolate },
                                 ],
+                                borderColor: isDarkMode ? '#333333' : '#FFFFFF',
+                                opacity: fadeAnim[index],
                             },
                         ]}
-                    />
-                ))}
-                {/* Buttons */}
-                {skills.map((skill, index) => {
-                    const rotateInterpolate = rotateAnim[index].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '10deg'],
-                    });
-
-                    return (
-                        <Animated.View
-                            key={index}
-                            style={[
-                                styles.buttonContainer,
-                                {
-                                    transform: [
-                                        { scale: bounceAnim[index] },
-                                        { rotate: rotateInterpolate },
-                                    ],
-                                    borderColor: isDarkMode ? '#333333' : '#FFFFFF',
-                                },
-                            ]}
-                        >
-                            <View style={[styles.buttonGradient, { backgroundColor: getColor(index) }]}>
-                                <TouchableOpacity
-                                    onPressIn={() => handlePressIn(index)}
-                                    onPressOut={() => handlePressOut(index)}
-                                    onPress={() => navigation.navigate(skill)}
-                                    style={styles.touchable}
-                                >
-                                    <Text style={[styles.buttonText, { color: isDarkMode ? '#E0E0E0' : '#FFFFFF' }]}>
-                                        {skill}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        </Animated.View>
-                    );
-                })}
-                {/* Dark Mode Toggle Button */}
-                <TouchableOpacity
-                    style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
-                    onPress={toggleDarkMode}
-                >
-                    <Text style={styles.darkModeIcon}>
-                        {isDarkMode ? '☀️' : '🌙'}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </TouchableWithoutFeedback>
+                    >
+                        <View style={[styles.buttonGradient, { backgroundColor: getColor(index) }]}>
+                            <TouchableOpacity
+                                onPressIn={() => handlePressIn(index)}
+                                onPressOut={() => handlePressOut(index)}
+                                onPress={() => navigation.navigate(skill)}
+                                style={styles.touchable}
+                            >
+                                <Text style={[styles.buttonText, { color: isDarkMode ? '#E0E0E0' : '#FFFFFF' }]}>
+                                    {skill}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </Animated.View>
+                );
+            })}
+            {/* Dark Mode Toggle Button */}
+            <TouchableOpacity
+                style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
+                onPress={toggleDarkMode}
+            >
+                <Text style={styles.darkModeIcon}>
+                    {isDarkMode ? '☀️' : '🌙'}
+                </Text>
+            </TouchableOpacity>
+        </View>
     );
 }
 
@@ -234,12 +179,6 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         padding: 20,
         position: 'relative',
-    },
-    bird: {
-        position: 'absolute',
-        width: 80,
-        height: 80,
-        opacity: 0.9,
     },
     buttonContainer: {
         margin: 35,

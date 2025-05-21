@@ -7,6 +7,7 @@ const DUSTBIN_SIZE = 60;
 const DUSTBIN_PADDING = 20;
 const MAX_ELEMENTS = 50;
 const COLORS = ['red', 'blue', 'yellow', 'green'];
+const SHAPES = ['circle', 'square', 'triangle'];
 const STARS = [
     { left: width * 0.1, top: height * 0.1 },
     { left: width * 0.8, top: height * 0.15 },
@@ -17,7 +18,57 @@ const STARS = [
     { left: width * 0.4, top: height * 0.8 },
 ];
 
-const DraggableElement = memo(({ id, internalId, color, pan, onDrop }) => {
+// Custom Triangle component that draws a true triangle shape
+const Triangle = ({ color, size, borderColor }) => {
+    return (
+        <View style={{
+            position: 'relative',
+            width: size,
+            height: size,
+            alignItems: 'center',
+            justifyContent: 'center',
+        }}>
+            {borderColor && (
+                <View style={{
+                    position: 'absolute',
+                    width: 0,
+                    height: 0,
+                    backgroundColor: 'transparent',
+                    borderStyle: 'solid',
+                    borderLeftWidth: size / 2 + 3,
+                    borderRightWidth: size / 2 + 3,
+                    borderBottomWidth: size + 6,
+                    borderLeftColor: 'transparent',
+                    borderRightColor: 'transparent',
+                    borderBottomColor: borderColor,
+                    top: -3,
+                    zIndex: 1,
+                }} />
+            )}
+            <View style={{
+                position: 'absolute',
+                width: 0,
+                height: 0,
+                backgroundColor: 'transparent',
+                borderStyle: 'solid',
+                borderLeftWidth: size / 2,
+                borderRightWidth: size / 2,
+                borderBottomWidth: size,
+                borderLeftColor: 'transparent',
+                borderRightColor: 'transparent',
+                borderBottomColor: color,
+                zIndex: 2,
+                shadowColor: '#000',
+                shadowOffset: { width: 5, height: 5 },
+                shadowOpacity: 0.8,
+                shadowRadius: 5,
+                elevation: 10,
+            }} />
+        </View>
+    );
+};
+
+const DraggableElement = memo(({ id, internalId, color, shape, pan, onDrop }) => {
     const scale = useRef(new Animated.Value(1)).current;
     const panResponder = useRef(
         PanResponder.create({
@@ -54,6 +105,38 @@ const DraggableElement = memo(({ id, internalId, color, pan, onDrop }) => {
         })
     ).current;
 
+    let shapeElement;
+    if (shape === 'circle') {
+        shapeElement = (
+            <View style={[
+                styles.shape,
+                styles.circle,
+                { backgroundColor: color, borderColor: 'rgba(255, 255, 255, 0.5)', borderWidth: 3 }
+            ]}>
+                <Text style={styles.elementText}>{id}</Text>
+            </View>
+        );
+    } else if (shape === 'square') {
+        shapeElement = (
+            <View style={[
+                styles.shape,
+                styles.square,
+                { backgroundColor: color, borderColor: 'rgba(255, 255, 255, 0.5)', borderWidth: 3 }
+            ]}>
+                <Text style={styles.elementText}>{id}</Text>
+            </View>
+        );
+    } else if (shape === 'triangle') {
+        shapeElement = (
+            <View style={styles.triangleContainer}>
+                <Triangle color={color} size={ELEMENT_SIZE - 10} borderColor="rgba(255, 255, 255, 0.5)" />
+                <View style={styles.triangleTextContainer}>
+                    <Text style={styles.elementText}>{id}</Text>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <Animated.View
             style={[
@@ -63,14 +146,11 @@ const DraggableElement = memo(({ id, internalId, color, pan, onDrop }) => {
                         ...pan.getTranslateTransform(),
                         { scale },
                     ],
-                    backgroundColor: color,
-                    borderColor: 'rgba(255, 255, 255, 0.5)',
-                    borderWidth: 3,
                 },
             ]}
             {...panResponder.panHandlers}
         >
-            <Text style={styles.elementText}>{id}</Text>
+            {shapeElement}
         </Animated.View>
     );
 });
@@ -98,14 +178,14 @@ const StackingElements = () => {
         return true;
     }, []);
 
-    const addElementAtPosition = useCallback((x, y, color) => {
+    const addElementAtPosition = useCallback((x, y, color, shape) => {
         if (elementsRef.current.length >= MAX_ELEMENTS || !validatePosition(x, y)) {
             console.warn('Failed to add tutorial element at', x, y);
             return null;
         }
         const uniqueKey = keyCounter.current++;
         const pan = new Animated.ValueXY({ x, y });
-        const newElement = { key: uniqueKey, internalId: uniqueKey, pan, color };
+        const newElement = { key: uniqueKey, internalId: uniqueKey, pan, color, shape };
         setElements(prev => {
             const newElements = [...prev, newElement];
             elementsRef.current = newElements;
@@ -196,12 +276,12 @@ const StackingElements = () => {
                     Animated.timing(new Animated.Value(0), { toValue: 1, duration: 500, useNativeDriver: false }),
                     Animated.timing(new Animated.Value(0), { toValue: 1, duration: 500, useNativeDriver: false }),
                 ]).start(() => {
-                    const el1 = addElementAtPosition(stack1X, stack1Y, 'red');
-                    const el2 = addElementAtPosition(stack1X + 20, stack1Y + 20, 'blue');
-                    const el3 = addElementAtPosition(stack1X - 20, stack1Y - 20, 'yellow');
-                    const el4 = addElementAtPosition(stack2X, stack2Y, 'green');
-                    const el5 = addElementAtPosition(stack2X + 20, stack2Y + 20, 'red');
-                    const el6 = addElementAtPosition(stack2X - 20, stack2Y - 20, 'blue');
+                    const el1 = addElementAtPosition(stack1X, stack1Y, 'red', 'circle');
+                    const el2 = addElementAtPosition(stack1X + 20, stack1Y + 20, 'blue', 'square');
+                    const el3 = addElementAtPosition(stack1X - 20, stack1Y - 20, 'yellow', 'triangle');
+                    const el4 = addElementAtPosition(stack2X, stack2Y, 'green', 'circle');
+                    const el5 = addElementAtPosition(stack2X + 20, stack2Y + 20, 'red', 'square');
+                    const el6 = addElementAtPosition(stack2X - 20, stack2Y - 20, 'blue', 'triangle');
 
                     if (!el1 || !el2 || !el3 || !el4 || !el5 || !el6) {
                         console.warn('Tutorial failed: Could not add all elements');
@@ -257,6 +337,7 @@ const StackingElements = () => {
     const addElement = useCallback(() => {
         if (elementsRef.current.length >= MAX_ELEMENTS || isTutorialActive) return;
 
+        const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
         const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
         const uniqueKey = keyCounter.current++;
         let randomX, randomY;
@@ -303,7 +384,7 @@ const StackingElements = () => {
         }
 
         const pan = new Animated.ValueXY({ x: randomX, y: randomY });
-        const newElement = { key: uniqueKey, internalId: uniqueKey, pan, color: randomColor };
+        const newElement = { key: uniqueKey, internalId: uniqueKey, pan, color: randomColor, shape: randomShape };
         setElements(prev => {
             const newElements = [...prev, newElement];
             elementsRef.current = newElements;
@@ -391,6 +472,7 @@ const StackingElements = () => {
                         id={index + 1}
                         internalId={el.internalId}
                         color={el.color}
+                        shape={el.shape}
                         pan={el.pan}
                         onDrop={handleDrop}
                     />
@@ -481,18 +563,33 @@ const styles = StyleSheet.create({
     element: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
-        borderRadius: 50,
         position: 'absolute',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    shape: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 5, height: 5 },
         shadowOpacity: 0.8,
         shadowRadius: 5,
         elevation: 10,
-        shadowColor: '#fff',
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
+    },
+    circle: {
+        borderRadius: 50,
+    },
+    square: {
+        borderRadius: 0,
+    },
+    triangleContainer: {
+        width: '100%',
+        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
+        position: 'relative',
     },
     elementText: {
         color: '#fff',
@@ -501,6 +598,13 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.5)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
+    },
+    triangleTextContainer: {
+        position: 'absolute',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 3,
+        top: ELEMENT_SIZE / 2 - 10,
     },
     stackText: {
         color: 'white',
