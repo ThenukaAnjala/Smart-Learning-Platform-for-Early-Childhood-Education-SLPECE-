@@ -404,7 +404,7 @@ const StackingElements = () => {
                             {
                                 position: 'absolute',
                                 left: cluster.x,
-                                top: cluster.y - 25,
+                                top: cluster.y - 50, // Adjusted to be further above the stack
                             },
                         ]}
                     >
@@ -502,11 +502,13 @@ const styles = StyleSheet.create({
     },
     stackText: {
         color: 'white',
-        fontSize: 20,
+        fontSize: 24, // Increased font size for clarity
         fontWeight: 'bold',
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        paddingHorizontal: 5,
-        borderRadius: 5,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)', // Slightly darker background for better contrast
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+        textAlign: 'center',
     },
     controls: {
         flexDirection: 'row',
