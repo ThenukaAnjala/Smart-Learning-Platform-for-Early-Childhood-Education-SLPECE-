@@ -13,7 +13,7 @@ const HomeScreen = ({ navigation }) => {
 
 
       <Text style={styles.title}>This is the Animal Quiz Screen</Text>
-      <Button title="Open Animal Quiz" onPress={() => navigation.navigate('AnimalQuizScreen')} />
+      <Button title="Open Animal Quiz" onPress={() => navigation.navigate('LevelSelectionScreen')} />
     </View>
 
     

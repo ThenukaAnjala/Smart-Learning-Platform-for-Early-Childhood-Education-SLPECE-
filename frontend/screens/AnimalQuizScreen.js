@@ -1,60 +1,224 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+// src/screens/AnimalQuizScreen.js
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Animated, Dimensions, ScrollView } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import LottieView from 'lottie-react-native';
 
-// Background image (replace with your file name, e.g., 'AnimalQuizFullScreenBG.jpg')
+// Get screen dimensions for full-screen background
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Background image
 const backgroundImage = require('../assets/images/Background/NewAnimalQuizBG.jpg');
 
-// Load questions from JSON file using require
+// Load questions from JSON file
 const questions = require('../assets/data/questions.json');
 
-// Import Lottie animations for Easy level animals
-const birdAnimation = require('../assets/Animations/Animal-Animation/bird.json');
-const catAnimation = require('../assets/Animations/Animal-Animation/cat.json');
-const cowAnimation = require('../assets/Animations/Animal-Animation/cow.json');
-const chickenAnimation = require('../assets/Animations/Animal-Animation/chicken.json');
-const deerAnimation = require('../assets/Animations/Animal-Animation/deer.json');
-const dogAnimation = require('../assets/Animations/Animal-Animation/dog-animation.json');
-const donkeyAnimation = require('../assets/Animations/Animal-Animation/donkey.json');
-const duckAnimation = require('../assets/Animations/Animal-Animation/duck.json');
-const fishAnimation = require('../assets/Animations/Animal-Animation/fish.json');
-const frogAnimation = require('../assets/Animations/Animal-Animation/frog.json');
-const goatAnimation = require('../assets/Animations/Animal-Animation/goat.json');
-const gooseAnimation = require('../assets/Animations/Animal-Animation/goose.json');
-const hamsterAnimation = require('../assets/Animations/Animal-Animation/hamster.json');
-const horseAnimation = require('../assets/Animations/Animal-Animation/horse.json');
-const pigAnimation = require('../assets/Animations/Animal-Animation/pig.json');
-const rabbitAnimation = require('../assets/Animations/Animal-Animation/rabbit.json');
-const mouseAnimation = require('../assets/Animations/Animal-Animation/rat.json');
-const sheepAnimation = require('../assets/Animations/Animal-Animation/sheep.json');
-const squirrelAnimation = require('../assets/Animations/Animal-Animation/squirrel.json');
-const turkeyAnimation = require('../assets/Animations/Animal-Animation/turkey.json');
-// const defaultAnimation = require('../assets/Animations/Animal-Animation/celebration.json');
+// Import all 101 animal images with updated Quiz path
+const dogImage = require('../assets/images/Quiz/dog.png');
+const catImage = require('../assets/images/Quiz/cat.png');
+const cowImage = require('../assets/images/Quiz/cow.png');
+const horseImage = require('../assets/images/Quiz/horse.png');
+const sheepImage = require('../assets/images/Quiz/sheep.png');
+const pigImage = require('../assets/images/Quiz/pig.png');
+const chickenImage = require('../assets/images/Quiz/chicken.png');
+const duckImage = require('../assets/images/Quiz/duck.png');
+const goatImage = require('../assets/images/Quiz/goat.png');
+const rabbitImage = require('../assets/images/Quiz/rabbit.png');
+const fishImage = require('../assets/images/Quiz/fish.png');
+const birdImage = require('../assets/images/Quiz/bird.png');
+const mouseImage = require('../assets/images/Quiz/mouse.png');
+const frogImage = require('../assets/images/Quiz/frog.png');
+const elephantImage = require('../assets/images/Quiz/elephant.png');
+const monkeyImage = require('../assets/images/Quiz/monkey.png');
+const parrotImage = require('../assets/images/Quiz/parrot.png');
+const henImage = require('../assets/images/Quiz/hen.png');
+const buffaloImage = require('../assets/images/Quiz/buffalo.png');
+const donkeyImage = require('../assets/images/Quiz/donkey.png');
+const squirrelImage = require('../assets/images/Quiz/squirrel.png');
+const peacockImage = require('../assets/images/Quiz/peacock.png');
+const crabImage = require('../assets/images/Quiz/crab.png');
+const butterflyImage = require('../assets/images/Quiz/butterfly.png');
+const beeImage = require('../assets/images/Quiz/bee.png');
+const antImage = require('../assets/images/Quiz/ant.png');
+const turtleImage = require('../assets/images/Quiz/turtle.png');
+const snakeImage = require('../assets/images/Quiz/snake.png');
+const lizardImage = require('../assets/images/Quiz/lizard.png');
+const crowImage = require('../assets/images/Quiz/crow.png');
+const sparrowImage = require('../assets/images/Quiz/sparrow.png');
+const pigeonImage = require('../assets/images/Quiz/pigeon.png');
+const mynaImage = require('../assets/images/Quiz/myna.png');
+const deerImage = require('../assets/images/Quiz/deer.png');
+const gooseImage = require('../assets/images/Quiz/goose.png');
+const hamsterImage = require('../assets/images/Quiz/hamster.png');
+const kittenImage = require('../assets/images/Quiz/kitten.png');
+const puppyImage = require('../assets/images/Quiz/puppy.png');
+const lambImage = require('../assets/images/Quiz/lamb.png');
+const calfImage = require('../assets/images/Quiz/calf.png');
+const leopardImage = require('../assets/images/Quiz/leopard.png');
+const mongooseImage = require('../assets/images/Quiz/mongoose.png');
+const crocodileImage = require('../assets/images/Quiz/crocodile.png');
+const bearImage = require('../assets/images/Quiz/bear.png');
+const giraffeImage = require('../assets/images/Quiz/giraffe.png');
+const zebraImage = require('../assets/images/Quiz/zebra.png');
+const kangarooImage = require('../assets/images/Quiz/kangaroo.png');
+const pandaImage = require('../assets/images/Quiz/panda.png');
+const penguinImage = require('../assets/images/Quiz/penguin.png');
+const sealImage = require('../assets/images/Quiz/seal.png');
+const wolfImage = require('../assets/images/Quiz/wolf.png');
+const foxImage = require('../assets/images/Quiz/fox.png');
+const otterImage = require('../assets/images/Quiz/otter.png');
+const beaverImage = require('../assets/images/Quiz/beaver.png');
+const camelImage = require('../assets/images/Quiz/camel.png');
+const hippoImage = require('../assets/images/Quiz/hippo.png');
+const rhinoImage = require('../assets/images/Quiz/rhino.png');
+const koalaImage = require('../assets/images/Quiz/koala.png');
+const batImage = require('../assets/images/Quiz/bat.png');
+const porcupineImage = require('../assets/images/Quiz/porcupine.png');
+const hedgehogImage = require('../assets/images/Quiz/hedgehog.png');
+const tigerImage = require('../assets/images/Quiz/tiger.png');
+const lionImage = require('../assets/images/Quiz/lion.png');
+const cobraImage = require('../assets/images/Quiz/cobra.png');
+const eagleImage = require('../assets/images/Quiz/eagle.png');
+const owlImage = require('../assets/images/Quiz/owl.png');
+const flamingoImage = require('../assets/images/Quiz/flamingo.png');
+const dolphinImage = require('../assets/images/Quiz/dolphin.png');
+const sharkImage = require('../assets/images/Quiz/shark.png');
+const whaleImage = require('../assets/images/Quiz/whale.png');
+const toadImage = require('../assets/images/Quiz/toad.png');
+const craneImage = require('../assets/images/Quiz/crane.png');
+const kingfisherImage = require('../assets/images/Quiz/kingfisher.png');
+const slothBearImage = require('../assets/images/Quiz/sloth_bear.png');
+const pangolinImage = require('../assets/images/Quiz/pangolin.png');
+const hornbillImage = require('../assets/images/Quiz/hornbill.png');
+const cheetahImage = require('../assets/images/Quiz/cheetah.png');
+const alligatorImage = require('../assets/images/Quiz/alligator.png');
+const viperImage = require('../assets/images/Quiz/viper.png');
+const chameleonImage = require('../assets/images/Quiz/chameleon.png');
+const hawkImage = require('../assets/images/Quiz/hawk.png');
+const jackalImage = require('../assets/images/Quiz/jackal.png');
+const hyenaImage = require('../assets/images/Quiz/hyena.png');
+const toqueMacaqueImage = require('../assets/images/Quiz/toque_macaque.png');
+const lorisImage = require('../assets/images/Quiz/loris.png');
+const flyingFoxImage = require('../assets/images/Quiz/flying_fox.png');
+const dugongImage = require('../assets/images/Quiz/dugong.png');
+const sambarDeerImage = require('../assets/images/Quiz/sambar_deer.png');
+const wildBoarImage = require('../assets/images/Quiz/wild_boar.png');
+const storkImage = require('../assets/images/Quiz/stork.png');
+const pelicanImage = require('../assets/images/Quiz/pelican.png');
+const monitorLizardImage = require('../assets/images/Quiz/monitor_lizard.png');
+const pythonImage = require('../assets/images/Quiz/python.png');
+const macaqueImage = require('../assets/images/Quiz/macaque.png');
+const starTortoiseImage = require('../assets/images/Quiz/star_tortoise.png');
+const junglefowlImage = require('../assets/images/Quiz/junglefowl.png');
+const serpentEagleImage = require('../assets/images/Quiz/serpent_eagle.png');
+const blueWhaleImage = require('../assets/images/Quiz/blue_whale.png');
+const spottedDeerImage = require('../assets/images/Quiz/spotted_deer.png');
+const fishingCatImage = require('../assets/images/Quiz/fishing_cat.png');
+const goldenPalmCivetImage = require('../assets/images/Quiz/golden_palm_civet.png');
 
-const animalAnimations = {
-  bird: birdAnimation,
-  cat: catAnimation,
-  cow: cowAnimation,
-  deer: deerAnimation,
-  dog: dogAnimation,
-  donkey: donkeyAnimation,
-  duck: duckAnimation,
-  fish: fishAnimation,
-  frog: frogAnimation,
-  goat: goatAnimation,
-  goose: gooseAnimation,
-  hamster: hamsterAnimation,
-  horse: horseAnimation,
-  pig: pigAnimation,
-  rabbit: rabbitAnimation,
-  mouse: mouseAnimation,
-  sheep: sheepAnimation,
-  squirrel: squirrelAnimation,
-  turkey: turkeyAnimation,
-  chicken: chickenAnimation,
-  // default: defaultAnimation,
+// Mapping of animal answers to their respective images
+const animalImages = {
+  dog: dogImage,
+  cat: catImage,
+  cow: cowImage,
+  horse: horseImage,
+  sheep: sheepImage,
+  pig: pigImage,
+  chicken: chickenImage,
+  duck: duckImage,
+  goat: goatImage,
+  rabbit: rabbitImage,
+  fish: fishImage,
+  bird: birdImage,
+  mouse: mouseImage,
+  frog: frogImage,
+  elephant: elephantImage,
+  monkey: monkeyImage,
+  parrot: parrotImage,
+  hen: henImage,
+  buffalo: buffaloImage,
+  donkey: donkeyImage,
+  squirrel: squirrelImage,
+  peacock: peacockImage,
+  crab: crabImage,
+  butterfly: butterflyImage,
+  bee: beeImage,
+  ant: antImage,
+  turtle: turtleImage,
+  snake: snakeImage,
+  lizard: lizardImage,
+  crow: crowImage,
+  sparrow: sparrowImage,
+  pigeon: pigeonImage,
+  myna: mynaImage,
+  deer: deerImage,
+  goose: gooseImage,
+  hamster: hamsterImage,
+  kitten: kittenImage,
+  puppy: puppyImage,
+  lamb: lambImage,
+  calf: calfImage,
+  leopard: leopardImage,
+  mongoose: mongooseImage,
+  crocodile: crocodileImage,
+  bear: bearImage,
+  giraffe: giraffeImage,
+  zebra: zebraImage,
+  kangaroo: kangarooImage,
+  panda: pandaImage,
+  penguin: penguinImage,
+  seal: sealImage,
+  wolf: wolfImage,
+  fox: foxImage,
+  otter: otterImage,
+  beaver: beaverImage,
+  camel: camelImage,
+  hippo: hippoImage,
+  rhino: rhinoImage,
+  koala: koalaImage,
+  bat: batImage,
+  porcupine: porcupineImage,
+  hedgehog: hedgehogImage,
+  tiger: tigerImage,
+  lion: lionImage,
+  cobra: cobraImage,
+  eagle: eagleImage,
+  owl: owlImage,
+  flamingo: flamingoImage,
+  dolphin: dolphinImage,
+  shark: sharkImage,
+  whale: whaleImage,
+  toad: toadImage,
+  crane: craneImage,
+  kingfisher: kingfisherImage,
+  'sloth bear': slothBearImage,
+  pangolin: pangolinImage,
+  hornbill: hornbillImage,
+  cheetah: cheetahImage,
+  alligator: alligatorImage,
+  viper: viperImage,
+  chameleon: chameleonImage,
+  hawk: hawkImage,
+  jackal: jackalImage,
+  hyena: hyenaImage,
+  'toque macaque': toqueMacaqueImage,
+  loris: lorisImage,
+  'flying fox': flyingFoxImage,
+  dugong: dugongImage,
+  'sambar deer': sambarDeerImage,
+  'wild boar': wildBoarImage,
+  stork: storkImage,
+  pelican: pelicanImage,
+  'monitor lizard': monitorLizardImage,
+  python: pythonImage,
+  macaque: macaqueImage,
+  'star tortoise': starTortoiseImage,
+  junglefowl: junglefowlImage,
+  'serpent eagle': serpentEagleImage,
+  'blue whale': blueWhaleImage,
+  'spotted deer': spottedDeerImage,
+  'fishing cat': fishingCatImage,
+  'golden palm civet': goldenPalmCivetImage,
 };
 
 const AnimalQuizScreen = ({ navigation, route }) => {
@@ -67,15 +231,24 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   const [feedbackText, setFeedbackText] = useState('');
   const [isCorrectAnswer, setIsCorrectAnswer] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
+  const [imageAnim] = useState(new Animated.Value(0)); // For image fade-in
+  const [progressAnim] = useState(new Animated.Value(0));
   const [badges, setBadges] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [extraHint, setExtraHint] = useState(false);
   const [hasCheckedBadge, setHasCheckedBadge] = useState(false);
   const [retryCount, setRetryCount] = useState({ easy: 0, medium: 0, hard: 0 });
   const QUESTIONS_PER_LEVEL = 8;
-  const MINIMUM_SCORE_TO_PROGRESS = 4;
+  const REQUIRED_CORRECT_ANSWERS = 8; // Must get all 8 correct to unlock next level
 
-  const animationRef = useRef(null);
+  // Animate progress bar
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: (currentQuestionIndex + 1) / QUESTIONS_PER_LEVEL,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [currentQuestionIndex]);
 
   useEffect(() => {
     const lockOrientation = async () => {
@@ -83,22 +256,31 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     };
     lockOrientation();
 
-    const loadBadges = async () => {
+    const loadBadgesAndRetries = async () => {
       try {
         const savedBadges = await AsyncStorage.getItem('badges');
         if (savedBadges) setBadges(JSON.parse(savedBadges));
+
+        const savedRetries = await AsyncStorage.getItem('retryCount');
+        if (savedRetries) setRetryCount(JSON.parse(savedRetries));
       } catch (error) {
-        console.error('Error loading badges:', error);
+        console.error('Error loading badges/retries:', error);
       }
     };
-    loadBadges();
+    loadBadgesAndRetries();
 
     const fetchQuestions = () => {
-      const levelQuestions = questions[currentLevel];
+      const levelQuestions = questions[currentLevel] || [];
+      if (levelQuestions.length === 0) {
+        console.error(`No questions found for level: ${currentLevel}`);
+        setIsLoading(false);
+        return;
+      }
       const shuffledQuestions = levelQuestions.sort(() => 0.5 - Math.random()).slice(0, QUESTIONS_PER_LEVEL);
       setSelectedQuestions(shuffledQuestions);
       setIsLoading(false);
       setHasCheckedBadge(false);
+      progressAnim.setValue(0); // Reset progress on level start
     };
     fetchQuestions();
 
@@ -107,15 +289,16 @@ const AnimalQuizScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     if (currentQuestionIndex >= selectedQuestions.length && !hasCheckedBadge) {
-      checkBadge();
+      checkBadgeAndUnlockNextLevel();
       setHasCheckedBadge(true);
     }
   }, [currentQuestionIndex, selectedQuestions.length, hasCheckedBadge]);
 
-  const checkBadge = useCallback(async () => {
+  const checkBadgeAndUnlockNextLevel = useCallback(async () => {
     const currentLevelScore = score[currentLevel];
     let updatedBadges = [...badges];
 
+    // Award badges based on performance
     if (currentLevel === 'easy' && currentLevelScore >= (retryCount.easy > 0 ? 5 : 6) && !badges.includes('Explorer')) {
       updatedBadges.push('Explorer');
     } else if (currentLevel === 'medium' && currentLevelScore >= (retryCount.medium > 0 ? 5 : 6) && !badges.includes('Adventurer')) {
@@ -133,6 +316,24 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error('Error saving badges:', error);
     }
+
+    // Unlock the next level if all answers are correct
+    if (currentLevelScore === QUESTIONS_PER_LEVEL) {
+      try {
+        const savedLevels = await AsyncStorage.getItem('unlockedLevels');
+        let unlockedLevels = savedLevels ? JSON.parse(savedLevels) : { level1: true, level2: false, level3: false };
+
+        if (currentLevel === 'easy' && !unlockedLevels.level2) {
+          unlockedLevels.level2 = true;
+        } else if (currentLevel === 'medium' && !unlockedLevels.level3) {
+          unlockedLevels.level3 = true;
+        }
+
+        await AsyncStorage.setItem('unlockedLevels', JSON.stringify(unlockedLevels));
+      } catch (error) {
+        console.error('Error unlocking next level:', error);
+      }
+    }
   }, [badges, currentLevel, score, retryCount]);
 
   const handleAnswer = (selectedAnswer) => {
@@ -142,9 +343,12 @@ const AnimalQuizScreen = ({ navigation, route }) => {
       setTotalScore(totalScore + 1);
       setFeedbackText('Correct! 🎉');
       setIsCorrectAnswer(true);
-      if (animationRef.current) {
-        animationRef.current.play();
-      }
+      // Start image animation
+      Animated.timing(imageAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
     } else {
       setFeedbackText('Try again! 😊');
       setIsCorrectAnswer(false);
@@ -168,26 +372,22 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   const nextQuestion = () => {
     setShowFeedback(false);
     setIsCorrectAnswer(false);
-    if (animationRef.current) {
-      animationRef.current.reset();
-    }
     setCurrentQuestionIndex(currentQuestionIndex + 1);
     fadeAnim.setValue(0);
+    imageAnim.setValue(0); // Reset image animation
   };
 
   const nextLevel = () => {
-    if (score[currentLevel] < MINIMUM_SCORE_TO_PROGRESS) {
-      setFeedbackText(`You need at least ${MINIMUM_SCORE_TO_PROGRESS}/8 to unlock the next level. Try again! 😊`);
+    if (score[currentLevel] < REQUIRED_CORRECT_ANSWERS) {
+      setFeedbackText(`You need ${REQUIRED_CORRECT_ANSWERS}/8 correct answers to unlock the next level. Try again! 😊`);
       setShowFeedback(true);
       return;
     }
 
     setCurrentQuestionIndex(0);
     setShowFeedback(false);
-    if (animationRef.current) {
-      animationRef.current.reset();
-    }
     fadeAnim.setValue(0);
+    progressAnim.setValue(0); // Reset progress for next level
     let nextLevelQuestions;
     if (currentLevel === 'easy') {
       setCurrentLevel('medium');
@@ -226,34 +426,53 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     return (
       <View style={styles.container}>
         <Image source={backgroundImage} style={styles.backgroundImage} />
-        <Text style={styles.title}>Great Job!</Text>
-        <Text style={styles.score}>Total Score: {totalScore}/24</Text>
-        <Text style={styles.levelScore}>Easy: {score.easy}/8</Text>
-        <Text style={styles.levelScore}>Medium: {score.medium}/8</Text>
-        <Text style={styles.levelScore}>Hard: {score.hard}/8</Text>
-        <Text style={styles.badgesText}>Badges: {badges.join(', ')}</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
-          <Text style={styles.backButtonText}>Back to Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('LevelSelection')}>
-          <Text style={styles.backButtonText}>Choose Level</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            setCurrentLevel('easy');
-            setCurrentQuestionIndex(0);
-            setScore({ easy: 0, medium: 0, hard: 0 });
-            setTotalScore(0);
-            setExtraHint(false);
-            setHasCheckedBadge(false);
-            setRetryCount({ easy: 0, medium: 0, hard: 0 });
-            const shuffled = questions.easy.sort(() => 0.5 - Math.random());
-            setSelectedQuestions(shuffled.slice(0, QUESTIONS_PER_LEVEL));
-          }}
-        >
-          <Text style={styles.backButtonText}>Play Again</Text>
-        </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.contentWrapper}>
+            <Text style={styles.title}>Great Job!</Text>
+            <Text style={styles.score}>Total Score: {totalScore}/24</Text>
+            <Text style={styles.levelScore}>Easy: {score.easy}/8</Text>
+            <Text style={styles.levelScore}>Medium: {score.medium}/8</Text>
+            <Text style={styles.levelScore}>Hard: {score.hard}/8</Text>
+            <Text style={styles.badgesText}>Badges: {badges.join(', ')}</Text>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.navigate('Home')}
+              accessible
+              accessibilityLabel="Back to home"
+              accessibilityRole="button"
+            >
+              <Text style={styles.backButtonText}>Back to Home</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.navigate('LevelSelection')}
+              accessible
+              accessibilityLabel="Choose level"
+              accessibilityRole="button"
+            >
+              <Text style={styles.backButtonText}>Choose Level</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                setCurrentLevel('easy');
+                setCurrentQuestionIndex(0);
+                setScore({ easy: 0, medium: 0, hard: 0 });
+                setTotalScore(0);
+                setExtraHint(false);
+                setHasCheckedBadge(false);
+                setRetryCount({ easy: 0, medium: 0, hard: 0 });
+                setSelectedQuestions(questions.easy.sort(() => 0.5 - Math.random()).slice(0, QUESTIONS_PER_LEVEL));
+                progressAnim.setValue(0); // Reset progress for new game
+              }}
+              accessible
+              accessibilityLabel="Play again"
+              accessibilityRole="button"
+            >
+              <Text style={styles.backButtonText}>Play Again</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -262,38 +481,61 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     return (
       <View style={styles.container}>
         <Image source={backgroundImage} style={styles.backgroundImage} />
-        <Text style={styles.title}>Level {currentLevel === 'easy' ? 1 : currentLevel === 'medium' ? 2 : 3} Complete!</Text>
-        <Text style={styles.score}>Score: {score[currentLevel]}/8</Text>
-        {badges.includes(currentLevel === 'easy' ? 'Explorer' : currentLevel === 'medium' ? 'Adventurer' : 'Master') && (
-          <Text style={styles.badgesText}>
-            You earned the {currentLevel === 'easy' ? 'Explorer' : currentLevel === 'medium' ? 'Adventurer' : 'Master'} badge!
-          </Text>
-        )}
-        {score[currentLevel] >= MINIMUM_SCORE_TO_PROGRESS ? (
-          <TouchableOpacity style={styles.nextButton} onPress={nextLevel}>
-            <Text style={styles.nextButtonText}>Next Level</Text>
-          </TouchableOpacity>
-        ) : (
-          <Text style={styles.retryMessage}>
-            You need at least {MINIMUM_SCORE_TO_PROGRESS}/8 to unlock the next level. Try again! 😊
-          </Text>
-        )}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('LevelSelection')}>
-          <Text style={styles.backButtonText}>Choose Level</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            setCurrentQuestionIndex(0);
-            setScore({ ...score, [currentLevel]: 0 });
-            setHasCheckedBadge(false);
-            setRetryCount({ ...retryCount, [currentLevel]: retryCount[currentLevel] + 1 });
-            const shuffled = questions[currentLevel].sort(() => 0.5 - Math.random());
-            setSelectedQuestions(shuffled.slice(0, QUESTIONS_PER_LEVEL));
-          }}
-        >
-          <Text style={styles.backButtonText}>Retry Level</Text>
-        </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.contentWrapper}>
+            <Text style={styles.title}>Level {currentLevel === 'easy' ? 1 : currentLevel === 'medium' ? 2 : 3} Complete!</Text>
+            <Text style={styles.score}>Score: {score[currentLevel]}/8</Text>
+            {badges.includes(currentLevel === 'easy' ? 'Explorer' : currentLevel === 'medium' ? 'Adventurer' : 'Master') && (
+              <Text style={styles.badgesText}>
+                You earned the {currentLevel === 'easy' ? 'Explorer' : currentLevel === 'medium' ? 'Adventurer' : 'Master'} badge!
+              </Text>
+            )}
+            {score[currentLevel] >= REQUIRED_CORRECT_ANSWERS ? (
+              currentLevel !== 'hard' ? (
+                <TouchableOpacity
+                  style={styles.nextButton}
+                  onPress={nextLevel}
+                  accessible
+                  accessibilityLabel="Next level"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.nextButtonText}>Next Level</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.congratsText}>All Levels Completed! Check the Level Selection for your reward!</Text>
+              )
+            ) : (
+              <Text style={styles.retryMessage}>
+                You need {REQUIRED_CORRECT_ANSWERS}/8 correct answers to unlock the next level. Try again! 😊
+              </Text>
+            )}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.navigate('LevelSelection')}
+              accessible
+              accessibilityLabel="Choose level"
+              accessibilityRole="button"
+            >
+              <Text style={styles.backButtonText}>Choose Level</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                setCurrentQuestionIndex(0);
+                setScore({ ...score, [currentLevel]: 0 });
+                setHasCheckedBadge(false);
+                setRetryCount({ ...retryCount, [currentLevel]: retryCount[currentLevel] + 1 });
+                setSelectedQuestions(questions[currentLevel].sort(() => 0.5 - Math.random()).slice(0, QUESTIONS_PER_LEVEL));
+                progressAnim.setValue(0); // Reset progress for retry
+              }}
+              accessible
+              accessibilityLabel="Retry level"
+              accessibilityRole="button"
+            >
+              <Text style={styles.backButtonText}>Retry Level</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -301,7 +543,10 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   if (isLoading || selectedQuestions.length === 0) {
     return (
       <View style={styles.container}>
-        <Text>Loading...</Text>
+        <Image source={backgroundImage} style={styles.backgroundImage} />
+        <View style={styles.contentWrapper}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
       </View>
     );
   }
@@ -311,97 +556,164 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   const currentOptions = currentQuestion.options;
   const displayedOptions = shuffleOptions(currentOptions, currentQuestion.answer);
   const displayedHints = extraHint ? [...currentHints, 'Ask for help if needed!'] : currentHints;
-
   const currentAnswer = currentQuestion.answer;
-  const selectedAnimation = isCorrectAnswer
-    ? currentLevel === 'easy'
-      ? animalAnimations[currentAnswer] || animalAnimations.default
-      : animalAnimations.default
-    : null;
+  const selectedImage = isCorrectAnswer ? animalImages[currentAnswer] : null;
 
   return (
     <View style={styles.container}>
       <Image source={backgroundImage} style={styles.backgroundImage} />
-      <Text style={styles.title}>Level {currentLevel === 'easy' ? 1 : currentLevel === 'medium' ? 2 : 3}</Text>
-      <Text style={styles.title}>Animal Guess Game! 🎉</Text>
-      <View style={styles.questionContainer}>
-        <Text style={styles.questionText}>Who am I?</Text>
-        {displayedHints.map((hint, index) => (
-          <Text key={index} style={styles.hintText}>{hint}</Text>
-        ))}
-      </View>
-      <View style={styles.optionsContainer}>
-        {displayedOptions.map((option, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.optionButton}
-            onPress={() => handleAnswer(option)}
-            disabled={showFeedback}
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.contentWrapper}>
+          <Text style={[styles.title, styles.levelTitle]}>Level {currentLevel === 'easy' ? 1 : currentLevel === 'medium' ? 2 : 3}</Text>
+          <View
+            style={styles.progressBarContainer}
+            accessible
+            accessibilityLabel={`Progress: ${currentQuestionIndex + 1} of ${QUESTIONS_PER_LEVEL} questions`}
+            accessibilityRole="progressbar"
           >
-            <Text style={styles.optionText}>{option}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+            <View style={styles.progressBarTrack}>
+              <Animated.View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    width: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                  },
+                ]}
+              />
+            </View>
+          </View>
+          <Text style={styles.title}>Animal Guess Game! 🎉</Text>
+          <View style={styles.questionContainer}>
+            <Text style={styles.questionText}>Who am I?</Text>
+            {displayedHints.map((hint, index) => (
+              <Text key={index} style={styles.hintText} accessible accessibilityLabel={`Hint ${index + 1}: ${hint}`}>
+                {hint}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.optionsContainer}>
+            {displayedOptions.map((option, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.optionButton, showFeedback && { opacity: 0.6 }]}
+                onPress={() => handleAnswer(option)}
+                disabled={showFeedback}
+                accessible
+                accessibilityLabel={`Option ${index + 1}: ${option}`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.optionText}>{option}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.scoreText}>Score: {score[currentLevel]}/{selectedQuestions.length}</Text>
+        </View>
+      </ScrollView>
       {showFeedback && (
         <Animated.View style={[styles.fullFeedbackContainer, { opacity: fadeAnim }]}>
           <View style={styles.feedbackOverlay}>
-            {isCorrectAnswer && selectedAnimation && (
-              <LottieView
-                ref={animationRef}
-                source={selectedAnimation}
-                autoPlay
-                loop={true}
-                style={styles.animation}
+            {isCorrectAnswer && selectedImage && (
+              <Animated.Image
+                source={selectedImage}
+                style={[styles.animalImage, { opacity: imageAnim }]}
               />
             )}
             <Text style={styles.feedbackText}>{feedbackText}</Text>
-            <TouchableOpacity style={styles.nextButton} onPress={nextQuestion}>
+            <TouchableOpacity
+              style={styles.nextButton}
+              onPress={nextQuestion}
+              accessible
+              accessibilityLabel="Next question"
+              accessibilityRole="button"
+            >
               <Text style={styles.nextButtonText}>Next</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
       )}
-      <Text style={styles.scoreText}>Score: {score[currentLevel]}/{selectedQuestions.length}</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    padding: 20,
-    backgroundColor: 'transparent', // Ensure container doesn’t interfere with background
+  container: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    backgroundColor: 'transparent',
+    padding: 0,
   },
-  backgroundImage: { 
-    position: 'absolute', 
-    width: '100%', 
-    height: '100%', 
-    resizeMode: 'cover', // Ensures full screen coverage
+  backgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    resizeMode: 'cover',
   },
-  title: { 
-    fontSize: 40, 
-    color: '#8B4513', 
-    fontFamily: 'Schoolbell', 
-    textAlign: 'center', 
-    marginTop: 40, // Increased to avoid overlap with status bar
+  scrollContainer: {
+    flexGrow: 1, // Allows ScrollView to fill the screen
+    justifyContent: 'center', // Centers content vertically if it doesn't fill the screen
+  },
+  contentWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 20, // Adjusted padding for better spacing
+  },
+  title: {
+    fontSize: 40,
+    color: '#8B4513',
+    fontFamily: 'Schoolbell',
+    textAlign: 'center',
+    marginBottom: 20, // Reduced margin to fit within screen
+  },
+  levelTitle: {
+    marginBottom: 10,
+  },
+  progressBarContainer: {
+    width: '95%',
+    marginVertical: 10,
+  },
+  progressBarTrack: {
+    backgroundColor: '#D3D3D3',
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    backgroundColor: '#32CD32',
+    height: '100%',
+    borderRadius: 5,
   },
   questionContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)', // Slightly more opaque for readability
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     padding: 20,
     borderRadius: 20,
-    marginVertical: 10,
+    marginVertical: 15,
     alignItems: 'center',
     width: '90%',
   },
-  questionText: { fontSize: 24, color: '#333', fontFamily: 'Poppins', textAlign: 'center' },
-  hintText: { fontSize: 18, color: '#333', fontFamily: 'Poppins', textAlign: 'center', marginVertical: 5 },
-  optionsContainer: { 
-    flexDirection: 'column', 
-    alignItems: 'center', 
+  questionText: {
+    fontSize: 24,
+    color: '#333',
+    fontFamily: 'Poppins',
+    textAlign: 'center',
+  },
+  hintText: {
+    fontSize: 18,
+    color: '#333',
+    fontFamily: 'Poppins',
+    textAlign: 'center',
+    marginVertical: 5,
+  },
+  optionsContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
     width: '90%',
-    marginBottom: 120, // Increased to ensure options don’t overlap with grass/animals
+    marginBottom: 20,
   },
   optionButton: {
     backgroundColor: '#D2691E',
@@ -411,31 +723,43 @@ const styles = StyleSheet.create({
     width: '80%',
     alignItems: 'center',
   },
-  optionText: { color: '#FFF', fontSize: 18, fontFamily: 'Poppins', textAlign: 'center' },
+  optionText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontFamily: 'Poppins',
+    textAlign: 'center',
+  },
   fullFeedbackContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(128, 128, 128, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   feedbackOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(128, 128, 128, 0.7)',
     padding: 30,
     borderRadius: 20,
     alignItems: 'center',
     width: '80%',
     maxWidth: 400,
   },
-  animation: {
+  animalImage: {
     width: 150,
     height: 150,
     marginBottom: 20,
+    resizeMode: 'contain',
   },
-  feedbackText: { color: '#FFF', fontSize: 32, fontFamily: 'Poppins', textAlign: 'center', marginBottom: 20 },
+  feedbackText: {
+    color: '#FFF',
+    fontSize: 32,
+    fontFamily: 'Poppins',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
   nextButton: {
     backgroundColor: '#D2691E',
     padding: 15,
@@ -443,30 +767,72 @@ const styles = StyleSheet.create({
     width: '60%',
     alignItems: 'center',
   },
-  nextButtonText: { color: '#FFF', fontSize: 20, fontFamily: 'Poppins', textAlign: 'center' },
+  nextButtonText: {
+    color: '#FFF',
+    fontSize: 20,
+    fontFamily: 'Poppins',
+    textAlign: 'center',
+  },
   backButton: {
     backgroundColor: '#D2691E',
     padding: 15,
     borderRadius: 30,
-    marginTop: 10,
+    marginVertical: 10, // Adjusted to match optionButton spacing
     width: '60%',
     alignItems: 'center',
   },
-  backButtonText: { color: '#FFF', fontSize: 20, fontFamily: 'Poppins' },
-  scoreText: { 
-    position: 'absolute', 
-    bottom: 80, // Adjusted to sit above the grass/animals
-    color: '#FFF', 
-    fontSize: 20, 
+  backButtonText: {
+    color: '#FFF',
+    fontSize: 20,
     fontFamily: 'Poppins',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Added background for readability
+  },
+  scoreText: {
+    color: '#FFF',
+    fontSize: 20,
+    fontFamily: 'Poppins',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 5,
     borderRadius: 10,
+    marginBottom: 15,
   },
-  score: { fontSize: 24, color: '#FFF', fontFamily: 'Poppins', marginVertical: 10 },
-  levelScore: { fontSize: 20, color: '#FFF', fontFamily: 'Poppins', marginVertical: 5 },
-  badgesText: { fontSize: 20, color: '#FFF', fontFamily: 'Poppins', marginVertical: 10 },
-  retryMessage: { fontSize: 18, color: '#FFF', fontFamily: 'Poppins', textAlign: 'center', marginVertical: 10 },
+  score: {
+    fontSize: 24,
+    color: '#FFF',
+    fontFamily: 'Poppins',
+    marginVertical: 10,
+  },
+  levelScore: {
+    fontSize: 20,
+    color: '#FFF',
+    fontFamily: 'Poppins',
+    marginVertical: 5,
+  },
+  badgesText: {
+    fontSize: 20,
+    color: '#FFF',
+    fontFamily: 'Poppins',
+    marginVertical: 10,
+  },
+  retryMessage: {
+    fontSize: 18,
+    color: '#FFF',
+    fontFamily: 'Poppins',
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  congratsText: {
+    fontSize: 20,
+    color: '#FFD700',
+    fontFamily: 'Poppins',
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  loadingText: {
+    fontSize: 24,
+    color: '#333',
+    fontFamily: 'Poppins',
+    marginTop: 20,
+  },
 });
 
 export default AnimalQuizScreen;

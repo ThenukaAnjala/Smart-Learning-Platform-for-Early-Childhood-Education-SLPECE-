@@ -3,27 +3,35 @@
     "name": "frontend",
     "slug": "frontend",
     "version": "1.0.0",
-    "assetBundlePatterns": ["assets/*"],
-    "orientation": "landscape", // Ensures the app always launches in landscape mode
-    "icon": "./assets/icon.png", // Path to your app icon
-    "userInterfaceStyle": "light", // Light or dark mode support
-    "newArchEnabled": true, // Enable the New Architecture
+    "assetBundlePatterns": [
+      "assets/*"
+    ],
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/favicon.png", // Path to the splash screen image
-      "resizeMode": "contain", // Maintain aspect ratio
-      "backgroundColor": "#ffffff" // Background color during the splash screen
+      "image": "./assets/favicon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png", // Path to the adaptive icon for Android
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.dinith01.frontend"
     },
     "web": {
-      "favicon": "./assets/favicon.png" // Path to the favicon for web
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ee02e71f-a1bf-4be5-ae03-c1416ac69018"
+      }
     }
   }
 }

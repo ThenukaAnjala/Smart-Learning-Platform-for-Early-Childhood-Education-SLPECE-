@@ -41,7 +41,7 @@ const LevelSelectionScreen = ({ navigation }) => {
 
   const handleLevelSelect = (level) => {
     if (unlockedLevels[level]) {
-      navigation.navigate('AnimalQuiz', { selectedLevel: level });
+      navigation.navigate('AnimalQuizScreen', { selectedLevel: level });
     } else {
       alert(`Complete the previous level with a score of 6/8 to unlock ${level}!`);
     }

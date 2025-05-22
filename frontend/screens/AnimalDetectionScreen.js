@@ -16,6 +16,7 @@ import * as Font from 'expo-font';
 import axios from 'axios';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useNavigation } from '@react-navigation/native';
+import * as ImageManipulator from 'expo-image-manipulator'; // Import ImageManipulator
 
 // Import the camera and gallery images
 const cameraImage = require('../assets/images/Button-Icons/camara-image.png');
@@ -33,10 +34,12 @@ const AnimalDetectionScreen = () => {
   const navigation = useNavigation();
   const fadeAnim = useState(new Animated.Value(0))[0];
   const scaleAnim = useState(new Animated.Value(1))[0];
-  
+
   // Animation values for pulsing effect
   const cameraPulseAnim = useState(new Animated.Value(1))[0]; // For camera button
   const galleryPulseAnim = useState(new Animated.Value(1))[0]; // For gallery button
+  const textFadeAnim = useState(new Animated.Value(0))[0]; // For try again text
+  const buttonPopAnim = useState(new Animated.Value(0))[0]; // For pop-in effect on buttons
 
   useEffect(() => {
     const lockToPortrait = async () => {
@@ -74,21 +77,21 @@ const AnimalDetectionScreen = () => {
       Animated.loop(
         Animated.sequence([
           Animated.timing(animValue, {
-            toValue: 1.1, // Scale up to 110%
-            duration: 1000, // Duration of scaling up
+            toValue: 1.1,
+            duration: 1000,
             useNativeDriver: true,
           }),
           Animated.timing(animValue, {
-            toValue: 1, // Scale back to 100%
-            duration: 1000, // Duration of scaling down
+            toValue: 1,
+            duration: 1000,
             useNativeDriver: true,
           }),
         ])
       ).start();
     };
 
-    startPulsing(cameraPulseAnim); // Start pulsing for camera button
-    startPulsing(galleryPulseAnim); // Start pulsing for gallery button
+    startPulsing(cameraPulseAnim);
+    startPulsing(galleryPulseAnim);
 
     lockToPortrait();
     loadFontAndPermissions();
@@ -100,19 +103,44 @@ const AnimalDetectionScreen = () => {
     };
   }, [fadeAnim, cameraPulseAnim, galleryPulseAnim]);
 
+  // Animate the "Try again" text and buttons when prediction confidence is low
+  useEffect(() => {
+    if (prediction && prediction.confidence <= 90) {
+      Animated.sequence([
+        Animated.timing(textFadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(buttonPopAnim, {
+          toValue: 1,
+          friction: 5,
+          tension: 60,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [prediction, textFadeAnim, buttonPopAnim]);
+
   const getServerUrl = () => {
-    return Platform.OS === 'android' && !__DEV__
-      ? 'http://10.0.2.2:5050/predict'
-      : 'http://192.168.1.46:5050/predict';
+    return 'https://dinith01-animal-recognition-app.hf.space/predict';
   };
 
   const uploadImage = async (uri) => {
     setIsLoading(true);
     setPrediction(null);
 
+    // Resize and compress the image before uploading
+    const manipResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 800 } }], // Resize to a maximum width of 800 pixels
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG } // Compress to 70% quality
+    );
+    const resizedUri = manipResult.uri;
+
     const formData = new FormData();
-    formData.append('image', {
-      uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+    formData.append('file', {
+      uri: Platform.OS === 'ios' ? resizedUri.replace('file://', '') : resizedUri,
       name: 'photo.jpg',
       type: 'image/jpeg',
     });
@@ -122,9 +150,12 @@ const AnimalDetectionScreen = () => {
 
     try {
       const response = await axios.post(url, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
         timeout: 10000,
       });
+
       console.log('Response:', response.data);
       setPrediction(response.data);
 
@@ -148,7 +179,10 @@ const AnimalDetectionScreen = () => {
       }
     } catch (error) {
       console.error('Upload Error:', error.message);
-      Alert.alert('Oops!', error.response?.data?.error || 'Can’t talk to the animal server! 😿');
+      Alert.alert(
+        'Oops!',
+        error.response?.data?.error || 'Can’t talk to the animal server! 😿'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +192,7 @@ const AnimalDetectionScreen = () => {
     if (!hasPermission) return Alert.alert('Camera!', 'We need camera access to snap animals! 🐾');
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      quality: 1,
+      quality: 0.7, // Compress the image during capture
     });
     if (!result.canceled) {
       setImage(result.assets[0].uri);
@@ -170,7 +204,7 @@ const AnimalDetectionScreen = () => {
     if (!hasPermission) return Alert.alert('Gallery!', 'We need gallery access to see animals! 🐾');
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
-      quality: 1,
+      quality: 0.7, // Compress the image during selection
     });
     if (!result.canceled) {
       setImage(result.assets[0].uri);
@@ -227,24 +261,32 @@ const AnimalDetectionScreen = () => {
           <Image source={{ uri: image }} style={styles.image} />
           {prediction && prediction.confidence <= 90 && (
             <View style={styles.tryAgainContainer}>
-              <Text style={styles.tryAgainText}>
-                I’m {prediction.confidence.toFixed(2)}% sure. Try again?
-              </Text>
+              {/* Add a playful emoji with a slight bounce animation */}
+              <Animated.Text style={[styles.emoji, { transform: [{ scale: buttonPopAnim }] }]}>
+                🐾🤔
+              </Animated.Text>
+              <Animated.Text style={[styles.tryAgainText, { opacity: textFadeAnim }]}>
+                Hmm, I’m only {prediction.confidence.toFixed(2)}% sure! Let’s try another photo! 📸
+              </Animated.Text>
               <View style={styles.retryButtonGroup}>
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={takePhoto}
-                  activeOpacity={0.7}
-                >
-                  <Image source={cameraImage} style={styles.buttonIcon} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={pickImageFromGallery}
-                  activeOpacity={0.7}
-                >
-                  <Image source={galleryImage} style={styles.buttonIcon} />
-                </TouchableOpacity>
+                <Animated.View style={{ transform: [{ scale: buttonPopAnim }] }}>
+                  <TouchableOpacity
+                    style={styles.retryButton}
+                    onPress={takePhoto}
+                    activeOpacity={0.7}
+                  >
+                    <Image source={cameraImage} style={styles.buttonIcon} />
+                  </TouchableOpacity>
+                </Animated.View>
+                <Animated.View style={{ transform: [{ scale: buttonPopAnim }] }}>
+                  <TouchableOpacity
+                    style={styles.retryButton}
+                    onPress={pickImageFromGallery}
+                    activeOpacity={0.7}
+                  >
+                    <Image source={galleryImage} style={styles.buttonIcon} />
+                  </TouchableOpacity>
+                </Animated.View>
               </View>
             </View>
           )}
@@ -339,30 +381,51 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   tryAgainContainer: {
-    marginTop: 20,
+    position: 'absolute', // Make it a floating component
+    bottom: 20, // Position near the bottom
+    width: '90%',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)', // Semi-transparent white background
+    borderRadius: 20,
+    padding: 20,
+    zIndex: 2, // Ensure it appears above other content
+    elevation: 5, // Add shadow for Android
+    shadowColor: '#000', // Add shadow for iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  emoji: {
+    fontSize: 40,
+    marginBottom: 10,
   },
   tryAgainText: {
-    fontSize: 24,
-    color: '#FFF',
+    fontSize: 20,
+    color: '#8B4513',
     textAlign: 'center',
     marginBottom: 20,
     fontFamily: 'Poppins',
+    lineHeight: 28,
   },
   retryButtonGroup: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     width: '100%',
-    gap: 30,
+    gap: 40,
   },
   retryButton: {
     backgroundColor: '#D2691E',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 120,
-    height: 120,
-    borderRadius: 30,
+    width: 100,
+    height: 100,
+    borderRadius: 25,
+    elevation: 5, // Add shadow for Android
+    shadowColor: '#000', // Add shadow for iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   retryButtonText: {
     color: '#FFF',
@@ -409,8 +472,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins',
   },
   buttonIcon: {
-    width: 120,
-    height: 120,
+    width: 80,
+    height: 80,
     resizeMode: 'contain',
   },
   clearButton: {
