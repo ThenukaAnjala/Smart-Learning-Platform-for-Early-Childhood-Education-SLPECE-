@@ -32,7 +32,7 @@ const Toast = ({ visible, message, onDismiss, isCorrect }) => {
         <Animated.View
             style={[
                 styles.toastContainer,
-                { opacity: fadeAnim, transform: [{ scale: scaleAnim }], backgroundColor: isCorrect ? '#4CAF50' : '#F44336' },
+                { opacity: fadeAnim, transform: [{ scale: scaleAnim }], backgroundColor: isCorrect ? '#FF5722' : '#F44336' },
             ]}
         >
             <Text style={styles.toastText}>{message}</Text>
@@ -70,7 +70,17 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget, isTimeU
                 pan.setOffset({ x: pan.x._value, y: pan.y._value });
                 pan.setValue({ x: 0, y: 0 });
             },
-            onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
+            onPanResponderMove: Animated.event(
+                [null, { dx: pan.x, dy: pan.y }],
+                {
+                    useNativeDriver: false,
+                    listener: (event, gestureState) => {
+                        const newX = Math.max(0, Math.min(gestureState.dx + pan.x._offset, width - ELEMENT_SIZE));
+                        const newY = Math.max(0, Math.min(gestureState.dy + pan.y._offset, height - ELEMENT_SIZE));
+                        pan.setValue({ x: newX - pan.x._offset, y: newY - pan.y._offset });
+                    },
+                }
+            ),
             onPanResponderRelease: () => {
                 pan.flattenOffset();
                 onDrop(id, pan.x._value, pan.y._value);
@@ -94,7 +104,6 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget, isTimeU
     );
 };
 
-// Sea Background Component
 // Sea Background Component
 const SeaBackground = ({ isDarkMode }) => {
     const waveAnim = useRef(new Animated.Value(0)).current;
@@ -436,8 +445,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2000,
+        borderWidth: 4,
+        borderColor: '#FFCA28',
     },
-    toastText: { color: 'white', fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
+    toastText: { color: 'white', fontSize: 24, fontWeight: 'bold', textAlign: 'center', textShadowColor: '#000', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
     nextButton: { marginTop: 10, padding: 10, backgroundColor: '#FFEB3B', borderRadius: 10 },
     nextButtonText: { color: '#333', fontSize: 18, fontWeight: 'bold' },
     seaBackground: { flex: 1, overflow: 'hidden' },

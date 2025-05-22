@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback, memo } from 'react';
+import React, { useState, useRef, useMemo, useCallback, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -68,7 +68,7 @@ const Triangle = ({ color, size, borderColor }) => {
     );
 };
 
-const DraggableElement = memo(({ id, internalId, color, shape, pan, onDrop }) => {
+const DraggableElement = memo(({ id, internalId, color, shape, pan, onDrop, stackNumber }) => {
     const scale = useRef(new Animated.Value(1)).current;
     const panResponder = useRef(
         PanResponder.create({
@@ -113,22 +113,24 @@ const DraggableElement = memo(({ id, internalId, color, shape, pan, onDrop }) =>
                 styles.circle,
                 { backgroundColor: color, borderColor: 'rgba(255, 255, 255, 0.5)', borderWidth: 3 }
             ]}>
-                <Text style={styles.elementText}>{id}</Text>
+                {stackNumber !== null && <Text style={styles.elementText}>{stackNumber}</Text>}
             </View>
         );
     } else if (shape === 'square') {
         shapeElement = (
             <View style={[styles.shape, styles.square, { backgroundColor: color, borderColor: 'rgba(255, 255, 255, 0.5)', borderWidth: 3 }]}>
-                <Text style={styles.elementText}>{id}</Text>
+                {stackNumber !== null && <Text style={styles.elementText}>{stackNumber}</Text>}
             </View>
         );
     } else if (shape === 'triangle') {
         shapeElement = (
             <View style={styles.triangleContainer}>
                 <Triangle color={color} size={ELEMENT_SIZE - 10} borderColor="rgba(255, 255, 255, 0.5)" />
-                <View style={styles.triangleTextContainer}>
-                    <Text style={styles.elementText}>{id}</Text>
-                </View>
+                {stackNumber !== null && (
+                    <View style={styles.triangleTextContainer}>
+                        <Text style={styles.elementText}>{stackNumber}</Text>
+                    </View>
+                )}
             </View>
         );
     }
@@ -202,6 +204,18 @@ const StackingElements = () => {
         const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
         const dustbinY = DUSTBIN_PADDING;
 
+        setElements(prev => {
+            const newElements = prev.map(el => {
+                if (el.internalId === internalId) {
+                    el.pan.setValue({ x: newX, y: newY });
+                    return { ...el };
+                }
+                return el;
+            });
+            elementsRef.current = newElements;
+            return newElements;
+        });
+
         if (
             centerX >= dustbinX &&
             centerX <= dustbinX + DUSTBIN_SIZE &&
@@ -214,15 +228,6 @@ const StackingElements = () => {
                 console.log('Deleted element', internalId, 'New count:', newElements.length);
                 return newElements;
             });
-        } else {
-            elementsRef.current = elementsRef.current.map(el => {
-                if (el.internalId === internalId) {
-                    el.pan.setValue({ x: newX, y: newY });
-                    return { ...el };
-                }
-                return el;
-            });
-            setElements([...elementsRef.current]);
         }
     }, []);
 
@@ -290,6 +295,7 @@ const StackingElements = () => {
 
     const getClusters = useCallback((elementsList) => {
         const clusters = [];
+        const elementStackNumbers = new Map(); // Map to store stack number for each element
         const visited = new Set();
         const threshold = ELEMENT_SIZE;
 
@@ -315,17 +321,38 @@ const StackingElements = () => {
                     }
                 }
             }
+
             if (cluster.length > 1) {
                 const avgX = cluster.reduce((sum, item) => sum + item.pan.x._value, 0) / cluster.length;
                 const avgY = cluster.reduce((sum, item) => sum + item.pan.y._value, 0) / cluster.length;
                 clusters.push({ x: avgX, y: avgY, count: cluster.length });
+                // Assign unique stack numbers (1 to n) to each element in the cluster
+                cluster.forEach((el, index) => {
+                    elementStackNumbers.set(el.key, index + 1);
+                });
+            } else {
+                // Assign 1 to elements not in a cluster
+                elementStackNumbers.set(cluster[0].key, 1);
             }
         }
+
+        // Ensure all elements have a stack number (for any element not processed due to visited logic)
+        elementsList.forEach(el => {
+            if (!elementStackNumbers.has(el.key)) {
+                elementStackNumbers.set(el.key, 1);
+            }
+        });
+
         console.log('Clusters computed:', clusters);
-        return clusters;
+        return { clusters, elementStackNumbers };
     }, []);
 
-    const clusters = useMemo(() => getClusters(elements), [elements, getClusters]);
+    const { clusters, elementStackNumbers } = useMemo(() => getClusters(elements), [elements, getClusters]);
+
+    const [displayElements, setDisplayElements] = useState([]);
+    useEffect(() => {
+        setDisplayElements([...elements]);
+    }, [elements]);
 
     const animateButton = useCallback((scale, pressIn) => {
         Animated.spring(scale, {
@@ -357,7 +384,7 @@ const StackingElements = () => {
                         <Text style={styles.backButtonText}>← Back</Text>
                     </Animated.View>
                 </TouchableOpacity>
-                {elements.map((el, index) => (
+                {displayElements.map((el, index) => (
                     <DraggableElement
                         key={el.key}
                         id={index + 1}
@@ -366,6 +393,7 @@ const StackingElements = () => {
                         shape={el.shape}
                         pan={el.pan}
                         onDrop={handleDrop}
+                        stackNumber={elementStackNumbers.get(el.key)}
                     />
                 ))}
                 {clusters.map((cluster, index) => (
