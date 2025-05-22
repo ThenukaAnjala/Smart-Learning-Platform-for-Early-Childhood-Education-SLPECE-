@@ -95,6 +95,7 @@ const DraggableElement = ({ id, number, x, y, onDrop, onTouch, isTarget, isTimeU
 };
 
 // Sea Background Component
+// Sea Background Component
 const SeaBackground = ({ isDarkMode }) => {
     const waveAnim = useRef(new Animated.Value(0)).current;
     const NUMBER_OF_FISH = 25;
@@ -118,12 +119,12 @@ const SeaBackground = ({ isDarkMode }) => {
             Animated.loop(
                 Animated.sequence([
                     Animated.parallel([
-                        Animated.timing(fish.x, { toValue: width + 50, duration: 5000 + index * 200, useNativeDriver: true }),
+                        Animated.timing(fish.x, { toValue: width + 50, duration: 8000 + index * 300, useNativeDriver: true }),
                         Animated.timing(fish.direction, { toValue: 1, duration: 0, useNativeDriver: true }),
                     ]),
-                    Animated.timing(fish.y, { toValue: Math.random() * (height - 150), duration: 1000, useNativeDriver: true }),
+                    Animated.timing(fish.y, { toValue: Math.random() * (height - 150), duration: 2000, useNativeDriver: true }),
                     Animated.parallel([
-                        Animated.timing(fish.x, { toValue: -50, duration: 5000 + index * 200, useNativeDriver: true }),
+                        Animated.timing(fish.x, { toValue: -50, duration: 8000 + index * 300, useNativeDriver: true }),
                         Animated.timing(fish.direction, { toValue: -1, duration: 0, useNativeDriver: true }),
                     ]),
                 ])
