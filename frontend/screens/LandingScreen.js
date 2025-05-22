@@ -1,4 +1,3 @@
-// src/screens/LandingScreen.js
 import React from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
 
@@ -11,7 +10,12 @@ const LandingScreen = ({ navigation }) => {
       </Text>
       <Button
         title="Get Started"
-        onPress={() => navigation.navigate('Home')} // Navigates to the Home screen
+        onPress={() => navigation.navigate('Login')}
+      />
+      <View style={styles.buttonSpacer} />
+      <Button
+        title="Sign Up"
+        onPress={() => navigation.navigate('Signup')}
       />
     </View>
   );
@@ -19,7 +23,7 @@ const LandingScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,    
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
@@ -37,6 +41,9 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  buttonSpacer: {
+    height: 10,
   },
 });
 
