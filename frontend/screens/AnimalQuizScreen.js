@@ -562,7 +562,11 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   return (
     <View style={styles.container}>
       <Image source={backgroundImage} style={styles.backgroundImage} />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.contentWrapper}>
           <Text style={[styles.title, styles.levelTitle]}>Level {currentLevel === 'easy' ? 1 : currentLevel === 'medium' ? 2 : 3}</Text>
           <View
@@ -641,34 +645,30 @@ const AnimalQuizScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
     backgroundColor: 'transparent',
-    padding: 0,
   },
   backgroundImage: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: '100%',
+    height: '100%',
     resizeMode: 'cover',
   },
   scrollContainer: {
-    flexGrow: 1, // Allows ScrollView to fill the screen
-    justifyContent: 'center', // Centers content vertically if it doesn't fill the screen
+    flexGrow: 1,
+    paddingVertical: 20,
   },
   contentWrapper: {
-    width: '100%',
+    flex: 1,
     alignItems: 'center',
-    paddingVertical: 20, // Adjusted padding for better spacing
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   title: {
-    fontSize: 40,
+    fontSize: 32, // Reduced from 40 to fit better
     color: '#8B4513',
     fontFamily: 'Schoolbell',
     textAlign: 'center',
-    marginBottom: 20, // Reduced margin to fit within screen
+    marginBottom: 15,
   },
   levelTitle: {
     marginBottom: 10,
@@ -690,11 +690,11 @@ const styles = StyleSheet.create({
   },
   questionContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: 20,
+    padding: 15,
     borderRadius: 20,
-    marginVertical: 15,
+    marginVertical: 10,
     alignItems: 'center',
-    width: '90%',
+    width: '100%',
   },
   questionText: {
     fontSize: 24,
@@ -710,15 +710,14 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   optionsContainer: {
-    flexDirection: 'column',
+    width: '100%',
     alignItems: 'center',
-    width: '90%',
-    marginBottom: 20,
+    marginVertical: 10,
   },
   optionButton: {
     backgroundColor: '#D2691E',
-    padding: 15,
-    marginVertical: 10,
+    padding: 12,
+    marginVertical: 8,
     borderRadius: 30,
     width: '80%',
     alignItems: 'center',
