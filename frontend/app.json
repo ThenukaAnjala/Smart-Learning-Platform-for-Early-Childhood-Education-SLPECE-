@@ -3,6 +3,9 @@
     "name": "frontend",
     "slug": "frontend",
     "version": "1.0.0",
+    "assetBundlePatterns": [
+      "assets/*"
+    ],
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -19,13 +22,16 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.dinith01.frontend"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-secure-store"
-    ]
+    "extra": {
+      "eas": {
+        "projectId": "ee02e71f-a1bf-4be5-ae03-c1416ac69018"
+      }
+    }
   }
 }

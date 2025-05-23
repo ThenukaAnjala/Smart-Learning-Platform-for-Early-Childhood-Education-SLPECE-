@@ -54,7 +54,22 @@ const HomeScreen = ({ navigation }) => {
       />
       <View style={styles.buttonSpacer} />
       <Button title="Logout" onPress={handleLogout} color="#FF3B30" />
+
+      <Text style={styles.title}>This is the Animal Discoverer Screen</Text>
+      <Button title="Open Animal Discoverer" onPress={() => navigation.navigate('AnimalDetectionScreen')} />
+
+
+      <Text style={styles.title}>This is the Animal Quiz Screen</Text>
+      <Button title="Open Animal Quiz" onPress={() => navigation.navigate('LevelSelectionScreen')} />
     </View>
+
+    
+
+    
+
+
+
+
   );
 };
 
