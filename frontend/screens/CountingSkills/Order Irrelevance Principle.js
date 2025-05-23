@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity, TouchableWithoutFeedback, Image, Vibration } from 'react-native';
+import { Audio } from 'expo-av';
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 80;
@@ -9,6 +10,23 @@ const BOTTOM_OFFSET = 120;
 const RIGHT_OFFSET = 0;
 const MAX_ATTEMPTS = 1000;
 const TIMER_DURATION = 15; // 15 seconds
+
+// Static mapping of audio files
+const audioFiles = {
+  1: require('../../assets/audio/find_number_1.mp3'),
+  2: require('../../assets/audio/find_number_2.mp3'),
+  3: require('../../assets/audio/find_number_3.mp3'),
+  4: require('../../assets/audio/find_number_4.mp3'),
+  5: require('../../assets/audio/find_number_5.mp3'),
+  6: require('../../assets/audio/find_number_6.mp3'),
+  7: require('../../assets/audio/find_number_7.mp3'),
+  8: require('../../assets/audio/find_number_8.mp3'),
+  9: require('../../assets/audio/find_number_9.mp3'),
+  10: require('../../assets/audio/find_number_10.mp3'),
+  great_job: require('../../assets/audio/great_job.mp3'),
+  try_again: require('../../assets/audio/try_again.mp3'),
+  time_up: require('../../assets/audio/time_up.mp3'),
+};
 
 // Custom Toast Component
 const Toast = ({ visible, message, onDismiss, isCorrect }) => {
@@ -180,8 +198,39 @@ const OrderIrrelevance = () => {
     const [isCorrect, setIsCorrect] = useState(false);
     const [timeLeft, setTimeLeft] = useState(TIMER_DURATION);
     const [isTimeUp, setIsTimeUp] = useState(false);
-    const [isDarkMode, setIsDarkMode] = useState(false); // Added dark mode state
+    const [isDarkMode, setIsDarkMode] = useState(false);
     const targetAnim = useRef(new Animated.Value(0)).current;
+    const soundObject = useRef(null);
+
+    useEffect(() => {
+        // Initialize audio
+        const loadSound = async () => {
+            soundObject.current = new Audio.Sound();
+        };
+        loadSound();
+
+        initializeElements();
+
+        return () => {
+            // Unload sound when component unmounts
+            if (soundObject.current) {
+                soundObject.current.unloadAsync();
+            }
+        };
+    }, []);
+
+    const playSound = async (soundFile) => {
+        try {
+            if (soundObject.current) {
+                await soundObject.current.unloadAsync();
+                await soundObject.current.loadAsync(soundFile);
+                await soundObject.current.playAsync();
+                console.log('Sound played successfully:', soundFile);
+            }
+        } catch (error) {
+            console.log('Error playing sound:', error);
+        }
+    };
 
     const placeElementRandomly = (existingElements, currentX, currentY) => {
         const availableWidth = width - RIGHT_OFFSET - ELEMENT_SIZE;
@@ -223,19 +272,19 @@ const OrderIrrelevance = () => {
         }
 
         setElements(newElements);
-        setTargetNumber(Math.floor(Math.random() * newElements.length) + 1);
+        const newTargetNumber = Math.floor(Math.random() * newElements.length) + 1;
+        setTargetNumber(newTargetNumber);
         setTimeLeft(TIMER_DURATION);
         setIsTimeUp(false);
         setIsCorrect(false);
         setToastVisible(false);
         animateTargetNumber();
+
+        console.log('Playing target number:', newTargetNumber);
+        // Use the static mapping instead of dynamic require
+        playSound(audioFiles[newTargetNumber]);
     };
 
-    useEffect(() => {
-        initializeElements();
-    }, []);
-
-    // Timer Logic
     useEffect(() => {
         if (timeLeft > 0 && !isCorrect) {
             const timer = setInterval(() => {
@@ -245,6 +294,8 @@ const OrderIrrelevance = () => {
                         clearInterval(timer);
                         setToastMessage(`⏰ Time's up! Tap ${targetNumber} to continue.`);
                         setToastVisible(true);
+                        console.log('Playing time up message');
+                        playSound(audioFiles.time_up);
                         return 0;
                     }
                     return prev - 1;
@@ -280,10 +331,15 @@ const OrderIrrelevance = () => {
                 }
             });
 
-            setTargetNumber(Math.floor(Math.random() * shuffledElements.length) + 1);
+            const newTargetNumber = Math.floor(Math.random() * shuffledElements.length) + 1;
+            setTargetNumber(newTargetNumber);
             setTimeLeft(TIMER_DURATION);
             setIsTimeUp(false);
             animateTargetNumber();
+
+            console.log('Playing new target number after shuffle:', newTargetNumber);
+            playSound(audioFiles[newTargetNumber]);
+
             return shuffledElements;
         });
     };
@@ -296,6 +352,8 @@ const OrderIrrelevance = () => {
     const handleTouch = (number, timeUp) => {
         if (timeUp) {
             if (number === targetNumber) {
+                console.log('Playing time up tap confirmation');
+                playSound(audioFiles.time_up);
                 initializeElements();
             }
             return;
@@ -306,11 +364,15 @@ const OrderIrrelevance = () => {
             setIsCorrect(true);
             Vibration.vibrate(100);
             setToastVisible(true);
+            console.log('Playing correct tap feedback');
+            playSound(audioFiles.great_job);
         } else {
             setToastMessage(`😕 Try again! Find ${targetNumber}!`);
             setIsCorrect(false);
             Vibration.vibrate([0, 50]);
             setToastVisible(true);
+            console.log('Playing incorrect tap feedback');
+            playSound(audioFiles.try_again);
         }
     };
 
@@ -328,9 +390,13 @@ const OrderIrrelevance = () => {
         ]).start();
     };
 
-    // Toggle dark mode
     const toggleDarkMode = () => {
         setIsDarkMode(prevMode => !prevMode);
+    };
+
+    const testAudio = () => {
+        console.log('Testing audio');
+        playSound(audioFiles.great_job);
     };
 
     return (
@@ -380,10 +446,17 @@ const OrderIrrelevance = () => {
                         Shuffle
                     </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={testAudio}
+                    style={[styles.button, { backgroundColor: isDarkMode ? '#333333' : '#ccc', marginLeft: 10 }]}
+                >
+                    <Text style={[styles.buttonText, { color: isDarkMode ? '#E0E0E0' : 'black' }]}>
+                        Test Audio
+                    </Text>
+                </TouchableOpacity>
             </View>
             <Timer timeLeft={timeLeft} isTimeUp={isTimeUp} />
             <Toast visible={toastVisible} message={toastMessage} onDismiss={dismissToast} isCorrect={isCorrect} />
-            {/* Dark Mode Toggle Button */}
             <TouchableOpacity
                 style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
                 onPress={toggleDarkMode}
@@ -478,7 +551,7 @@ const styles = StyleSheet.create({
     darkModeButton: {
         position: 'absolute',
         top: 20,
-        right: 80, // Adjusted to avoid overlap with timer
+        right: 80,
         width: 50,
         height: 50,
         borderRadius: 25,

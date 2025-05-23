@@ -5,7 +5,7 @@ import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
 import DrawingBoard from '../screens/DrawingBoard';
 import SmartCounter from '../screens/SmartCounter';
-import StackingElements from '../screens/CountingSkills/Stacking Elements';
+import StackingObjects from '../screens/CountingSkills/Stacking Objects';
 import ReverseCounting from '../screens/CountingSkills/Reverse Counting';
 import MidrangeCounting from '../screens/CountingSkills/Mid-Range Counting';
 import OrderIrrelevance from '../screens/CountingSkills/Order Irrelevance Principle';
@@ -21,7 +21,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="DrawingBoard" component={DrawingBoard} />
         <Stack.Screen name="SmartCounter" component={SmartCounter} />
-        <Stack.Screen name="Stacking Elements" component={StackingElements} />
+        <Stack.Screen name="Stacking Objects" component={StackingObjects} />
         <Stack.Screen name="Reverse Counting" component={ReverseCounting} />
         <Stack.Screen name="Mid-Range Counting" component={MidrangeCounting} />
         <Stack.Screen name="Order Irrelevance Principle" component={OrderIrrelevance} />

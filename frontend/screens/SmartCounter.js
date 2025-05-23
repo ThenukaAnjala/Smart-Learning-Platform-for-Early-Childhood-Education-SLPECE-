@@ -9,7 +9,7 @@ export default function SmartCounter() {
     const navigation = useNavigation();
     const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode toggle
     const skills = [
-        'Stacking Elements',
+        'Stacking Objects',
         'Reverse Counting',
         'Mid-Range Counting',
         'Order Irrelevance Principle',
