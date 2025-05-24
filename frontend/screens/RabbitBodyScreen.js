@@ -13,77 +13,67 @@ import {
 import { useRoute } from '@react-navigation/native';
 
 export default function RabbitBodyScreen() {
-  const route = useRoute();
-  const { rabbitImageBase64, initialHeadSide } = route.params;
-
-  // Dimensions for the rabbit drawing.
-  const imageWidth = 200;
-  const imageHeight = 300;
+  const { rabbitImageBase64, initialHeadSide } = useRoute().params;
   const { width: screenWidth } = Dimensions.get('window');
 
-  // If head is "right", rabbit starts off-screen to the left and moves to the right.
-  // If head is "left", rabbit starts off-screen to the right and moves left.
-  const isRight = initialHeadSide === 'right';
+  // Rabbit size
+  const imageWidth  = 200;
+  const imageHeight = 300;
 
-  // Starting x-position for the rabbit.
-  const startX = isRight ? -imageWidth : screenWidth;
+  // Direction flag
+  const goRight = initialHeadSide === 'right';
 
-  // Four horizontal target positions:
-  // For "right" branch, we move from negative x to screenWidth + imageWidth.
-  // For "left" branch, we move from screenWidth down to -imageWidth.
-  const targetPositions = isRight
-    ? [
-        screenWidth * 0.25,
-        screenWidth * 0.50,
-        screenWidth * 0.75,
-        screenWidth + imageWidth,
-      ]
-    : [
-        screenWidth * 0.75,
-        screenWidth * 0.50,
-        screenWidth * 0.25,
-        -imageWidth,
-      ];
+  // Off-screen start and end positions
+  const startX = goRight ? -imageWidth : screenWidth;
+  const endX   = goRight ? screenWidth : -imageWidth;
 
-  // Animated Values
-  const horizontalAnim = useRef(new Animated.Value(startX)).current;
-  const verticalAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Animated values
+  const horizontal = useRef(new Animated.Value(startX)).current;
+  const vertical   = useRef(new Animated.Value(0)).current;
+  const fade       = useRef(new Animated.Value(0)).current;
 
-  // Jump parameters (tweak as desired).
-  const maxJumpHeight = 120;  // Vertical jump height
-  const jumpDuration = 1000;  // Horizontal movement per segment
-  const jumpUpDuration = 400; // Upward phase
-  const jumpDownDuration = 600; // Downward phase
+  // Hop parameters
+  const hops       = 4;
+  const hopHeight  = 120;
+  const totalDuration = 4000; // total ms for all hops
+  const perHopDuration = totalDuration / hops; // e.g. 1000ms each
+  const upDuration   = perHopDuration * 0.4; // 40% up
+  const downDuration = perHopDuration * 0.6; // 60% down
 
   useEffect(() => {
-    // Fade in the rabbit image
-    Animated.timing(fadeAnim, {
+    // Fade in
+    Animated.timing(fade, {
       toValue: 1,
       duration: 2000,
       useNativeDriver: true,
     }).start();
 
-    // Build an array of jump segments. Each segment moves horizontally in parallel
-    // with an up/down sequence in the vertical direction.
-    const jumpSegments = targetPositions.map((target) =>
+    // Compute the four intermediate X targets
+    const totalDistance = endX - startX;
+    const segment = totalDistance / hops;
+    const targets = Array.from({ length: hops }, (_, i) => startX + segment * (i + 1));
+
+    // Build an array of hop animations
+    const hopAnimations = targets.map(targetX =>
       Animated.parallel([
-        Animated.timing(horizontalAnim, {
-          toValue: target,
-          duration: jumpDuration,
+        // horizontal move
+        Animated.timing(horizontal, {
+          toValue: targetX,
+          duration: perHopDuration,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: true,
         }),
+        // vertical hop up/down
         Animated.sequence([
-          Animated.timing(verticalAnim, {
-            toValue: -maxJumpHeight,
-            duration: jumpUpDuration,
+          Animated.timing(vertical, {
+            toValue: -hopHeight,
+            duration: upDuration,
             easing: Easing.out(Easing.quad),
             useNativeDriver: true,
           }),
-          Animated.timing(verticalAnim, {
+          Animated.timing(vertical, {
             toValue: 0,
-            duration: jumpDownDuration,
+            duration: downDuration,
             easing: Easing.in(Easing.quad),
             useNativeDriver: true,
           }),
@@ -91,25 +81,19 @@ export default function RabbitBodyScreen() {
       ])
     );
 
-    // Run these segments in sequence.
-    Animated.sequence(jumpSegments).start();
-  }, [
-    fadeAnim,
-    horizontalAnim,
-    verticalAnim,
-    targetPositions,
-    jumpDuration,
-    jumpUpDuration,
-    jumpDownDuration,
-    maxJumpHeight,
-  ]);
+    // Sequence them and loop forever
+    const runLoop = () => {
+      Animated.sequence(hopAnimations).start(() => {
+        // reset positions
+        horizontal.setValue(startX);
+        vertical.setValue(0);
+        // loop
+        runLoop();
+      });
+    };
 
-  // Flip the image horizontally if the rabbit's head is "left".
-  // That ensures that if the rabbit is traveling from right to left,
-  // the image is mirrored so the rabbit faces the direction of travel.
-  const flipStyle = !isRight
-    ? { transform: [{ scaleX: -1 }] }
-    : {};
+    runLoop();
+  }, [fade, horizontal, vertical, startX, endX, hops]);
 
   return (
     <ImageBackground
@@ -118,15 +102,16 @@ export default function RabbitBodyScreen() {
       resizeMode="cover"
     >
       <Text style={styles.title}>Rabbit Full Body</Text>
+
       <View style={styles.container}>
-        {/* The jumping rabbit */}
+        {/* Hopping rabbit */}
         <Animated.View
           style={[
             styles.rabbitContainer,
             {
               transform: [
-                { translateX: horizontalAnim },
-                { translateY: verticalAnim },
+                { translateX: horizontal },
+                { translateY: vertical },
               ],
             },
           ]}
@@ -136,15 +121,14 @@ export default function RabbitBodyScreen() {
               source={{ uri: `data:image/png;base64,${rabbitImageBase64}` }}
               style={[
                 styles.rabbitImage,
-                { width: imageWidth, height: imageHeight, opacity: fadeAnim },
-                flipStyle,
+                { width: imageWidth, height: imageHeight, opacity: fade },
               ]}
               resizeMode="contain"
             />
           )}
         </Animated.View>
 
-        {/* Bush on left if isRight => true, bush on right otherwise */}
+        {/* Static bush at the start side */}
         <Image
           source={require('../assets/rabbitbush.png')}
           style={[
@@ -152,8 +136,8 @@ export default function RabbitBodyScreen() {
             {
               width: imageWidth,
               height: imageHeight,
-              left: isRight ? 0 : 'auto',
-              right: isRight ? 'auto' : 0,
+              left:  goRight ? 0       : undefined,
+              right: goRight ? undefined : 0,
             },
           ]}
           resizeMode="contain"
@@ -164,9 +148,7 @@ export default function RabbitBodyScreen() {
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
+  background: { flex: 1 },
   title: {
     position: 'absolute',
     top: 40,
@@ -178,18 +160,15 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    position: 'relative',
     justifyContent: 'flex-end',
     alignItems: 'flex-start',
   },
   rabbitContainer: {
     position: 'absolute',
     bottom: 0,
-    left: 0,
+    left: 0, // we'll animate translateX on top of this
   },
-  rabbitImage: {
-    // Additional styling if needed
-  },
+  rabbitImage: {},
   rabbitBush: {
     position: 'absolute',
     bottom: 0,
