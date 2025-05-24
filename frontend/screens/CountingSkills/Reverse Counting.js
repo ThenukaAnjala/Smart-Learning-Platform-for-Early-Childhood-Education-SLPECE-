@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Speech from 'expo-speech';
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 70;
@@ -12,30 +13,112 @@ const MAX_ELEMENTS = 10;
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
 
 const SUCCESS_MESSAGES = [
-    'Super Job! 🌟',
-    'You’re a Star! ✨',
-    'Wow, You Did It! 🎉',
-    'Awesome Work! 👍',
-    'High Five! 🖐️',
-    'You’re Amazing! 😊',
-    'Great Going! 🚀',
-    'Way to Shine! 💫',
-    'Fantastic! 🏆',
+    'Super Job!',
+    'You’re a Star!',
+    'Wow, You Did It!',
+    'Awesome Work!',
+    'High Five!',
+    'You’re Amazing!',
+    'Great Going!',
+    'Way to Shine!',
+    'Fantastic!',
 ];
 
 const FAILURE_MESSAGES = [
-    'Try Again! 😄',
-    'You’re So Close! 🌈',
-    'Keep Going! 💪',
-    'Almost There! 🐾',
-    'Give It Another Go! 😊',
-    'You Can Do It! 🌟',
-    'Nice Try! 👍',
-    'Let’s Try Again! 🚀',
+    'Try Again!',
+    'You’re So Close!',
+    'Keep Going!',
+    'Almost There!',
+    'Give It Another Go!',
+    'You Can Do It!',
+    'Nice Try!',
+    'Let’s Try Again!',
 ];
 
 const getRandomMessage = (messages) => {
     return messages[Math.floor(Math.random() * messages.length)];
+};
+
+// Initialize TTS and select a kid-like voice
+const initializeTts = async () => {
+    try {
+        const voices = await Speech.getAvailableVoicesAsync();
+        console.log('Available TTS voices:', voices);
+
+        const kidVoice = voices.find(voice =>
+            voice.name.toLowerCase().includes('child') ||
+            voice.name.toLowerCase().includes('kid') ||
+            voice.name.toLowerCase().includes('samantha')
+        );
+
+        return kidVoice ? kidVoice.identifier : null;
+    } catch (error) {
+        console.error('Error initializing TTS:', error);
+        return null;
+    }
+};
+
+// Debounce function to limit rapid calls
+const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+};
+
+// Function to announce "Pick number X" with robust queue clearing
+const announcePickNumber = async (elements, kidVoiceId, lastAnnouncedRef, isAnnouncingRef) => {
+    if (elements.length === 0) {
+        console.log('No elements to announce');
+        return;
+    }
+
+    if (isAnnouncingRef.current) {
+        console.log('Announcement in progress, skipping');
+        return;
+    }
+
+    const maxLabel = Math.max(...elements.map(el => el.label));
+    if (lastAnnouncedRef.current === maxLabel) {
+        console.log('Skipping redundant announcement for maxLabel:', maxLabel);
+        return;
+    }
+
+    isAnnouncingRef.current = true;
+    try {
+        // Aggressively clear TTS queue
+        let isSpeaking = await Speech.isSpeakingAsync();
+        let attempts = 0;
+        const maxAttempts = 3;
+        while (isSpeaking && attempts < maxAttempts) {
+            console.log(`Speech in progress, stopping (attempt ${attempts + 1})...`);
+            await Speech.stop();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            isSpeaking = await Speech.isSpeakingAsync();
+            attempts++;
+        }
+        if (isSpeaking) {
+            console.warn('Failed to stop speech after max attempts');
+        }
+
+        console.log('Announcing pick number:', maxLabel);
+        lastAnnouncedRef.current = maxLabel;
+        await Speech.speak(`Pick number ${maxLabel}`, {
+            language: 'en',
+            voice: kidVoiceId || undefined,
+            pitch: kidVoiceId ? 1.0 : 1.5,
+            rate: kidVoiceId ? 0.5 : 0.6,
+            onError: (error) => console.error('Speech Error:', error),
+            onDone: () => {
+                console.log('Announcement completed for maxLabel:', maxLabel);
+                isAnnouncingRef.current = false;
+            },
+        });
+    } catch (error) {
+        console.error('Error in announcePickNumber:', error);
+        isAnnouncingRef.current = false;
+    }
 };
 
 const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest }) => {
@@ -140,6 +223,7 @@ const ReverseCountingGame = () => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [messageColor, setMessageColor] = useState('rgba(255, 0, 0, 0.7)');
+    const [kidVoiceId, setKidVoiceId] = useState(null);
     const keyCounter = useRef(0);
     const elementsRef = useRef([]);
     const animationRef = useRef(null);
@@ -149,7 +233,37 @@ const ReverseCountingGame = () => {
     const dustbinPulse = useRef(new Animated.Value(1)).current;
     const mounted = useRef(true);
     const isDropping = useRef(false);
+    const isInitialized = useRef(false);
+    const lastAnnouncedRef = useRef(null);
+    const isAnnouncingRef = useRef(false);
 
+    // Debounced announcePickNumber
+    const debouncedAnnouncePickNumber = useRef(
+        debounce((elements, kidVoiceId) => {
+            announcePickNumber(elements, kidVoiceId, lastAnnouncedRef, isAnnouncingRef);
+        }, 1000)
+    ).current;
+
+    // Calculate maxLabel for rendering
+    const maxLabel = elements.length > 0 ? Math.max(...elements.map(el => el.label)) : 0;
+
+    // Initialize TTS
+    useEffect(() => {
+        let isActive = true;
+        const setupTts = async () => {
+            const voiceId = await initializeTts();
+            if (isActive && mounted.current) {
+                setKidVoiceId(voiceId);
+            }
+        };
+        setupTts();
+
+        return () => {
+            isActive = false;
+        };
+    }, []);
+
+    // Initialize dustbin animation
     useEffect(() => {
         const dustbinAnimation = Animated.loop(
             Animated.sequence([
@@ -173,11 +287,13 @@ const ReverseCountingGame = () => {
                 animationRef.current.stop();
                 animationRef.current = null;
             }
+            Speech.stop();
         };
     }, []);
 
+    // Handle toast message animations and "Pick number X" announcement
     useEffect(() => {
-        if (errorMessage) {
+        if (errorMessage && mounted.current) {
             Animated.parallel([
                 Animated.timing(toastOpacity, {
                     toValue: 1,
@@ -190,6 +306,7 @@ const ReverseCountingGame = () => {
                     useNativeDriver: true,
                 }),
             ]).start();
+            // Clear toast after 2 seconds
             setTimeout(() => {
                 if (mounted.current) {
                     Animated.parallel([
@@ -206,10 +323,22 @@ const ReverseCountingGame = () => {
                     ]).start(() => setErrorMessage(''));
                 }
             }, 2000);
+            // Schedule "Pick number X" after 3 seconds (2s toast + 1s gap)
+            setTimeout(() => {
+                if (mounted.current) {
+                    debouncedAnnouncePickNumber(elementsRef.current, kidVoiceId);
+                }
+            }, 3000);
         }
-    }, [errorMessage]);
+    }, [errorMessage, kidVoiceId]);
 
     const initializeElements = useCallback(() => {
+        if (isInitialized.current) return;
+        isInitialized.current = true;
+
+        // Reset elementsRef to ensure no stale data
+        elementsRef.current = [];
+
         const rowY = height / 2;
         const newElements = Array.from({ length: MAX_ELEMENTS }, (_, i) => {
             const id = keyCounter.current++;
@@ -229,9 +358,22 @@ const ReverseCountingGame = () => {
         if (mounted.current) {
             setElements(newElements);
             elementsRef.current = newElements;
-            console.log('Initialized elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x })));
+            console.log('Initialized elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x, y: el.y })));
+            // Announce "Pick number 10" after a short delay
+            setTimeout(() => {
+                if (mounted.current) {
+                    debouncedAnnouncePickNumber(newElements, kidVoiceId);
+                }
+            }, 1000);
         }
-    }, []);
+    }, [kidVoiceId]);
+
+    // Initialize elements on mount
+    useEffect(() => {
+        if (!elements.length && !isInitialized.current) {
+            initializeElements();
+        }
+    }, [elements.length, initializeElements]);
 
     useEffect(() => {
         elementsRef.current = elements;
@@ -239,16 +381,13 @@ const ReverseCountingGame = () => {
 
     useFocusEffect(
         useCallback(() => {
-            if (!elements.length) {
-                initializeElements();
-            }
             return () => {
                 if (animationRef.current) {
                     animationRef.current.stop();
                     animationRef.current = null;
                 }
             };
-        }, [initializeElements, elements.length])
+        }, [])
     );
 
     const validatePosition = useCallback((x, y) => {
@@ -257,7 +396,13 @@ const ReverseCountingGame = () => {
             console.log('Position out of bounds:', { x, y });
             return false;
         }
+        console.log('Elements before validation:', elementsRef.current.map(el => ({ id: el.id, label: el.label, x: el.x, y: el.y })));
         for (const el of elementsRef.current) {
+            // Skip invalid elements
+            if (!el || typeof el.x !== 'number' || typeof el.y !== 'number') {
+                console.warn('Invalid element found in elementsRef:', el);
+                continue;
+            }
             const dx = x - el.x;
             const dy = y - el.y;
             if (Math.abs(dx) < ELEMENT_SIZE && Math.abs(dy) < ELEMENT_SIZE) {
@@ -299,12 +444,18 @@ const ReverseCountingGame = () => {
         if (mounted.current) {
             setElements(prev => {
                 const newElements = [...prev, newElement];
-                elementsRef.current = newElements; // Sync elementsRef
-                console.log('Updated elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x })));
+                elementsRef.current = newElements;
+                console.log('Updated elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x, y: el.y })));
+                // Announce new maxLabel after adding
+                setTimeout(() => {
+                    if (mounted.current) {
+                        debouncedAnnouncePickNumber(newElements, kidVoiceId);
+                    }
+                }, 1000);
                 return newElements;
             });
         }
-    }, [validatePosition]);
+    }, [validatePosition, kidVoiceId]);
 
     const shuffleElements = useCallback(() => {
         if (!elementsRef.current.length || isDropping.current) {
@@ -312,7 +463,6 @@ const ReverseCountingGame = () => {
             return;
         }
         const labels = elementsRef.current.map(el => el.label);
-        // Fisher-Yates shuffle
         for (let i = labels.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [labels[i], labels[j]] = [labels[j], labels[i]];
@@ -324,9 +474,15 @@ const ReverseCountingGame = () => {
         if (mounted.current) {
             setElements(newElements);
             elementsRef.current = newElements;
-            console.log('Shuffled elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x })));
+            console.log('Shuffled elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x, y: el.y })));
+            // Announce maxLabel after shuffle
+            setTimeout(() => {
+                if (mounted.current) {
+                    debouncedAnnouncePickNumber(newElements, kidVoiceId);
+                }
+            }, 1000);
         }
-    }, []);
+    }, [kidVoiceId]);
 
     const handleDrop = useCallback((id, newX, newY, opacity, shake, originalPos, callback) => {
         if (!elementsRef.current.length || isDropping.current) {
@@ -364,8 +520,17 @@ const ReverseCountingGame = () => {
 
         if (isInDustbin && (!target || target.id !== id)) {
             // Wrong element dropped in dustbin
-            setErrorMessage(getRandomMessage(FAILURE_MESSAGES));
+            const failureMessage = getRandomMessage(FAILURE_MESSAGES);
+            setErrorMessage(failureMessage);
             setMessageColor('rgba(255, 0, 0, 0.7)');
+            Speech.stop();
+            Speech.speak(failureMessage, {
+                language: 'en',
+                voice: kidVoiceId || undefined,
+                pitch: kidVoiceId ? 1.0 : 1.5,
+                rate: kidVoiceId ? 0.5 : 0.6,
+                onError: (error) => console.error('Speech Error:', error),
+            });
             Animated.sequence([
                 Animated.timing(shake, {
                     toValue: 1,
@@ -406,8 +571,17 @@ const ReverseCountingGame = () => {
 
         if (isInDustbin && target && target.id === id) {
             // Correct element dropped in dustbin
-            setErrorMessage(getRandomMessage(SUCCESS_MESSAGES));
+            const successMessage = getRandomMessage(SUCCESS_MESSAGES);
+            setErrorMessage(successMessage);
             setMessageColor('rgba(0, 128, 0, 0.7)');
+            Speech.stop();
+            Speech.speak(successMessage, {
+                language: 'en',
+                voice: kidVoiceId || undefined,
+                pitch: kidVoiceId ? 1.0 : 1.5,
+                rate: kidVoiceId ? 0.5 : 0.6,
+                onError: (error) => console.error('Speech Error:', error),
+            });
             Animated.timing(opacity, {
                 toValue: 0,
                 duration: 200,
@@ -436,12 +610,13 @@ const ReverseCountingGame = () => {
                 useNativeDriver: true,
             }).start(() => {
                 element.pan.setValue({ x: element.originalX, y: element.originalY });
+                console.log('Element for reposition:', { id, label: element.label });
                 console.log('Repositioned element outside dustbin:', { id, label: element.label, toX: element.originalX });
                 isDropping.current = false;
                 callback?.();
             });
         }
-    }, []);
+    }, [kidVoiceId]);
 
     const toggleDarkMode = useCallback(() => {
         if (mounted.current) {
@@ -457,9 +632,6 @@ const ReverseCountingGame = () => {
             useNativeDriver: true,
         }).start();
     }, []);
-
-    // Find the maximum label for highlighting
-    const maxLabel = elements.length > 0 ? Math.max(...elements.map(el => el.label)) : 0;
 
     return (
         <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#E6F3FF' }]}>
