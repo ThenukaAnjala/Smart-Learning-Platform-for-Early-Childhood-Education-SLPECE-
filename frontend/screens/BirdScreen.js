@@ -8,29 +8,54 @@ import {
   Animated,
   Easing,
   Dimensions,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { Audio } from 'expo-av';
 
 export default function BirdScreen() {
-  const route = useRoute();
+  const route      = useRoute();
+  const navigation = useNavigation();
   const { birdImageBase64, initialHeadSide } = route.params;
 
-  const { width: SCREEN_W } = Dimensions.get('window');
-  const CLOUD_W = 200;
-  const CLOUD_H = 100;
+  const SCREEN_W = Dimensions.get('window').width;
 
-  // Animated refs
+  // Animated values
   const vertical   = useRef(new Animated.Value(0)).current;
   const horizontal = useRef(new Animated.Value(0)).current;
   const fade       = useRef(new Animated.Value(1)).current;
   const stride     = useRef(new Animated.Value(0)).current;
-  const cloudX     = useRef(new Animated.Value(-CLOUD_W)).current;
+  const cloudX     = useRef(new Animated.Value(-200)).current;  // start off-screen left
 
-  // Flip image if bird faces left
-  const flipStyle = initialHeadSide === 'left' ? { transform: [{ scaleX: -1 }] } : {};
+  // Flip if needed
+  const flipStyle = initialHeadSide === 'left'
+    ? { transform: [{ scaleX: -1 }] }
+    : {};
 
+  // Audio
+  const soundRef = useRef(null);
   useEffect(() => {
-    // Cloud animation: loop left→right in 25s
+    let mounted = true;
+    (async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require('../assets/ad/bird.m4a'),
+          { shouldPlay: true, isLooping: true }
+        );
+        if (mounted) soundRef.current = sound;
+      } catch (e) {
+        console.warn('Failed to load bird audio', e);
+      }
+    })();
+    return () => {
+      mounted = false;
+      soundRef.current?.unloadAsync();
+    };
+  }, []);
+
+  // Cloud drift
+  useEffect(() => {
     Animated.loop(
       Animated.timing(cloudX, {
         toValue: SCREEN_W,
@@ -41,26 +66,22 @@ export default function BirdScreen() {
     ).start();
   }, [cloudX, SCREEN_W]);
 
+  // Bird flight + stride
   useEffect(() => {
-    // pick target direction
-    let finalX = 1000;   // default → up-right
-    let finalY = -500;   // always up
-    if (initialHeadSide === 'south')      finalX =  300;
-    else if (initialHeadSide === 'left')  finalX = -300;
+    let finalX = 1000, finalY = -500;
+    if (initialHeadSide === 'south')     finalX = 300;
+    else if (initialHeadSide === 'left') finalX = -300;
 
-    /* helper to animate bird continuously */
     const animateBird = () => {
-      /* slower overall duration 16–30s */
       const randomDuration = (16 + Math.floor(Math.random() * 15)) * 1000;
-      const strideCycle    = 1600;
-      const cycles         = Math.round(randomDuration / strideCycle);
+      const cycles = Math.round(randomDuration / 1600);
 
       const strideSeq = [];
       for (let i = 0; i < cycles; i++) {
         strideSeq.push(
           Animated.timing(stride, { toValue: -5, duration: 400, useNativeDriver: true }),
           Animated.timing(stride, { toValue:  5, duration: 800, useNativeDriver: true }),
-          Animated.timing(stride, { toValue:   0, duration: 400, useNativeDriver: true })
+          Animated.timing(stride, { toValue:  0, duration: 400, useNativeDriver: true })
         );
       }
 
@@ -84,7 +105,6 @@ export default function BirdScreen() {
         }),
         Animated.sequence(strideSeq),
       ]).start(() => {
-        // reset & loop
         vertical.setValue(0);
         horizontal.setValue(0);
         fade.setValue(1);
@@ -93,7 +113,13 @@ export default function BirdScreen() {
     };
 
     animateBird();
-  }, [vertical, horizontal, fade, stride, initialHeadSide]);
+  }, [initialHeadSide, vertical, horizontal, fade, stride]);
+
+  // Back button handler
+  const handleBack = () => {
+    soundRef.current?.unloadAsync();
+    navigation.navigate('DrawingBoard');
+  };
 
   return (
     <ImageBackground
@@ -101,6 +127,10 @@ export default function BirdScreen() {
       style={styles.background}
       resizeMode="cover"
     >
+      <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+        <Text style={styles.backTxt}>🐤 Back to Drawing!</Text>
+      </TouchableOpacity>
+
       {/* drifting cloud */}
       <Animated.Image
         source={require('../assets/birdscreenclode.png')}
@@ -108,13 +138,14 @@ export default function BirdScreen() {
           styles.cloud,
           {
             transform: [{ translateX: cloudX }],
+            width: 200,   // concrete values here
+            height: 100,
           },
         ]}
         resizeMode="contain"
       />
 
       <View style={styles.container}>
-        {/* animated bird */}
         {birdImageBase64 && (
           <Animated.Image
             source={{ uri: `data:image/png;base64,${birdImageBase64}` }}
@@ -133,8 +164,6 @@ export default function BirdScreen() {
             resizeMode="contain"
           />
         )}
-
-        {/* foreground perch / object */}
         <Image
           source={require('../assets/birdobject.png')}
           style={styles.birdObject}
@@ -152,18 +181,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  backBtn: {
+    position: 'absolute',
+    top: 40,
+    left: 12,
+    backgroundColor: '#FFE066',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#FFC107',
+    elevation: 4,
+    zIndex: 20,
+  },
+  backTxt: {
+    color: '#6A1B9A',
+    fontWeight: '700',
+    fontSize: 16,
+  },
   cloud: {
     position: 'absolute',
-    marginLeft: -100,
-    top: 5,
-    width: 200,
-    height: 100,
-    zIndex: 0,
+    top: 50,
+    zIndex: 10,
   },
   container: {
+    flex: 1,
     position: 'relative',
     alignItems: 'center',
-    flex: 1,
   },
   birdImage: {
     width: 150,
