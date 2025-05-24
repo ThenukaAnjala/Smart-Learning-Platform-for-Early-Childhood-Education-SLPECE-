@@ -11,89 +11,110 @@ import {
   Easing,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
+import { Audio } from 'expo-av';
 
 export default function RabbitBodyScreen() {
   const { rabbitImageBase64, initialHeadSide } = useRoute().params;
   const { width: screenWidth } = Dimensions.get('window');
 
-  // Rabbit size
-  const imageWidth  = 200;
-  const imageHeight = 300;
+  /* ─── basic sizing ────────────────────────────────────────────────────── */
+  const RABBIT_W = 200;
+  const RABBIT_H = 300;
 
-  // Direction flag
+  /* ─── direction & positions ───────────────────────────────────────────── */
   const goRight = initialHeadSide === 'right';
+  const startX  = goRight ? -RABBIT_W : screenWidth;
+  const endX    = goRight ? screenWidth : -RABBIT_W;
 
-  // Off-screen start and end positions
-  const startX = goRight ? -imageWidth : screenWidth;
-  const endX   = goRight ? screenWidth : -imageWidth;
+  /* ─── animated values ─────────────────────────────────────────────────── */
+  const horiz  = useRef(new Animated.Value(startX)).current;
+  const vert   = useRef(new Animated.Value(0)).current;
+  const fade   = useRef(new Animated.Value(0)).current;
 
-  // Animated values
-  const horizontal = useRef(new Animated.Value(startX)).current;
-  const vertical   = useRef(new Animated.Value(0)).current;
-  const fade       = useRef(new Animated.Value(0)).current;
+  /* ─── hop parameters ──────────────────────────────────────────────────── */
+  const HOPS          = 4;
+  const HOP_HEIGHT    = 120;
+  const TOTAL_MS      = 4000;
+  const HOP_MS        = TOTAL_MS / HOPS;        // 1000 ms each
+  const UP_MS         = HOP_MS * 0.4;           // 40 % up, 60 % down
+  const DOWN_MS       = HOP_MS * 0.6;
 
-  // Hop parameters
-  const hops       = 4;
-  const hopHeight  = 120;
-  const totalDuration = 4000; // total ms for all hops
-  const perHopDuration = totalDuration / hops; // e.g. 1000ms each
-  const upDuration   = perHopDuration * 0.4; // 40% up
-  const downDuration = perHopDuration * 0.6; // 60% down
-
+  /* ─── jump-sound ──────────────────────────────────────────────────────── */
+  const soundRef = useRef(null);
   useEffect(() => {
-    // Fade in
-    Animated.timing(fade, {
-      toValue: 1,
-      duration: 2000,
-      useNativeDriver: true,
-    }).start();
+    let mounted = true;
+    (async () => {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../assets/ad/rabbitJump.mp3'),
+        { shouldPlay: false, isLooping: false },
+      );
+      if (mounted) soundRef.current = sound;
+    })();
+    return () => {
+      mounted = false;
+      soundRef.current?.unloadAsync();
+    };
+  }, []);
 
-    // Compute the four intermediate X targets
-    const totalDistance = endX - startX;
-    const segment = totalDistance / hops;
-    const targets = Array.from({ length: hops }, (_, i) => startX + segment * (i + 1));
+  /* ─── master animation loop ───────────────────────────────────────────── */
+  useEffect(() => {
+    // fade-in
+    Animated.timing(fade, { toValue: 1, duration: 2000, useNativeDriver: true }).start();
 
-    // Build an array of hop animations
-    const hopAnimations = targets.map(targetX =>
+    const totalDist  = endX - startX;
+    const segment    = totalDist / HOPS;
+    const hopTargets = Array.from({ length: HOPS }, (_, i) => startX + segment * (i + 1));
+
+    /* recursive hop runner */
+    const doHop = (idx = 0) => {
+      if (idx >= HOPS) {
+        // reached the end; reset and start again
+        horiz.setValue(startX);
+        vert.setValue(0);
+        doHop(0);
+        return;
+      }
+
+      // play the hop sound at the START of this hop
+      soundRef.current?.replayAsync();
+
       Animated.parallel([
-        // horizontal move
-        Animated.timing(horizontal, {
-          toValue: targetX,
-          duration: perHopDuration,
+        Animated.timing(horiz, {
+          toValue: hopTargets[idx],
+          duration: HOP_MS,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: true,
         }),
-        // vertical hop up/down
         Animated.sequence([
-          Animated.timing(vertical, {
-            toValue: -hopHeight,
-            duration: upDuration,
+          Animated.timing(vert, {
+            toValue: -HOP_HEIGHT,
+            duration: UP_MS,
             easing: Easing.out(Easing.quad),
             useNativeDriver: true,
           }),
-          Animated.timing(vertical, {
+          Animated.timing(vert, {
             toValue: 0,
-            duration: downDuration,
+            duration: DOWN_MS,
             easing: Easing.in(Easing.quad),
             useNativeDriver: true,
           }),
         ]),
-      ])
-    );
-
-    // Sequence them and loop forever
-    const runLoop = () => {
-      Animated.sequence(hopAnimations).start(() => {
-        // reset positions
-        horizontal.setValue(startX);
-        vertical.setValue(0);
-        // loop
-        runLoop();
-      });
+      ]).start(() => doHop(idx + 1));
     };
 
-    runLoop();
-  }, [fade, horizontal, vertical, startX, endX, hops]);
+    /* kick things off */
+    doHop();
+  }, [
+    horiz,
+    vert,
+    fade,
+    startX,
+    endX,
+    HOP_HEIGHT,
+    HOP_MS,
+    UP_MS,
+    DOWN_MS,
+  ]);
 
   return (
     <ImageBackground
@@ -104,14 +125,14 @@ export default function RabbitBodyScreen() {
       <Text style={styles.title}>Rabbit Full Body</Text>
 
       <View style={styles.container}>
-        {/* Hopping rabbit */}
+        {/* hopping rabbit */}
         <Animated.View
           style={[
             styles.rabbitContainer,
             {
               transform: [
-                { translateX: horizontal },
-                { translateY: vertical },
+                { translateX: horiz },
+                { translateY: vert },
               ],
             },
           ]}
@@ -121,22 +142,22 @@ export default function RabbitBodyScreen() {
               source={{ uri: `data:image/png;base64,${rabbitImageBase64}` }}
               style={[
                 styles.rabbitImage,
-                { width: imageWidth, height: imageHeight, opacity: fade },
+                { width: RABBIT_W, height: RABBIT_H, opacity: fade },
               ]}
               resizeMode="contain"
             />
           )}
         </Animated.View>
 
-        {/* Static bush at the start side */}
+        {/* bush on the starting side */}
         <Image
           source={require('../assets/rabbitbush.png')}
           style={[
             styles.rabbitBush,
             {
-              width: imageWidth,
-              height: imageHeight,
-              left:  goRight ? 0       : undefined,
+              width: RABBIT_W,
+              height: RABBIT_H,
+              left:  goRight ? 0 : undefined,
               right: goRight ? undefined : 0,
             },
           ]}
@@ -147,6 +168,7 @@ export default function RabbitBodyScreen() {
   );
 }
 
+/* ─── styles ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
   background: { flex: 1 },
   title: {
@@ -166,7 +188,7 @@ const styles = StyleSheet.create({
   rabbitContainer: {
     position: 'absolute',
     bottom: 0,
-    left: 0, // we'll animate translateX on top of this
+    left: 0,
   },
   rabbitImage: {},
   rabbitBush: {
