@@ -1,8 +1,8 @@
-// src/screens/AnimalQuizScreen.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Animated, Dimensions, ScrollView } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Audio } from 'expo-av'; // Import expo-av for sound
 
 // Get screen dimensions for full-screen background
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -12,6 +12,10 @@ const backgroundImage = require('../assets/images/Background/NewAnimalQuizBG.jpg
 
 // Load questions from JSON file
 const questions = require('../assets/data/questions.json');
+
+// Load sound files
+const correctSoundFile = require('../assets/AnimalQuizSounds/correct.mp3'); // MP3 for correct answer
+const wrongSoundFile = require('../assets/AnimalQuizSounds/wrong.wav'); // WAV for wrong answer
 
 // Import all 101 animal images with updated Quiz path
 const dogImage = require('../assets/images/Quiz/dog.png');
@@ -238,8 +242,49 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   const [extraHint, setExtraHint] = useState(false);
   const [hasCheckedBadge, setHasCheckedBadge] = useState(false);
   const [retryCount, setRetryCount] = useState({ easy: 0, medium: 0, hard: 0 });
+  const [correctSound, setCorrectSound] = useState(null); // State for correct sound
+  const [wrongSound, setWrongSound] = useState(null); // State for wrong sound
   const QUESTIONS_PER_LEVEL = 8;
   const REQUIRED_CORRECT_ANSWERS = 8; // Must get all 8 correct to unlock next level
+
+  // Load and configure sounds
+  useEffect(() => {
+    const loadSounds = async () => {
+      try {
+        // Configure audio mode for iOS to play in silent mode
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+        });
+
+        const correctSoundObj = new Audio.Sound();
+        const wrongSoundObj = new Audio.Sound();
+
+        // Load MP3 for correct sound and WAV for wrong sound
+        await correctSoundObj.loadAsync(correctSoundFile);
+        await wrongSoundObj.loadAsync(wrongSoundFile);
+
+        // Optional: Set volume (adjust as needed)
+        await correctSoundObj.setVolumeAsync(0.7); // 70% volume for correct sound
+        await wrongSoundObj.setVolumeAsync(0.5); // 50% volume for wrong sound
+
+        setCorrectSound(correctSoundObj);
+        setWrongSound(wrongSoundObj);
+      } catch (error) {
+        console.error('Error loading sounds:', error);
+      }
+    };
+
+    loadSounds();
+
+    // Cleanup sounds on component unmount
+    return () => {
+      if (correctSound) correctSound.unloadAsync();
+      if (wrongSound) wrongSound.unloadAsync();
+    };
+  }, []);
 
   // Animate progress bar
   useEffect(() => {
@@ -336,13 +381,21 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     }
   }, [badges, currentLevel, score, retryCount]);
 
-  const handleAnswer = (selectedAnswer) => {
+  const handleAnswer = async (selectedAnswer) => {
     const correctAnswer = selectedQuestions[currentQuestionIndex].answer;
     if (selectedAnswer === correctAnswer) {
       setScore({ ...score, [currentLevel]: score[currentLevel] + 1 });
       setTotalScore(totalScore + 1);
       setFeedbackText('Correct! 🎉');
       setIsCorrectAnswer(true);
+      // Play correct sound (MP3)
+      try {
+        if (correctSound) {
+          await correctSound.replayAsync(); // Replay to start from beginning
+        }
+      } catch (error) {
+        console.error('Error playing correct sound (MP3):', error);
+      }
       // Start image animation
       Animated.timing(imageAnim, {
         toValue: 1,
@@ -352,6 +405,14 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     } else {
       setFeedbackText('Try again! 😊');
       setIsCorrectAnswer(false);
+      // Play wrong sound (WAV)
+      try {
+        if (wrongSound) {
+          await wrongSound.replayAsync(); // Replay to start from beginning
+        }
+      } catch (error) {
+        console.error('Error playing wrong sound (WAV):', error);
+      }
     }
     setShowFeedback(true);
     Animated.timing(fadeAnim, {
@@ -664,7 +725,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   title: {
-    fontSize: 32, // Reduced from 40 to fit better
+    fontSize: 32,
     color: '#8B4513',
     fontFamily: 'Schoolbell',
     textAlign: 'center',
@@ -776,7 +837,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#D2691E',
     padding: 15,
     borderRadius: 30,
-    marginVertical: 10, // Adjusted to match optionButton spacing
+    marginVertical: 10,
     width: '60%',
     alignItems: 'center',
   },
