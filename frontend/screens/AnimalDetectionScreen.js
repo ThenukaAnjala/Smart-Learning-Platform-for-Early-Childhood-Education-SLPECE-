@@ -7,8 +7,8 @@ import {
   StyleSheet,
   Image,
   Alert,
-  ActivityIndicator,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,8 @@ import * as Font from 'expo-font';
 import axios from 'axios';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useNavigation } from '@react-navigation/native';
-import * as ImageManipulator from 'expo-image-manipulator'; // Import ImageManipulator
+import * as ImageManipulator from 'expo-image-manipulator';
+import LottieView from 'lottie-react-native'; // Import LottieView
 
 // Import the camera and gallery images
 const cameraImage = require('../assets/images/Button-Icons/camara-image.png');
@@ -24,6 +25,9 @@ const galleryImage = require('../assets/images/Button-Icons/gallery.png');
 
 // Import the background image
 const backgroundImage = require('../assets/images/Background/Animal-DiscovererBG.jpg');
+
+// Import the Lottie animation
+const loadingAnimation = require('../assets/Animations/Animal-Animation/loading.json');
 
 const AnimalDetectionScreen = () => {
   const [image, setImage] = useState(null);
@@ -249,14 +253,19 @@ const AnimalDetectionScreen = () => {
         <Text style={styles.title}>Lets Find Animals !!!</Text>
       </View>
 
-      {isLoading && (
+      {image && isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#F4A261" />
-          <Text style={styles.loadingText}>Looking...</Text>
+          <LottieView
+            source={loadingAnimation}
+            autoPlay
+            loop
+            style={styles.loadingAnimation}
+          />
+          <Text style={styles.loadingText}>Looking for Animals...</Text>
         </View>
       )}
 
-      {image && (
+      {image && !isLoading && (
         <Animated.View style={[styles.imageContainer, { transform: [{ scale: scaleAnim }] }]}>
           <Image source={{ uri: image }} style={styles.image} />
           {prediction && prediction.confidence <= 90 && (
@@ -381,16 +390,16 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   tryAgainContainer: {
-    position: 'absolute', // Make it a floating component
-    bottom: 20, // Position near the bottom
+    position: 'absolute',
+    bottom: 20,
     width: '90%',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)', // Semi-transparent white background
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
     borderRadius: 20,
     padding: 20,
-    zIndex: 2, // Ensure it appears above other content
-    elevation: 5, // Add shadow for Android
-    shadowColor: '#000', // Add shadow for iOS
+    zIndex: 2,
+    elevation: 5,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -421,8 +430,8 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 25,
-    elevation: 5, // Add shadow for Android
-    shadowColor: '#000', // Add shadow for iOS
+    elevation: 5,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -495,6 +504,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  loadingAnimation: {
+    width: 200,
+    height: 200,
   },
   loadingText: {
     color: '#FFF',
