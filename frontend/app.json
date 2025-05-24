@@ -16,22 +16,31 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "This app uses the microphone to enable audio playback features (optional for expo-av, but good practice to include)."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "package": "com.dinith01.frontend"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "extra": {
-      "eas": {
-        "projectId": "ee02e71f-a1bf-4be5-ae03-c1416ac69018"
-      }
-    }
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone (optional for playback-only)."
+        }
+      ]
+    ]
   }
 }

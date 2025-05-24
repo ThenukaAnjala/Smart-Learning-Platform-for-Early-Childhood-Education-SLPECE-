@@ -36,7 +36,8 @@
     "expo-image-manipulator": "~13.0.6"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "@react-native-community/cli": "13.6.9"
   },
   "private": true
 }

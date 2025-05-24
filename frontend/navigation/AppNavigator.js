@@ -4,6 +4,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
 import DrawingBoard from '../screens/DrawingBoard';
+import SmartCounter from '../screens/SmartCounter';
+import StackingObjects from '../screens/CountingSkills/Stacking Objects';
+import ReverseCounting from '../screens/CountingSkills/Reverse Counting';
+import MidrangeCounting from '../screens/CountingSkills/Mid-Range Counting';
+import OrderIrrelevance from '../screens/CountingSkills/Order Irrelevance Principle';
+import SingleRowElements from '../screens/CountingSkills/Stable Order Principle';
 import AnimalDetectionScreen from '../screens/AnimalDetectionScreen'
 import AnimalDetailsScreen from '../screens/AnimalDetailsScreen';
 import AnimalQuizScreen from '../screens/AnimalQuizScreen';
@@ -24,6 +30,12 @@ const AppNavigator = () => {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="DrawingBoard" component={DrawingBoard} />
+        <Stack.Screen name="SmartCounter" component={SmartCounter} />
+        <Stack.Screen name="Stacking Objects" component={StackingObjects} />
+        <Stack.Screen name="Reverse Counting" component={ReverseCounting} />
+        <Stack.Screen name="Mid-Range Counting" component={MidrangeCounting} />
+        <Stack.Screen name="Order Irrelevance Principle" component={OrderIrrelevance} />
+       <Stack.Screen name="Stable Order Principle" component={SingleRowElements} />
         <Stack.Screen name="AnimalQuizScreen" component={AnimalQuizScreen} />
         <Stack.Screen name="LevelSelectionScreen" component={LevelSelectionScreen} />
         <Stack.Screen name="AnimalDetectionScreen" component={AnimalDetectionScreen} />
