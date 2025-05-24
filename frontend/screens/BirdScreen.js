@@ -7,6 +7,7 @@ import {
   View,
   Animated,
   Easing,
+  Dimensions,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 
@@ -14,14 +15,31 @@ export default function BirdScreen() {
   const route = useRoute();
   const { birdImageBase64, initialHeadSide } = route.params;
 
-  // Flip image if bird faces left
-  const flipStyle = initialHeadSide === 'left' ? { transform: [{ scaleX: -1 }] } : {};
+  const { width: SCREEN_W } = Dimensions.get('window');
+  const CLOUD_W = 200;
+  const CLOUD_H = 100;
 
-  /* animated refs */
+  // Animated refs
   const vertical   = useRef(new Animated.Value(0)).current;
   const horizontal = useRef(new Animated.Value(0)).current;
   const fade       = useRef(new Animated.Value(1)).current;
   const stride     = useRef(new Animated.Value(0)).current;
+  const cloudX     = useRef(new Animated.Value(-CLOUD_W)).current;
+
+  // Flip image if bird faces left
+  const flipStyle = initialHeadSide === 'left' ? { transform: [{ scaleX: -1 }] } : {};
+
+  useEffect(() => {
+    // Cloud animation: loop left→right in 25s
+    Animated.loop(
+      Animated.timing(cloudX, {
+        toValue: SCREEN_W,
+        duration: 25000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [cloudX, SCREEN_W]);
 
   useEffect(() => {
     // pick target direction
@@ -32,19 +50,17 @@ export default function BirdScreen() {
 
     /* helper to animate bird continuously */
     const animateBird = () => {
-      /* NEW: slower overall duration 16-30 s */
+      /* slower overall duration 16–30s */
       const randomDuration = (16 + Math.floor(Math.random() * 15)) * 1000;
-
-      /* NEW: stride cycle lasts 1.6 s instead of 1 s */
-      const strideCycle   = 1600;
-      const cycles        = Math.round(randomDuration / strideCycle);
+      const strideCycle    = 1600;
+      const cycles         = Math.round(randomDuration / strideCycle);
 
       const strideSeq = [];
       for (let i = 0; i < cycles; i++) {
         strideSeq.push(
           Animated.timing(stride, { toValue: -5, duration: 400, useNativeDriver: true }),
           Animated.timing(stride, { toValue:  5, duration: 800, useNativeDriver: true }),
-          Animated.timing(stride, { toValue:  0, duration: 400, useNativeDriver: true }),
+          Animated.timing(stride, { toValue:   0, duration: 400, useNativeDriver: true })
         );
       }
 
@@ -52,14 +68,14 @@ export default function BirdScreen() {
         Animated.timing(vertical, {
           toValue: finalY,
           duration: randomDuration,
-          useNativeDriver: true,
           easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
         }),
         Animated.timing(horizontal, {
           toValue: finalX,
           duration: randomDuration,
-          useNativeDriver: true,
           easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
         }),
         Animated.timing(fade, {
           toValue: 0,
@@ -85,7 +101,20 @@ export default function BirdScreen() {
       style={styles.background}
       resizeMode="cover"
     >
+      {/* drifting cloud */}
+      <Animated.Image
+        source={require('../assets/birdscreenclode.png')}
+        style={[
+          styles.cloud,
+          {
+            transform: [{ translateX: cloudX }],
+          },
+        ]}
+        resizeMode="contain"
+      />
+
       <View style={styles.container}>
+        {/* animated bird */}
         {birdImageBase64 && (
           <Animated.Image
             source={{ uri: `data:image/png;base64,${birdImageBase64}` }}
@@ -123,7 +152,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  container: { position: 'relative', alignItems: 'center' },
+  cloud: {
+    position: 'absolute',
+    marginLeft: -100,
+    top: 5,
+    width: 200,
+    height: 100,
+    zIndex: 0,
+  },
+  container: {
+    position: 'relative',
+    alignItems: 'center',
+    flex: 1,
+  },
   birdImage: {
     width: 150,
     height: 100,
