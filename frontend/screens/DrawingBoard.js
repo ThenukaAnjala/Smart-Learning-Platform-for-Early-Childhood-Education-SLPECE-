@@ -9,11 +9,14 @@ import {
   Alert,
   Platform,
   Image,
+  Modal,
+  Pressable,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import ViewShot from 'react-native-view-shot';
 import * as ImagePicker from 'expo-image-picker';
 import Pen from '../components/Pen';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function DrawingBoard({ navigation }) {
   // State for completed strokes.
@@ -25,6 +28,10 @@ export default function DrawingBoard({ navigation }) {
   const [recognizedLabel, setRecognizedLabel] = useState(null);
   // State for an uploaded image URI.
   const [uploadedImage, setUploadedImage] = useState(null);
+  // Add state for child-friendly modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalQuestion, setModalQuestion] = useState("");
+  const [modalOptions, setModalOptions] = useState([]);
 
   // Ref for capturing the drawing board.
   const viewShotRef = useRef(null);
@@ -35,7 +42,7 @@ export default function DrawingBoard({ navigation }) {
 
   // Network configuration: update COMPUTER_IP with your computer’s LAN IP.
   const IS_ANDROID_EMULATOR = false;
-  const COMPUTER_IP = '192.168.16.100'; // <-- Replace with your actual LAN IP.
+  const COMPUTER_IP = '172.28.0.164'; // <-- Replace with your actual LAN IP.
   const BACKEND_URL =
     Platform.OS === 'android'
       ? IS_ANDROID_EMULATOR
@@ -96,273 +103,363 @@ export default function DrawingBoard({ navigation }) {
     console.log('Response from backend:', data);
     if (data.label) {
       setRecognizedLabel(data.label);
-      Alert.alert('Prediction', `Recognized: ${data.label}`);
+      // Alert.alert('Prediction', `Recognized: ${data.label}`);
       const label = data.label.toLowerCase();
       // Branch logic for various labels (fish, rabbit, bird, etc.) remains unchanged.
       if (label === 'fish' && data.processedBase64) {
-        Alert.alert(
-          "Fish Head Direction",
+        showChildModal(
           "Which side is the fish's head on?",
           [
             {
-              text: "Left",
-              onPress: () =>
+              label: "Left",
+              icon: "🐟⬅️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('FishScreen', {
                   fishImageBase64: data.processedBase64,
                   initialHeadSide: 'left',
-                }),
+                });
+              },
             },
             {
-              text: "Right",
-              onPress: () =>
+              label: "Right",
+              icon: "🐟➡️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('FishScreen', {
                   fishImageBase64: data.processedBase64,
                   initialHeadSide: 'right',
-                }),
+                });
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
       } else if (label === 'rabbit' && data.processedBase64) {
-        Alert.alert(
-          "Rabbit Drawing Type",
+        showChildModal(
           "Is this just a rabbit's head or the entire rabbit?",
           [
             {
-              text: "Head Only",
-              onPress: () =>
+              label: "Head Only",
+              icon: "🐰",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('RabbitScreen', {
                   rabbitImageBase64: data.processedBase64,
                   isHeadOnly: true,
-                }),
+                });
+              },
             },
             {
-              text: "Full Body",
-              onPress: () =>
-                Alert.alert(
-                  "Rabbit Head Direction",
+              label: "Full Body",
+              icon: "🐇",
+              onPress: () => {
+                setModalVisible(false);
+                showChildModal(
                   "Which side is the rabbit's head on?",
                   [
                     {
-                      text: "Left",
-                      onPress: () =>
+                      label: "Left",
+                      icon: "🐇⬅️",
+                      onPress: () => {
+                        setModalVisible(false);
                         navigation.navigate('RabbitBodyScreen', {
                           rabbitImageBase64: data.processedBase64,
                           isHeadOnly: false,
                           initialHeadSide: 'left',
-                        }),
+                        });
+                      },
                     },
                     {
-                      text: "Right",
-                      onPress: () =>
+                      label: "Right",
+                      icon: "🐇➡️",
+                      onPress: () => {
+                        setModalVisible(false);
                         navigation.navigate('RabbitBodyScreen', {
                           rabbitImageBase64: data.processedBase64,
                           isHeadOnly: false,
                           initialHeadSide: 'right',
-                        }),
+                        });
+                      },
                     },
                     {
-                      text: "Wrong",
-                      onPress: () => handleReportWrong(),
+                      label: "Wrong",
+                      icon: "❌",
+                      onPress: () => {
+                        setModalVisible(false);
+                        handleReportWrong();
+                      },
                     },
                   ]
-                ),
+                );
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
       } else if (label === 'bird' && data.processedBase64) {
-        Alert.alert(
-          "Bird Head Direction",
+        showChildModal(
           "Which direction is the bird facing?",
           [
             {
-              text: "Left",
-              onPress: () =>
+              label: "Left",
+              icon: "🐦⬅️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('BirdScreen', {
                   birdImageBase64: data.processedBase64,
                   initialHeadSide: 'left',
-                }),
+                });
+              },
             },
             {
-              text: "Right",
-              onPress: () =>
+              label: "Right",
+              icon: "🐦➡️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('BirdScreen', {
                   birdImageBase64: data.processedBase64,
                   initialHeadSide: 'right',
-                }),
+                });
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
       } else if (label === 'dog' && data.processedBase64) {
-        Alert.alert(
-          "Dog Head Direction",
+        showChildModal(
           "Which side is the dog's head on?",
           [
             {
-              text: "Left",
-              onPress: () =>
+              label: "Left",
+              icon: "🐶⬅️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('DogScreen', {
                   dogImageBase64: data.processedBase64,
                   initialHeadSide: 'left',
-                }),
+                });
+              },
             },
             {
-              text: "Right",
-              onPress: () =>
+              label: "Right",
+              icon: "🐶➡️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('DogScreen', {
                   dogImageBase64: data.processedBase64,
                   initialHeadSide: 'right',
-                }),
+                });
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
       } else if (label === 'cat' && data.processedBase64) {
-        Alert.alert(
-          "Cat Head Direction",
+        showChildModal(
           "Which side is the cat's head on?",
           [
             {
-              text: "Left",
-              onPress: () =>
+              label: "Left",
+              icon: "🐱⬅️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('CatScreen', {
                   catImageBase64: data.processedBase64,
                   initialHeadSide: 'left',
-                }),
+                });
+              },
             },
             {
-              text: "Right",
-              onPress: () =>
+              label: "Right",
+              icon: "🐱➡️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('CatScreen', {
                   catImageBase64: data.processedBase64,
                   initialHeadSide: 'right',
-                }),
+                });
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
       } else if (label === 'lion' && data.processedBase64) {
-        Alert.alert(
-          "Lion Head Direction",
+        showChildModal(
           "Which side is the lion's head on?",
           [
             {
-              text: "Left",
-              onPress: () =>
+              label: "Left",
+              icon: "🦁⬅️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('LionScreen', {
                   lionImageBase64: data.processedBase64,
                   initialHeadSide: 'left',
-                }),
+                });
+              },
             },
             {
-              text: "Right",
-              onPress: () =>
+              label: "Right",
+              icon: "🦁➡️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('LionScreen', {
                   lionImageBase64: data.processedBase64,
                   initialHeadSide: 'right',
-                }),
+                });
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
       } else if (label === 'tiger' && data.processedBase64) {
-        Alert.alert(
-          "Tiger Head Direction",
+        showChildModal(
           "Which side is the tiger's head on?",
           [
             {
-              text: "Left",
-              onPress: () =>
+              label: "Left",
+              icon: "🐯⬅️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('TigerScreen', {
                   tigerImageBase64: data.processedBase64,
                   initialHeadSide: 'left',
-                }),
+                });
+              },
             },
             {
-              text: "Right",
-              onPress: () =>
+              label: "Right",
+              icon: "🐯➡️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('TigerScreen', {
                   tigerImageBase64: data.processedBase64,
                   initialHeadSide: 'right',
-                }),
+                });
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
       } else if (label === 'giraffe' && data.processedBase64) {
-        Alert.alert(
-          "Giraffe Head Direction",
+        showChildModal(
           "Which side is the giraffe's head on?",
           [
             {
-              text: "Left",
-              onPress: () =>
+              label: "Left",
+              icon: "🦒⬅️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('GiraffeScreen', {
                   giraffeImageBase64: data.processedBase64,
                   initialHeadSide: 'left',
-                }),
+                });
+              },
             },
             {
-              text: "Right",
-              onPress: () =>
+              label: "Right",
+              icon: "🦒➡️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('GiraffeScreen', {
                   giraffeImageBase64: data.processedBase64,
                   initialHeadSide: 'right',
-                }),
+                });
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
       } else if (label === 'cow' && data.processedBase64) {
-        Alert.alert(
-          "Cow Head Direction",
+        showChildModal(
           "Which side is the cow's head on?",
           [
             {
-              text: "Left",
-              onPress: () =>
+              label: "Left",
+              icon: "🐮⬅️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('CowScreen', {
                   cowImageBase64: data.processedBase64,
                   initialHeadSide: 'left',
-                }),
+                });
+              },
             },
             {
-              text: "Right",
-              onPress: () =>
+              label: "Right",
+              icon: "🐮➡️",
+              onPress: () => {
+                setModalVisible(false);
                 navigation.navigate('CowScreen', {
                   cowImageBase64: data.processedBase64,
                   initialHeadSide: 'right',
-                }),
+                });
+              },
             },
             {
-              text: "Wrong",
-              onPress: () => handleReportWrong(),
+              label: "Wrong",
+              icon: "❌",
+              onPress: () => {
+                setModalVisible(false);
+                handleReportWrong();
+              },
             },
           ]
         );
@@ -460,35 +557,45 @@ export default function DrawingBoard({ navigation }) {
     setUploadedImage(null);
   };
 
+  // Helper to show child-friendly modal
+  const showChildModal = (question, options) => {
+    setModalQuestion(question);
+    setModalOptions(options);
+    setModalVisible(true);
+  };
+
   return (
     <View style={styles.container}>
       {/* Toolbar mimicking Windows Paint */}
-      <View style={styles.toolbar}>
+      <LinearGradient
+        colors={["#a8edea", "#fed6e3", "#fcb69f"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.toolbar}
+      >
         {/* <Text style={styles.toolbarTitle}>Windows Paint</Text> */}
         <View style={styles.toolbarButtons}>
-          <TouchableOpacity style={styles.toolbarButton} onPress={() => setIsEraser(false)}>
-            <Text style={styles.buttonLabel}>Pencil</Text>
+          <TouchableOpacity style={[styles.toolbarButton, !isEraser && styles.activeButton]} onPress={() => setIsEraser(false)} activeOpacity={0.7}>
+            <Text style={[styles.buttonLabel, !isEraser && styles.activeButtonLabel]}>✏️</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={() => setIsEraser(true)}>
-            <Text style={styles.buttonLabel}>Eraser</Text>
+          
+          {/* <TouchableOpacity style={styles.toolbarButton} onPress={() => setStrokeWidth((w) => w + 1)} activeOpacity={0.7}>
+            <Text style={styles.buttonLabel}>＋</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={() => setStrokeWidth((w) => w + 1)}>
-            <Text style={styles.buttonLabel}>+ Width</Text>
+          <TouchableOpacity style={styles.toolbarButton} onPress={() => setStrokeWidth((w) => Math.max(1, w - 1))} activeOpacity={0.7}>
+            <Text style={styles.buttonLabel}>－</Text>
+          </TouchableOpacity> */}
+          <TouchableOpacity style={styles.toolbarButton} onPress={handleClear} activeOpacity={0.7}>
+            <Text style={styles.buttonLabel}>🗑️</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={() => setStrokeWidth((w) => Math.max(1, w - 1))}>
-            <Text style={styles.buttonLabel}>- Width</Text>
+          <TouchableOpacity style={styles.toolbarButton} onPress={handleOk} activeOpacity={0.7}>
+            <Text style={styles.buttonLabel}>✅</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={handleClear}>
-            <Text style={styles.buttonLabel}>Clear</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={handleOk}>
-            <Text style={styles.buttonLabel}>OK</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={handleUploadPhoto}>
-            <Text style={styles.buttonLabel}>Upload Photo</Text>
+          <TouchableOpacity style={styles.toolbarButton} onPress={handleUploadPhoto} activeOpacity={0.7}>
+            <Text style={styles.buttonLabel}>📷</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Drawing area capture */}
       <ViewShot style={styles.canvasContainer} ref={viewShotRef}>
@@ -530,6 +637,43 @@ export default function DrawingBoard({ navigation }) {
           </View>
         </View>
       </ViewShot>
+
+      {/* Child-friendly modal for animal questions */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#f7faff', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 0, paddingVertical: 40, paddingHorizontal: 20, alignItems: 'center', width: '100%', height: '100%', justifyContent: 'center', elevation: 8, marginHorizontal: 0 }}>
+            <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#f68084', marginBottom: 36, marginTop: 4, textAlign: 'center', paddingHorizontal: 8 }}>{modalQuestion}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 32, marginTop: 10, marginBottom: 2 }}>
+              {modalOptions.map((opt, idx) => (
+                <Pressable
+                  key={idx}
+                  onPress={opt.onPress}
+                  style={({ pressed }) => [{
+                    backgroundColor: pressed ? '#fcb69f' : '#f7faff',
+                    borderRadius: 24,
+                    paddingVertical: 32,
+                    paddingHorizontal: 32,
+                    marginHorizontal: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    elevation: 2,
+                    borderWidth: 2,
+                    borderColor: '#fcb69f',
+                  }]}
+                >
+                  <Text style={{ fontSize: 48, marginBottom: 8 }}>{opt.icon}</Text>
+                  <Text style={{ fontSize: 22, color: '#444', fontWeight: 'bold', marginTop: 2 }}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -537,51 +681,63 @@ export default function DrawingBoard({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   toolbar: {
-    height: 54,
+    height: 60,
     width: '100%',
-    backgroundColor: '#f5f5f7',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#b0b0b0',
+    paddingHorizontal: 10,
+    borderBottomWidth: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 8,
     zIndex: 15,
-    // Optional: rounded top corners for a softer look
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    marginBottom: 2,
   },
   toolbarButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+    gap: 10,
   },
   toolbarButton: {
-    marginHorizontal: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+    marginHorizontal: 4,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#b0b0b0',
-    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 1,
-    elevation: 1,
-    // Simulate a button press effect
-    // (for actual press feedback, use TouchableOpacity's activeOpacity)
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    // Add scale effect on press (handled by activeOpacity)
+  },
+  activeButton: {
+    backgroundColor: '#fcb69f',
+    borderColor: '#f68084',
+    shadowColor: '#fcb69f',
+    shadowOpacity: 0.25,
   },
   buttonLabel: {
-    fontSize: 15,
-    color: '#222',
-    fontWeight: '500',
+    fontSize: 22,
+    color: '#444',
+    fontWeight: 'bold',
     letterSpacing: 0.2,
+  },
+  activeButtonLabel: {
+    color: '#fff',
+    textShadowColor: '#f68084',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   canvasContainer: { flex: 1, backgroundColor: '#fff' },
   drawingAreaWrapper: { flex: 1 },
