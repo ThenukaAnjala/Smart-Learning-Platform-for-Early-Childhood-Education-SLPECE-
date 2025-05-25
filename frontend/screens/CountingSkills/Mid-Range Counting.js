@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 50;
@@ -264,12 +264,9 @@ const Background = memo(() => {
 const MidrangeCounting = () => {
     const [flowers, setFlowers] = useState([]);
     const pulseAnim = useRef([]).current;
-    const addButtonScale = useRef(new Animated.Value(1)).current;
-    const resetButtonScale = useRef(new Animated.Value(1)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const isResetting = useRef(false);
-    const isAdding = useRef(false);
     const animationTimeouts = useRef([]);
+    const navigation = useNavigation();
 
     // Clear all animation timeouts when unmounting
     useEffect(() => {
@@ -419,101 +416,60 @@ const MidrangeCounting = () => {
     }, []);
 
     const addPetal = useCallback(() => {
-        if (isAdding.current) return;
-        isAdding.current = true;
-
-        // Immediate animation feedback
-        Animated.sequence([
-            Animated.timing(addButtonScale, {
-                toValue: 1.1,
-                duration: 30, // Reduced duration for quicker response
-                useNativeDriver: true,
-            }),
-            Animated.timing(addButtonScale, {
-                toValue: 1,
-                duration: 30,
-                useNativeDriver: true,
-            }),
-        ]).start(() => {
-            isAdding.current = false; // Reset flag after animation
+        // Remove flag entirely for instant response
+        setFlowers(prevFlowers => {
+            // Find the flower with the minimum petal count that has less than 10 petals
+            let minPetalIndex = 0;
+            let minPetalCount = prevFlowers[0].petals.length;
+            
+            for (let i = 1; i < prevFlowers.length; i++) {
+                if (prevFlowers[i].petals.length < minPetalCount) {
+                    minPetalCount = prevFlowers[i].petals.length;
+                    minPetalIndex = i;
+                }
+            }
+            
+            // If all flowers have 10 petals, do nothing
+            if (minPetalCount >= 10) {
+                return prevFlowers;
+            }
+            
+            // Create updated flowers array
+            const updatedFlowers = [...prevFlowers];
+            const flower = updatedFlowers[minPetalIndex];
+            
+            const newPetal = {
+                id: `${flower.flowerIndex}-${Date.now()}-${Math.random()}`, // More unique ID
+                flowerIndex: flower.flowerIndex,
+            };
+            
+            const newPetals = [...flower.petals, newPetal];
+            updatedFlowers[minPetalIndex] = {
+                ...flower,
+                petals: newPetals.map((p, i) => {
+                    const angle = (i / newPetals.length) * 2 * Math.PI;
+                    const radius = 40;
+                    return {
+                        ...p,
+                        x: flower.x + Math.cos(angle) * radius - ELEMENT_SIZE / 2,
+                        y: flower.y + Math.sin(angle) * radius - ELEMENT_SIZE / 2,
+                        label: i + 1,
+                    };
+                })
+            };
+            
+            return updatedFlowers;
         });
-
-        // Immediate state update with minimal delay
-        const timeout = setTimeout(() => {
-            setFlowers(prevFlowers => {
-                // Find the flower with the minimum petal count that has less than 10 petals
-                let minPetalIndex = 0;
-                let minPetalCount = prevFlowers[0].petals.length;
-                
-                for (let i = 1; i < prevFlowers.length; i++) {
-                    if (prevFlowers[i].petals.length < minPetalCount) {
-                        minPetalCount = prevFlowers[i].petals.length;
-                        minPetalIndex = i;
-                    }
-                }
-                
-                // If all flowers have 10 petals, do nothing
-                if (minPetalCount >= 10) {
-                    return prevFlowers;
-                }
-                
-                // Create updated flowers array
-                const updatedFlowers = [...prevFlowers];
-                const flower = updatedFlowers[minPetalIndex];
-                
-                const newPetal = {
-                    id: `${flower.flowerIndex}-${Date.now()}`,
-                    flowerIndex: flower.flowerIndex,
-                };
-                
-                const newPetals = [...flower.petals, newPetal];
-                updatedFlowers[minPetalIndex] = {
-                    ...flower,
-                    petals: newPetals.map((p, i) => {
-                        const angle = (i / newPetals.length) * 2 * Math.PI;
-                        const radius = 40;
-                        return {
-                            ...p,
-                            x: flower.x + Math.cos(angle) * radius - ELEMENT_SIZE / 2,
-                            y: flower.y + Math.sin(angle) * radius - ELEMENT_SIZE / 2,
-                            label: i + 1,
-                        };
-                    })
-                };
-                
-                return updatedFlowers;
-            });
-        }, 50); // Reduced delay to 50ms for faster response
-        
-        animationTimeouts.current.push(timeout);
     }, []);
 
     const resetFlowers = useCallback(() => {
-        if (isResetting.current) return;
-        isResetting.current = true;
-
-        // Animate button press
-        Animated.sequence([
-            Animated.timing(resetButtonScale, {
-                toValue: 1.1,
-                duration: 50,
-                useNativeDriver: true,
-            }),
-            Animated.timing(resetButtonScale, {
-                toValue: 1,
-                duration: 50,
-                useNativeDriver: true,
-            }),
-        ]).start();
-
-        // Debounce actual reset
-        const timeout = setTimeout(() => {
-            setFlowers(generateFlowers());
-            isResetting.current = false;
-        }, 100);
-        
-        animationTimeouts.current.push(timeout);
+        // Remove flag entirely for instant response
+        setFlowers(generateFlowers());
     }, []);
+
+    const handleBack = () => {
+        navigation.navigate('SmartCounter');
+    };
 
     return (
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -536,16 +492,40 @@ const MidrangeCounting = () => {
                 <Text style={styles.dustbinText}>🗑️</Text>
             </View>
             
-            <TouchableOpacity onPress={addPetal} activeOpacity={0.7}>
-                <Animated.View style={[styles.addButton, { transform: [{ scale: addButtonScale }] }]}>
-                    <Text style={styles.buttonText}>Add Petal</Text>
-                </Animated.View>
+            <TouchableOpacity 
+                onPress={addPetal} 
+                activeOpacity={0.6}
+                delayPressIn={0}
+                delayPressOut={0}
+                delayLongPress={0}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}} // Increase touch area
+                style={styles.addButton}
+            >
+                <Text style={styles.buttonText}>Add Petal</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity onPress={resetFlowers} activeOpacity={0.7}>
-                <Animated.View style={[styles.resetButton, { transform: [{ scale: resetButtonScale }] }]}>
-                    <Text style={styles.resetButtonText}>↻</Text>
-                </Animated.View>
+            <TouchableOpacity 
+                onPress={resetFlowers} 
+                activeOpacity={0.6}
+                delayPressIn={0}
+                delayPressOut={0}
+                delayLongPress={0}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}} // Increase touch area
+                style={styles.resetButton}
+            >
+                <Text style={styles.resetButtonText}>↻</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                onPress={handleBack} 
+                activeOpacity={0.6}
+                delayPressIn={0}
+                delayPressOut={0}
+                delayLongPress={0}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}} // Increase touch area
+                style={styles.backButton}
+            >
+                <Text style={styles.backButtonText}>← Back</Text>
             </TouchableOpacity>
         </Animated.View>
     );
@@ -774,6 +754,28 @@ const styles = StyleSheet.create({
     resetButtonText: {
         fontSize: 30,
         color: 'white',
+    },
+    backButton: {
+        position: 'absolute',
+        top: DUSTBIN_PADDING,
+        left: DUSTBIN_PADDING,
+        backgroundColor: '#00BFFF',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
+        elevation: 5,
+    },
+    backButtonText: {
+        fontSize: 16,
+        color: 'white',
+        fontWeight: '600',
     },
 });
 

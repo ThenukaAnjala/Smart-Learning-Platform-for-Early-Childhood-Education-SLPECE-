@@ -9,7 +9,7 @@ const TOP_OFFSET = 100;
 const BOTTOM_OFFSET = 120;
 const RIGHT_OFFSET = 0;
 const MAX_ATTEMPTS = 1000;
-const TIMER_DURATION = 15; // 15 seconds
+const TIMER_DURATION = 15;
 
 // Static mapping of audio files
 const audioFiles = {
@@ -190,7 +190,7 @@ const SeaBackground = ({ isDarkMode }) => {
 };
 
 // Main Component
-const OrderIrrelevance = () => {
+const OrderIrrelevance = ({ navigation }) => { // Added navigation prop
     const [elements, setElements] = useState([]);
     const [targetNumber, setTargetNumber] = useState(null);
     const [toastVisible, setToastVisible] = useState(false);
@@ -281,7 +281,6 @@ const OrderIrrelevance = () => {
         animateTargetNumber();
 
         console.log('Playing target number:', newTargetNumber);
-        // Use the static mapping instead of dynamic require
         playSound(audioFiles[newTargetNumber]);
     };
 
@@ -394,9 +393,9 @@ const OrderIrrelevance = () => {
         setIsDarkMode(prevMode => !prevMode);
     };
 
-    const testAudio = () => {
-        console.log('Testing audio');
-        playSound(audioFiles.great_job);
+    // Handle back button press to navigate to Smart Counter
+    const handleBackPress = () => {
+        navigation.navigate("SmartCounter");
     };
 
     return (
@@ -446,14 +445,6 @@ const OrderIrrelevance = () => {
                         Shuffle
                     </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={testAudio}
-                    style={[styles.button, { backgroundColor: isDarkMode ? '#333333' : '#ccc', marginLeft: 10 }]}
-                >
-                    <Text style={[styles.buttonText, { color: isDarkMode ? '#E0E0E0' : 'black' }]}>
-                        Test Audio
-                    </Text>
-                </TouchableOpacity>
             </View>
             <Timer timeLeft={timeLeft} isTimeUp={isTimeUp} />
             <Toast visible={toastVisible} message={toastMessage} onDismiss={dismissToast} isCorrect={isCorrect} />
@@ -464,6 +455,13 @@ const OrderIrrelevance = () => {
                 <Text style={styles.darkModeIcon}>
                     {isDarkMode ? '☀️' : '🌙'}
                 </Text>
+            </TouchableOpacity>
+            {/* Back Button */}
+            <TouchableOpacity
+                style={[styles.backButton, { backgroundColor: isDarkMode ? '#333333' : '#00CED1' }]}
+                onPress={handleBackPress}
+            >
+                <Text style={styles.backButtonText}>← Back</Text>
             </TouchableOpacity>
         </View>
     );
@@ -564,6 +562,23 @@ const styles = StyleSheet.create({
     darkModeIcon: {
         fontSize: 24,
         color: '#000',
+    },
+    backButton: {
+        position: 'absolute',
+        top: 20,
+        left: 20,
+        width: 80,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 5,
+        zIndex: 2000,
+    },
+    backButtonText: {
+        fontSize: 18,
+        color: 'black', // Changed to black
+        fontWeight: 'bold',
     },
 });
 

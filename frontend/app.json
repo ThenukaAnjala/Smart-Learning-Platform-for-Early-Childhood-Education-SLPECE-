@@ -43,7 +43,8 @@
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone (optional for playback-only)."
         }
-      ]
+      ],
+      "expo-audio"
     ]
   }
 }

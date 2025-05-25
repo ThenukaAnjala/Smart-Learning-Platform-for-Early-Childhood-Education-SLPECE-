@@ -1,24 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity, ImageBackground } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 60;
 const DUSTBIN_SIZE = 70;
 const DUSTBIN_PADDING = 20;
-const LEFT_MARGIN = 20;
 const GAP = 10;
 
-const DraggableElement = ({ id, x, y, onDrop, label }) => {
+const DraggableElement = ({ id, x, y, onDrop, label, onPositionUpdate }) => {
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
-    const opacity = useRef(new Animated.Value(1)).current; // Added opacity ref
-
-    useEffect(() => {
-        Animated.spring(pan, {
-            toValue: { x, y },
-            useNativeDriver: false,
-        }).start();
-    }, [x, y]);
+    const opacity = useRef(new Animated.Value(1)).current;
 
     const panResponder = useRef(
         PanResponder.create({
@@ -33,7 +25,7 @@ const DraggableElement = ({ id, x, y, onDrop, label }) => {
             ),
             onPanResponderRelease: (evt, gestureState) => {
                 pan.flattenOffset();
-                onDrop(id, gestureState.dx, gestureState.dy, pan, opacity);
+                onDrop(id, gestureState.dx, gestureState.dy, pan, opacity, onPositionUpdate);
             },
         })
     ).current;
@@ -42,7 +34,7 @@ const DraggableElement = ({ id, x, y, onDrop, label }) => {
         <Animated.View
             style={[
                 styles.element,
-                { transform: pan.getTranslateTransform(), opacity }, // Apply opacity animation
+                { transform: pan.getTranslateTransform(), opacity },
             ]}
             {...panResponder.panHandlers}
         >
@@ -51,133 +43,193 @@ const DraggableElement = ({ id, x, y, onDrop, label }) => {
     );
 };
 
-// Function to recalculate element positions and labels after changes
-const recalcRowElements = (elements, rowY) => {
-    return elements.map((el, idx) => ({
-        ...el,
-        x: LEFT_MARGIN + idx * (ELEMENT_SIZE + GAP),
-        y: rowY,
-        label: idx + 1,
-    }));
-};
-
+// Function to generate centered row elements
 const generateRow = () => {
-    const rowY = height / 2; // Single row at middle
-    const count = 10; // Fixed to 10 elements initially
+    const rowY = height / 2;
+    const count = 10;
+    const totalWidth = count * ELEMENT_SIZE + (count - 1) * GAP;
+    const startX = (width - totalWidth) / 2; // Center the row horizontally
+
     const elements = Array.from({ length: count }, (_, i) => ({
-        id: `0-${i}`,
+        id: `element-${i}`,
         label: i + 1,
-        x: LEFT_MARGIN + i * (ELEMENT_SIZE + GAP),
+        x: startX + i * (ELEMENT_SIZE + GAP),
         y: rowY,
     }));
     return { rowIndex: 0, y: rowY, elements };
 };
 
-const SingleRowElements = () => {
-    const [elements, setElements] = useState([]); // State to store the row elements
-    const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode toggle
+const SingleRowElements = ({ navigation }) => { // Add navigation prop
+    const [elements, setElements] = useState([]);
+    const [deletedElements, setDeletedElements] = useState(new Set());
+    const [isDarkMode, setIsDarkMode] = useState(false);
 
-    // Reset the row elements when the screen comes into focus
     useFocusEffect(
         React.useCallback(() => {
             setElements(generateRow().elements);
+            setDeletedElements(new Set());
         }, [])
     );
 
-    // Handle dropping an element (for deletion in the dustbin)
-    const handleDrop = (id, deltaX, deltaY, pan, opacity) => {
+    // Handle dropping an element
+    const handleDrop = (id, deltaX, deltaY, pan, opacity, onPositionUpdate) => {
         const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
         const dustbinY = DUSTBIN_PADDING;
 
-        setElements(prevElements => {
-            const updatedElements = prevElements.map(el => {
-                if (el.id !== id) return el;
+        const currentElement = elements.find(el => el.id === id);
+        if (!currentElement) return;
 
-                const currentX = el.x + deltaX;
-                const currentY = el.y + deltaY;
+        const currentX = currentElement.x + deltaX;
+        const currentY = currentElement.y + deltaY;
 
-                const isInDustbin =
-                    currentX + ELEMENT_SIZE > dustbinX &&
-                    currentX < dustbinX + DUSTBIN_SIZE &&
-                    currentY + ELEMENT_SIZE > dustbinY &&
-                    currentY < dustbinY + DUSTBIN_SIZE;
+        const isInDustbin =
+            currentX + ELEMENT_SIZE > dustbinX &&
+            currentX < dustbinX + DUSTBIN_SIZE &&
+            currentY + ELEMENT_SIZE > dustbinY &&
+            currentY < dustbinY + DUSTBIN_SIZE;
 
-                if (isInDustbin) {
-                    // Fade out the element when dropped in the dustbin
-                    Animated.timing(opacity, {
-                        toValue: 0,
-                        duration: 200,
-                        useNativeDriver: false,
-                    }).start(() => {
-                        setElements(prevElements => {
-                            const filteredElements = prevElements.filter(el => el.id !== id);
-                            return recalcRowElements(filteredElements, height / 2); // Recalculate positions
-                        });
-                    });
-                    return el; // Return unchanged element initially
-                }
-                return el;
+        if (isInDustbin) {
+            Animated.timing(opacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: false,
+            }).start(() => {
+                setElements(prevElements => {
+                    const elementToDelete = prevElements.find(el => el.id === id);
+                    if (elementToDelete) {
+                        setDeletedElements(prev => new Set([...prev, elementToDelete.label]));
+                    }
+
+                    const filteredElements = prevElements.filter(el => el.id !== id);
+                    if (filteredElements.length === 0) {
+                        setTimeout(() => {
+                            setElements(generateRow().elements);
+                            setDeletedElements(new Set());
+                        }, 500);
+                        return [];
+                    }
+                    return filteredElements;
+                });
             });
-            return updatedElements;
-        });
+        } else {
+            onPositionUpdate(id, currentX, currentY);
+        }
     };
 
-    // Function to add a new element to the row
+    const updatePosition = (id, newX, newY) => {
+        setElements(prevElements =>
+            prevElements.map(el =>
+                el.id === id ? { ...el, x: newX, y: newY } : el
+            )
+        );
+    };
+
     const addElement = () => {
         setElements(prevElements => {
-            // Check if the row already has 10 elements
-            if (prevElements.length >= 10) return prevElements; // Prevent adding if limit reached
-            const newEl = { id: `0-${Date.now()}`, x: 0, y: height / 2 }; // New element
-            const newElements = [...prevElements, newEl];
-            return recalcRowElements(newElements, height / 2); // Recalculate positions
+            if (prevElements.length >= 10) return prevElements;
+
+            let nextNumber = 1;
+            const existingNumbers = new Set(prevElements.map(el => el.label));
+            while (existingNumbers.has(nextNumber)) {
+                nextNumber++;
+                if (nextNumber > 10) break;
+            }
+            if (nextNumber > 10) return prevElements;
+
+            const count = prevElements.length + 1;
+            const totalWidth = count * ELEMENT_SIZE + (count - 1) * GAP;
+            const startX = (width - totalWidth) / 2;
+
+            const newElement = {
+                id: `element-${Date.now()}`,
+                x: startX + (count - 1) * (ELEMENT_SIZE + GAP),
+                y: height / 2,
+                label: nextNumber,
+            };
+
+            const updatedElements = [...prevElements, newElement].sort((a, b) => a.label - b.label);
+
+            return updatedElements.map((el, i) => ({
+                ...el,
+                x: startX + i * (ELEMENT_SIZE + GAP),
+                y: height / 2,
+            }));
         });
     };
 
-    // Toggle dark mode
+    const refillElements = () => {
+        setElements(generateRow().elements);
+        setDeletedElements(new Set());
+    };
+
     const toggleDarkMode = () => {
         setIsDarkMode(prevMode => !prevMode);
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#ADD8E6' }]}>
-            <View style={styles.workspace}>
-                {elements.map(el => (
-                    <DraggableElement
-                        key={el.id}
-                        id={el.id}
-                        x={el.x}
-                        y={el.y}
-                        label={el.label}
-                        onDrop={handleDrop}
-                    />
-                ))}
-            </View>
-            <View style={[styles.dustbin, { backgroundColor: isDarkMode ? '#333333' : '#eee', borderColor: isDarkMode ? '#555' : '#ccc' }]}>
-                <Text style={styles.dustbinText}>🗑️</Text>
-            </View>
-            {/* Dark Mode Toggle Button - Positioned below dustbin */}
-            <TouchableOpacity
-                style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
-                onPress={toggleDarkMode}
-            >
-                <Text style={styles.darkModeIcon}>
-                    {isDarkMode ? '☀️' : '🌙'}
-                </Text>
-            </TouchableOpacity>
-            {/* Add Element Button - Positioned at the bottom */}
-            <View style={styles.controls}>
+        <ImageBackground
+            source={require('../../assets/images/resized_landscape_.png')}
+            style={styles.backgroundImage}
+            resizeMode="cover"
+        >
+            <View style={[styles.container, { backgroundColor: isDarkMode ? 'rgba(26, 26, 26, 0.7)' : 'rgba(173, 216, 230, 0.7)' }]}>
+                {/* Add Back Button */}
                 <TouchableOpacity
-                    onPress={addElement}
-                    style={[styles.button, { backgroundColor: isDarkMode ? '#555' : 'blue' }]}
+                    style={styles.backButton}
+                    onPress={() => navigation.navigate('SmartCounter')} // Navigate to Smart Counter page
                 >
-                    <Text style={styles.buttonText}>Add Element</Text>
+                    <Text style={styles.backButtonText}>← Back</Text>
                 </TouchableOpacity>
+
+                <View style={styles.workspace}>
+                    {elements.map(el => (
+                        <DraggableElement
+                            key={el.id}
+                            id={el.id}
+                            x={el.x}
+                            y={el.y}
+                            label={el.label}
+                            onDrop={handleDrop}
+                            onPositionUpdate={updatePosition}
+                        />
+                    ))}
+                </View>
+                <View style={[styles.dustbin, { backgroundColor: isDarkMode ? '#333333' : '#eee', borderColor: isDarkMode ? '#555' : '#ccc' }]}>
+                    <Text style={styles.dustbinText}>🗑️</Text>
+                </View>
+                <TouchableOpacity
+                    style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
+                    onPress={toggleDarkMode}
+                >
+                    <Text style={styles.darkModeIcon}>
+                        {isDarkMode ? '☀️' : '🌙'}
+                    </Text>
+                </TouchableOpacity>
+                <View style={styles.controls}>
+                    <TouchableOpacity
+                        onPress={addElement}
+                        style={[styles.button, { backgroundColor: isDarkMode ? '#555' : 'blue', marginRight: 10 }]}
+                    >
+                        <Text style={styles.buttonText}>Add Element</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={refillElements}
+                        style={[styles.button, { backgroundColor: isDarkMode ? '#555' : 'green' }]}
+                    >
+                        <Text style={styles.buttonText}>Reset All</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-        </View>
+        </ImageBackground>
     );
 };
 
 const styles = StyleSheet.create({
+    backgroundImage: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+    },
     container: {
         flex: 1,
     },
@@ -220,7 +272,7 @@ const styles = StyleSheet.create({
     },
     darkModeButton: {
         position: 'absolute',
-        top: DUSTBIN_PADDING + DUSTBIN_SIZE + 10, // Positioned below dustbin with 10px gap
+        top: DUSTBIN_PADDING + DUSTBIN_SIZE + 10,
         right: DUSTBIN_PADDING,
         width: 50,
         height: 50,
@@ -247,6 +299,22 @@ const styles = StyleSheet.create({
     buttonText: {
         fontSize: 20,
         color: 'white',
+    },
+    // Styles for the Back button
+    backButton: {
+        position: 'absolute',
+        top: DUSTBIN_PADDING,
+        left: DUSTBIN_PADDING,
+        backgroundColor: '#00BFFF', // Blue color to match the image
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        zIndex: 1000,
+    },
+    backButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
 
