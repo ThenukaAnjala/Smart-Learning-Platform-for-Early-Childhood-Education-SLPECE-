@@ -1,11 +1,21 @@
 import React, { createContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import AppNavigator from './navigation/AppNavigator';
+import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useFonts } from 'expo-font';
+import { Text } from 'react-native';
 
-// Create and export AuthContext
+// Create AuthContext
 export const AuthContext = createContext();
 
 export default function App() {
+  // Font loading
+  const [fontsLoaded] = useFonts({
+    'LoveYaLikeASister': require('./assets/fnts/LoveYaLikeASister-Regular.ttf'),
+  });
+
+  // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,13 +36,19 @@ export default function App() {
     checkToken();
   }, []);
 
+  if (!fontsLoaded) {
+    return <Text>Loading...</Text>;
+  }
+
   if (isLoading) {
-    return null; // Optionally render a loading screen
+    return null; // Loading screen while checking authentication
   }
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
-      <AppNavigator />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AppNavigator />
+      </GestureHandlerRootView>
     </AuthContext.Provider>
   );
 }

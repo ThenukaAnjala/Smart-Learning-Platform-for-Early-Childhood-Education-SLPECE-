@@ -14,6 +14,9 @@
       "image": "./assets/favicon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
+      "image": "./assets/favicon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,6 +26,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
@@ -36,6 +40,7 @@
     },
     "plugins": [
       [
+        "expo-secure-store",
         "expo-av",
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone (optional for playback-only)."

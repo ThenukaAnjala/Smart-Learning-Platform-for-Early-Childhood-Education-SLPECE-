@@ -185,6 +185,13 @@ const HomeScreen = ({ navigation }) => {
       color: '#AB47BC',
     },
     {
+      title: 'Story Library',
+      icon: counterIcon,
+      onPress: () => navigation.navigate('StoryTellingHome'),
+      scale: buttonScaleAnims.counter,
+      color: '#AB47BC',
+    },
+    {
       title: 'Bye Bye! 👋',
       icon: logoutIcon,
       onPress: handleLogout,
@@ -260,6 +267,7 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={styles.buttonContainer}
         />
       </Animated.View>
+      <Button title="Open Story Library" onPress={() => navigation.navigate('StoryTellingHome')} />
     </View>
   );
 };
