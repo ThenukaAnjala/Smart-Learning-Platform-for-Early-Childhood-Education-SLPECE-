@@ -36,6 +36,13 @@ const AppNavigator = () => {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="DrawingBoard" component={DrawingBoard} />
+            <Stack.Screen name="FishScreen" component={FishScreen} />
+        <Stack.Screen name="RabbitBodyScreen" component={RabbitBodyScreen} />
+        <Stack.Screen name="RabbitScreen" component={RabbitScreen} />
+        <Stack.Screen name="DogHeadScreen" component={DogHeadScreen} />
+        <Stack.Screen name="BirdScreen" component={BirdScreen} />
+        <Stack.Screen name="LionScreen" component={LionScreen} />
+        <Stack.Screen name="DogScreen" component={DogScreen} />
         <Stack.Screen name="SmartCounter" component={SmartCounter} />
         <Stack.Screen name="Stacking Objects" component={StackingObjects} />
         <Stack.Screen name="Reverse Counting" component={ReverseCounting} />
@@ -63,3 +70,5 @@ const AppNavigator = () => {
     </NavigationContainer>
   );
 }
+
+export default AppNavigator;
