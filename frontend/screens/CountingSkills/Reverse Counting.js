@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as Speech from 'expo-speech';
 
 const { width, height } = Dimensions.get('window');
@@ -288,6 +288,7 @@ const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest, shape }) =>
 });
 
 const ReverseCountingGame = () => {
+    const navigation = useNavigation();
     const [elements, setElements] = useState([]);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [kidVoiceId, setKidVoiceId] = useState(null);
@@ -307,6 +308,7 @@ const ReverseCountingGame = () => {
     const isInitialized = useRef(false);
     const lastAnnouncedRef = useRef(null);
     const isAnnouncingRef = useRef(false);
+    const backButtonScale = useRef(new Animated.Value(1)).current;
 
     const debouncedAnnouncePickNumber = useRef(
         debounce((elements, kidVoiceId) => {
@@ -723,6 +725,10 @@ const ReverseCountingGame = () => {
         }).start();
     }, []);
 
+    const handleBackPress = () => {
+        navigation.navigate('SmartCounter');
+    };
+
     return (
         <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#E6F3FF' }]}>
             <View style={styles.workspace}>
@@ -750,6 +756,16 @@ const ReverseCountingGame = () => {
             >
                 <Animated.View style={{ transform: [{ scale: skipScale }] }}>
                     <Text style={styles.darkModeIcon}>{isDarkMode ? '☀️' : '🌙'}</Text>
+                </Animated.View>
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={styles.backButton}
+                onPress={handleBackPress}
+                onPressIn={() => animateButton(backButtonScale, true)}
+                onPressOut={() => animateButton(backButtonScale, false)}
+            >
+                <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+                    <Text style={styles.backButtonText}>← Back</Text>
                 </Animated.View>
             </TouchableOpacity>
             <View style={styles.controls}>
@@ -866,6 +882,28 @@ const styles = StyleSheet.create({
     darkModeIcon: {
         fontSize: 24,
         color: '#000',
+    },
+    backButton: {
+        position: 'absolute',
+        top: DUSTBIN_PADDING,
+        left: DUSTBIN_PADDING,
+        backgroundColor: '#4A90E2',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 5,
+        elevation: 6,
+        zIndex: 1000,
+    },
+    backButtonText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#FFF',
     },
     controls: {
         flexDirection: 'row',

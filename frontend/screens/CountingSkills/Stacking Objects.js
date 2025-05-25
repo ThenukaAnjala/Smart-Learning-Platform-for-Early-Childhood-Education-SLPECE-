@@ -1,12 +1,13 @@
 import React, { useState, useRef, useMemo, useCallback, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native'; // Import navigation hook
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 80;
 const DUSTBIN_SIZE = 60;
 const DUSTBIN_PADDING = 20;
 const MAX_ELEMENTS = 50;
-const COLORS = ['red', 'blue', 'yellow', 'green'];
+const COLORS = ['red', 'blue', '#cfe010', 'green']; // Added your specific yellow color to the array
 const SHAPES = ['circle', 'square', 'triangle'];
 const STARS = [
     { left: width * 0.1, top: height * 0.1 },
@@ -153,12 +154,34 @@ const DraggableElement = memo(({ id, internalId, color, shape, pan, onDrop, stac
     );
 });
 
-const StackingElements = () => {
+const StackingElements = ({ navigation }) => { // Make sure navigation prop is received
     const [elements, setElements] = useState([]);
     const keyCounter = useRef(0);
     const backScale = useRef(new Animated.Value(1)).current;
     const addScale = useRef(new Animated.Value(1)).current;
     const elementsRef = useRef([]);
+
+    // Add debouncing to prevent multiple rapid presses
+    const [isNavigating, setIsNavigating] = useState(false);
+
+    // Handle back button press with debouncing
+    const handleBackPress = useCallback(() => {
+        if (isNavigating) return; // Prevent multiple presses
+        
+        setIsNavigating(true);
+        
+        // Use goBack() or specific navigation
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            navigation.navigate("SmartCounter"); // Fallback navigation
+        }
+        
+        // Reset navigation state after a delay
+        setTimeout(() => {
+            setIsNavigating(false);
+        }, 1000);
+    }, [navigation, isNavigating]);
 
     const validatePosition = useCallback((x, y) => {
         if (x < 0 || x > width - ELEMENT_SIZE || y < 0 || y > height - ELEMENT_SIZE) return false;
@@ -235,7 +258,11 @@ const StackingElements = () => {
         if (elementsRef.current.length >= MAX_ELEMENTS) return;
 
         const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-        const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+        
+        // Triangles get the specific yellow, others get random colors
+        const randomColor = randomShape === 'triangle' 
+            ? '#cfe010' // Your specific yellow for triangles
+            : COLORS[Math.floor(Math.random() * COLORS.length)];
         const uniqueKey = keyCounter.current++;
         let randomX, randomY;
         let attempts = 0;
@@ -289,13 +316,9 @@ const StackingElements = () => {
         });
     }, []);
 
-    const handleBackPress = useCallback(() => {
-        console.log('Back button pressed');
-    }, []);
-
     const getClusters = useCallback((elementsList) => {
         const clusters = [];
-        const elementStackNumbers = new Map(); // Map to store stack number for each element
+        const elementStackNumbers = new Map();
         const visited = new Set();
         const threshold = ELEMENT_SIZE;
 
@@ -326,17 +349,14 @@ const StackingElements = () => {
                 const avgX = cluster.reduce((sum, item) => sum + item.pan.x._value, 0) / cluster.length;
                 const avgY = cluster.reduce((sum, item) => sum + item.pan.y._value, 0) / cluster.length;
                 clusters.push({ x: avgX, y: avgY, count: cluster.length });
-                // Assign unique stack numbers (1 to n) to each element in the cluster
                 cluster.forEach((el, index) => {
                     elementStackNumbers.set(el.key, index + 1);
                 });
             } else {
-                // Assign 1 to elements not in a cluster
                 elementStackNumbers.set(cluster[0].key, 1);
             }
         }
 
-        // Ensure all elements have a stack number (for any element not processed due to visited logic)
         elementsList.forEach(el => {
             if (!elementStackNumbers.has(el.key)) {
                 elementStackNumbers.set(el.key, 1);
@@ -374,16 +394,6 @@ const StackingElements = () => {
         <View style={styles.container}>
             {memoizedStars}
             <View style={styles.workspace}>
-                <TouchableOpacity
-                    onPress={handleBackPress}
-                    onPressIn={() => animateButton(backScale, true)}
-                    onPressOut={() => animateButton(backScale, false)}
-                    activeOpacity={0.8}
-                >
-                    <Animated.View style={[styles.backButton, { transform: [{ scale: backScale }], backgroundColor: '#40C4FF' }]}>
-                        <Text style={styles.backButtonText}>← Back</Text>
-                    </Animated.View>
-                </TouchableOpacity>
                 {displayElements.map((el, index) => (
                     <DraggableElement
                         key={el.key}
@@ -404,7 +414,7 @@ const StackingElements = () => {
                             {
                                 position: 'absolute',
                                 left: cluster.x,
-                                top: cluster.y - 50, // Adjusted to be further above the stack
+                                top: cluster.y - 50,
                             },
                         ]}
                     >
@@ -427,6 +437,22 @@ const StackingElements = () => {
                     </Animated.View>
                 </TouchableOpacity>
             </View>
+
+            {/* Back Button with improved handling */}
+            <TouchableOpacity
+                style={[
+                    styles.backButton, 
+                    { 
+                        backgroundColor: '#00CED1',
+                        opacity: isNavigating ? 0.5 : 1 // Visual feedback
+                    }
+                ]}
+                onPress={handleBackPress}
+                disabled={isNavigating} // Disable when navigating
+                activeOpacity={0.7} // Add touch feedback
+            >
+                <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
         </View>
     );
 };
@@ -502,9 +528,9 @@ const styles = StyleSheet.create({
     },
     stackText: {
         color: 'white',
-        fontSize: 24, // Increased font size for clarity
+        fontSize: 24,
         fontWeight: 'bold',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)', // Slightly darker background for better contrast
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 8,
@@ -551,26 +577,21 @@ const styles = StyleSheet.create({
         fontSize: 30,
     },
     backButton: {
-        borderRadius: 50,
-        shadowColor: '#000',
-        height: 50,
-        width: 100,
         position: 'absolute',
         top: 20,
         left: 20,
-        alignItems: 'center',
+        width: 80,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        alignItems: 'center',
         elevation: 5,
+        zIndex: 2000,
     },
     backButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#fff',
-        letterSpacing: 0.5,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
+        fontSize: 18,
+        color: 'black',
+        fontWeight: 'bold',
     },
 });
 

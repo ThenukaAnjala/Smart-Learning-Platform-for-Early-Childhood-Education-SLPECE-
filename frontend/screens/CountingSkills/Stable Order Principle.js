@@ -59,21 +59,20 @@ const generateRow = () => {
     return { rowIndex: 0, y: rowY, elements };
 };
 
-const SingleRowElements = () => {
-    const [elements, setElements] = useState([]); // State to store the row elements
-    const [deletedElements, setDeletedElements] = useState(new Set()); // Track deleted elements by their original labels
-    const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode toggle
+const SingleRowElements = ({ navigation }) => { // Add navigation prop
+    const [elements, setElements] = useState([]);
+    const [deletedElements, setDeletedElements] = useState(new Set());
+    const [isDarkMode, setIsDarkMode] = useState(false);
 
-    // Reset the row elements when the screen comes into focus
     useFocusEffect(
         React.useCallback(() => {
             setElements(generateRow().elements);
-            setDeletedElements(new Set()); // Reset deleted elements when screen focuses
+            setDeletedElements(new Set());
         }, [])
     );
 
-    // Handle dropping an element (for deletion in the dustbin)
-    const handleDrop = (id, deltaX, deltaY, pan, opacity) => {
+    // Handle dropping an element
+    const handleDrop = (id, deltaX, deltaY, pan, opacity, onPositionUpdate) => {
         const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
         const dustbinY = DUSTBIN_PADDING;
 
@@ -90,7 +89,6 @@ const SingleRowElements = () => {
             currentY < dustbinY + DUSTBIN_SIZE;
 
         if (isInDustbin) {
-            // Fade out and delete
             Animated.timing(opacity, {
                 toValue: 0,
                 duration: 200,
@@ -114,12 +112,10 @@ const SingleRowElements = () => {
                 });
             });
         } else {
-            // Update position in state to allow free placement
             onPositionUpdate(id, currentX, currentY);
         }
     };
 
-    // Update element position in state
     const updatePosition = (id, newX, newY) => {
         setElements(prevElements =>
             prevElements.map(el =>
@@ -140,22 +136,19 @@ const SingleRowElements = () => {
             }
             if (nextNumber > 10) return prevElements;
 
-            // Calculate new row to keep it centered
             const count = prevElements.length + 1;
             const totalWidth = count * ELEMENT_SIZE + (count - 1) * GAP;
             const startX = (width - totalWidth) / 2;
 
-            // Sort elements by label to maintain order
             const newElement = {
                 id: `element-${Date.now()}`,
-                x: startX + (count - 1) * (ELEMENT_SIZE + GAP), // Place at the right
+                x: startX + (count - 1) * (ELEMENT_SIZE + GAP),
                 y: height / 2,
                 label: nextNumber,
             };
 
             const updatedElements = [...prevElements, newElement].sort((a, b) => a.label - b.label);
 
-            // Reposition all elements to maintain centered row
             return updatedElements.map((el, i) => ({
                 ...el,
                 x: startX + i * (ELEMENT_SIZE + GAP),
@@ -164,13 +157,11 @@ const SingleRowElements = () => {
         });
     };
 
-    // Function to manually refill all elements (optional reset button)
     const refillElements = () => {
         setElements(generateRow().elements);
-        setDeletedElements(new Set()); // Reset deleted elements
+        setDeletedElements(new Set());
     };
 
-    // Toggle dark mode
     const toggleDarkMode = () => {
         setIsDarkMode(prevMode => !prevMode);
     };
@@ -182,6 +173,14 @@ const SingleRowElements = () => {
             resizeMode="cover"
         >
             <View style={[styles.container, { backgroundColor: isDarkMode ? 'rgba(26, 26, 26, 0.7)' : 'rgba(173, 216, 230, 0.7)' }]}>
+                {/* Add Back Button */}
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.navigate('SmartCounter')} // Navigate to Smart Counter page
+                >
+                    <Text style={styles.backButtonText}>← Back</Text>
+                </TouchableOpacity>
+
                 <View style={styles.workspace}>
                     {elements.map(el => (
                         <DraggableElement
@@ -191,13 +190,13 @@ const SingleRowElements = () => {
                             y={el.y}
                             label={el.label}
                             onDrop={handleDrop}
+                            onPositionUpdate={updatePosition}
                         />
                     ))}
                 </View>
                 <View style={[styles.dustbin, { backgroundColor: isDarkMode ? '#333333' : '#eee', borderColor: isDarkMode ? '#555' : '#ccc' }]}>
                     <Text style={styles.dustbinText}>🗑️</Text>
                 </View>
-                {/* Dark Mode Toggle Button - Positioned below dustbin */}
                 <TouchableOpacity
                     style={[styles.darkModeButton, { backgroundColor: isDarkMode ? '#333333' : '#E0E0E0' }]}
                     onPress={toggleDarkMode}
@@ -206,8 +205,13 @@ const SingleRowElements = () => {
                         {isDarkMode ? '☀️' : '🌙'}
                     </Text>
                 </TouchableOpacity>
-                {/* Controls - Only Reset Button */}
                 <View style={styles.controls}>
+                    <TouchableOpacity
+                        onPress={addElement}
+                        style={[styles.button, { backgroundColor: isDarkMode ? '#555' : 'blue', marginRight: 10 }]}
+                    >
+                        <Text style={styles.buttonText}>Add Element</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity
                         onPress={refillElements}
                         style={[styles.button, { backgroundColor: isDarkMode ? '#555' : 'green' }]}
@@ -295,6 +299,22 @@ const styles = StyleSheet.create({
     buttonText: {
         fontSize: 20,
         color: 'white',
+    },
+    // Styles for the Back button
+    backButton: {
+        position: 'absolute',
+        top: DUSTBIN_PADDING,
+        left: DUSTBIN_PADDING,
+        backgroundColor: '#00BFFF', // Blue color to match the image
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        zIndex: 1000,
+    },
+    backButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
 

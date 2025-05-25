@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 50;
@@ -266,6 +266,7 @@ const MidrangeCounting = () => {
     const pulseAnim = useRef([]).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const animationTimeouts = useRef([]);
+    const navigation = useNavigation();
 
     // Clear all animation timeouts when unmounting
     useEffect(() => {
@@ -466,6 +467,10 @@ const MidrangeCounting = () => {
         setFlowers(generateFlowers());
     }, []);
 
+    const handleBack = () => {
+        navigation.navigate('SmartCounter');
+    };
+
     return (
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
             {/* Background is memoized to prevent re-renders */}
@@ -509,6 +514,18 @@ const MidrangeCounting = () => {
                 style={styles.resetButton}
             >
                 <Text style={styles.resetButtonText}>↻</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                onPress={handleBack} 
+                activeOpacity={0.6}
+                delayPressIn={0}
+                delayPressOut={0}
+                delayLongPress={0}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}} // Increase touch area
+                style={styles.backButton}
+            >
+                <Text style={styles.backButtonText}>← Back</Text>
             </TouchableOpacity>
         </Animated.View>
     );
@@ -737,6 +754,28 @@ const styles = StyleSheet.create({
     resetButtonText: {
         fontSize: 30,
         color: 'white',
+    },
+    backButton: {
+        position: 'absolute',
+        top: DUSTBIN_PADDING,
+        left: DUSTBIN_PADDING,
+        backgroundColor: '#00BFFF',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
+        elevation: 5,
+    },
+    backButtonText: {
+        fontSize: 16,
+        color: 'white',
+        fontWeight: '600',
     },
 });
 
