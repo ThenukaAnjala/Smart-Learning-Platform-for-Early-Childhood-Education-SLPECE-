@@ -1,10 +1,16 @@
+// frontend/navigation/AppNavigator.js
 import React, { useContext } from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
-import LandingScreen from '../screens/LandingScreen';
 import DrawingBoard from '../screens/DrawingBoard';
-import SmartCounter from '../screens/SmartCounter';
+import FishScreen from '../screens/FishScreen';
+import RabbitScreen from '../screens/RabbitScreen';
+import RabbitBodyScreen from '../screens/RabbitBodyScreen';
+import DogHeadScreen from '../screens/DogHeadScreen';
+import DogScreen from '../screens/DogScreen';
+import LionScreen from '../screens/LionScreen';
+import BirdScreen from '../screens/BirdScreen';import SmartCounter from '../screens/SmartCounter';
 import StackingObjects from '../screens/CountingSkills/Stacking Objects';
 import ReverseCounting from '../screens/CountingSkills/Reverse Counting';
 import MidrangeCounting from '../screens/CountingSkills/Mid-Range Counting';
@@ -56,6 +62,4 @@ const AppNavigator = () => {
       </Stack.Navigator>
     </NavigationContainer>
   );
-};
-
-export default AppNavigator;
+}
