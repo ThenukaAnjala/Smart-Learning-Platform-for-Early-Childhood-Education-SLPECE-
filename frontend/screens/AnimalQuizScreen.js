@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Animated, Dimensions, ScrollView } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av'; // Import expo-av for sound
+import { Audio } from 'expo-av';
 
 // Get screen dimensions for full-screen background
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -14,8 +14,8 @@ const backgroundImage = require('../assets/images/Background/NewAnimalQuizBG.jpg
 const questions = require('../assets/data/questions.json');
 
 // Load sound files
-const correctSoundFile = require('../assets/AnimalQuizSounds/correct.mp3'); // MP3 for correct answer
-const wrongSoundFile = require('../assets/AnimalQuizSounds/wrong.wav'); // WAV for wrong answer
+const correctSoundFile = require('../assets/AnimalQuizSounds/correct.mp3');
+const wrongSoundFile = require('../assets/AnimalQuizSounds/wrong.wav');
 
 // Import all 101 animal images with updated Quiz path
 const dogImage = require('../assets/images/Quiz/dog.png');
@@ -235,23 +235,22 @@ const AnimalQuizScreen = ({ navigation, route }) => {
   const [feedbackText, setFeedbackText] = useState('');
   const [isCorrectAnswer, setIsCorrectAnswer] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
-  const [imageAnim] = useState(new Animated.Value(0)); // For image fade-in
+  const [imageAnim] = useState(new Animated.Value(0));
   const [progressAnim] = useState(new Animated.Value(0));
   const [badges, setBadges] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [extraHint, setExtraHint] = useState(false);
   const [hasCheckedBadge, setHasCheckedBadge] = useState(false);
   const [retryCount, setRetryCount] = useState({ easy: 0, medium: 0, hard: 0 });
-  const [correctSound, setCorrectSound] = useState(null); // State for correct sound
-  const [wrongSound, setWrongSound] = useState(null); // State for wrong sound
+  const [correctSound, setCorrectSound] = useState(null);
+  const [wrongSound, setWrongSound] = useState(null);
   const QUESTIONS_PER_LEVEL = 8;
-  const REQUIRED_CORRECT_ANSWERS = 8; // Must get all 8 correct to unlock next level
+  const REQUIRED_CORRECT_ANSWERS = 8;
 
   // Load and configure sounds
   useEffect(() => {
     const loadSounds = async () => {
       try {
-        // Configure audio mode for iOS to play in silent mode
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           allowsRecordingIOS: false,
@@ -262,13 +261,11 @@ const AnimalQuizScreen = ({ navigation, route }) => {
         const correctSoundObj = new Audio.Sound();
         const wrongSoundObj = new Audio.Sound();
 
-        // Load MP3 for correct sound and WAV for wrong sound
         await correctSoundObj.loadAsync(correctSoundFile);
         await wrongSoundObj.loadAsync(wrongSoundFile);
 
-        // Optional: Set volume (adjust as needed)
-        await correctSoundObj.setVolumeAsync(0.7); // 70% volume for correct sound
-        await wrongSoundObj.setVolumeAsync(0.5); // 50% volume for wrong sound
+        await correctSoundObj.setVolumeAsync(0.7);
+        await wrongSoundObj.setVolumeAsync(0.5);
 
         setCorrectSound(correctSoundObj);
         setWrongSound(wrongSoundObj);
@@ -279,7 +276,6 @@ const AnimalQuizScreen = ({ navigation, route }) => {
 
     loadSounds();
 
-    // Cleanup sounds on component unmount
     return () => {
       if (correctSound) correctSound.unloadAsync();
       if (wrongSound) wrongSound.unloadAsync();
@@ -295,7 +291,31 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     }).start();
   }, [currentQuestionIndex]);
 
+  // Reset unlockedLevels to a consistent state on component mount
   useEffect(() => {
+    const resetUnlockedLevels = async () => {
+      try {
+        const savedLevels = await AsyncStorage.getItem('unlockedLevels');
+        let unlockedLevels = savedLevels ? JSON.parse(savedLevels) : { level1: true, level2: false, level3: false };
+
+        // Ensure sequential unlocking: if level3 is true, level2 must be true
+        if (unlockedLevels.level3 && !unlockedLevels.level2) {
+          unlockedLevels.level2 = true;
+          console.log('Fixed inconsistency: Set level2 to true because level3 was true');
+        }
+        // If both are true, reset to initial state for testing
+        if (unlockedLevels.level2 && unlockedLevels.level3) {
+          unlockedLevels = { level1: true, level2: false, level3: false };
+          console.log('Reset unlockedLevels to initial state for testing');
+        }
+
+        await AsyncStorage.setItem('unlockedLevels', JSON.stringify(unlockedLevels));
+        console.log('Initial unlockedLevels:', unlockedLevels);
+      } catch (error) {
+        console.error('Error resetting unlockedLevels:', error);
+      }
+    };
+
     const lockOrientation = async () => {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
     };
@@ -325,39 +345,38 @@ const AnimalQuizScreen = ({ navigation, route }) => {
       setSelectedQuestions(shuffledQuestions);
       setIsLoading(false);
       setHasCheckedBadge(false);
-      progressAnim.setValue(0); // Reset progress on level start
+      progressAnim.setValue(0);
     };
+
+    resetUnlockedLevels();
     fetchQuestions();
 
     return () => ScreenOrientation.unlockAsync();
   }, [currentLevel]);
 
-  useEffect(() => {
-    if (currentQuestionIndex >= selectedQuestions.length && !hasCheckedBadge) {
-      checkBadgeAndUnlockNextLevel();
-      setHasCheckedBadge(true);
-    }
-  }, [currentQuestionIndex, selectedQuestions.length, hasCheckedBadge]);
-
-  const checkBadgeAndUnlockNextLevel = useCallback(async () => {
-    const currentLevelScore = score[currentLevel];
+  const checkBadgeAndUnlockNextLevel = useCallback(async (currentLevelScore) => {
+    console.log(`Current Level: ${currentLevel}, Score: ${currentLevelScore}/${QUESTIONS_PER_LEVEL}`);
     let updatedBadges = [...badges];
 
-    // Award badges based on performance
     if (currentLevel === 'easy' && currentLevelScore >= (retryCount.easy > 0 ? 5 : 6) && !badges.includes('Explorer')) {
       updatedBadges.push('Explorer');
+      console.log('Badge earned: Explorer');
     } else if (currentLevel === 'medium' && currentLevelScore >= (retryCount.medium > 0 ? 5 : 6) && !badges.includes('Adventurer')) {
       updatedBadges.push('Adventurer');
+      console.log('Badge earned: Adventurer');
     } else if (currentLevel === 'hard' && currentLevelScore >= (retryCount.hard > 0 ? 5 : 6) && !badges.includes('Master')) {
       updatedBadges.push('Master');
       if (badges.includes('Explorer') && badges.includes('Adventurer') && !badges.includes('Super Animal Expert')) {
         updatedBadges.push('Super Animal Expert');
+        console.log('Badge earned: Super Animal Expert');
       }
+      console.log('Badge earned: Master');
     }
 
     setBadges(updatedBadges);
     try {
       await AsyncStorage.setItem('badges', JSON.stringify(updatedBadges));
+      console.log('Badges saved to AsyncStorage:', updatedBadges);
     } catch (error) {
       console.error('Error saving badges:', error);
     }
@@ -367,36 +386,50 @@ const AnimalQuizScreen = ({ navigation, route }) => {
       try {
         const savedLevels = await AsyncStorage.getItem('unlockedLevels');
         let unlockedLevels = savedLevels ? JSON.parse(savedLevels) : { level1: true, level2: false, level3: false };
+        console.log('Current unlockedLevels before update:', unlockedLevels);
 
         if (currentLevel === 'easy' && !unlockedLevels.level2) {
           unlockedLevels.level2 = true;
-        } else if (currentLevel === 'medium' && !unlockedLevels.level3) {
+          console.log('Unlocked Level 2');
+        } else if (currentLevel === 'medium' && !unlockedLevels.level3 && unlockedLevels.level2) {
           unlockedLevels.level3 = true;
+          console.log('Unlocked Level 3');
         }
 
+        console.log('Updated unlockedLevels:', unlockedLevels);
         await AsyncStorage.setItem('unlockedLevels', JSON.stringify(unlockedLevels));
+        // Verify the save by reading back immediately
+        const verifyLevels = await AsyncStorage.getItem('unlockedLevels');
+        console.log('Verified unlockedLevels after save:', JSON.parse(verifyLevels));
       } catch (error) {
         console.error('Error unlocking next level:', error);
       }
+    } else {
+      console.log(`Level not unlocked. Required score: ${QUESTIONS_PER_LEVEL}, Achieved score: ${currentLevelScore}`);
     }
-  }, [badges, currentLevel, score, retryCount]);
+  }, [badges, currentLevel, retryCount]);
 
   const handleAnswer = async (selectedAnswer) => {
     const correctAnswer = selectedQuestions[currentQuestionIndex].answer;
+    let newLevelScore = score[currentLevel]; // Track score locally
+
     if (selectedAnswer === correctAnswer) {
-      setScore({ ...score, [currentLevel]: score[currentLevel] + 1 });
-      setTotalScore(totalScore + 1);
+      newLevelScore += 1; // Increment local score
+      setScore((prevScore) => {
+        const newScore = { ...prevScore, [currentLevel]: newLevelScore };
+        console.log(`Score updated for ${currentLevel}: ${newScore[currentLevel]}`);
+        return newScore;
+      });
+      setTotalScore((prevTotal) => prevTotal + 1);
       setFeedbackText('Correct! 🎉');
       setIsCorrectAnswer(true);
-      // Play correct sound (MP3)
       try {
         if (correctSound) {
-          await correctSound.replayAsync(); // Replay to start from beginning
+          await correctSound.replayAsync();
         }
       } catch (error) {
         console.error('Error playing correct sound (MP3):', error);
       }
-      // Start image animation
       Animated.timing(imageAnim, {
         toValue: 1,
         duration: 500,
@@ -405,10 +438,9 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     } else {
       setFeedbackText('Try again! 😊');
       setIsCorrectAnswer(false);
-      // Play wrong sound (WAV)
       try {
         if (wrongSound) {
-          await wrongSound.replayAsync(); // Replay to start from beginning
+          await wrongSound.replayAsync();
         }
       } catch (error) {
         console.error('Error playing wrong sound (WAV):', error);
@@ -420,6 +452,12 @@ const AnimalQuizScreen = ({ navigation, route }) => {
       duration: 500,
       useNativeDriver: true,
     }).start();
+
+    // Check badges and unlock next level after the last question
+    if (currentQuestionIndex === QUESTIONS_PER_LEVEL - 1 && !hasCheckedBadge) {
+      await checkBadgeAndUnlockNextLevel(newLevelScore);
+      setHasCheckedBadge(true);
+    }
   };
 
   const shuffleOptions = (options, answer) => {
@@ -435,7 +473,7 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     setIsCorrectAnswer(false);
     setCurrentQuestionIndex(currentQuestionIndex + 1);
     fadeAnim.setValue(0);
-    imageAnim.setValue(0); // Reset image animation
+    imageAnim.setValue(0);
   };
 
   const nextLevel = () => {
@@ -448,7 +486,7 @@ const AnimalQuizScreen = ({ navigation, route }) => {
     setCurrentQuestionIndex(0);
     setShowFeedback(false);
     fadeAnim.setValue(0);
-    progressAnim.setValue(0); // Reset progress for next level
+    progressAnim.setValue(0);
     let nextLevelQuestions;
     if (currentLevel === 'easy') {
       setCurrentLevel('medium');
@@ -506,7 +544,7 @@ const AnimalQuizScreen = ({ navigation, route }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.navigate('LevelSelection')}
+              onPress={() => navigation.navigate('LevelSelectionScreen')}
               accessible
               accessibilityLabel="Choose level"
               accessibilityRole="button"
@@ -524,7 +562,7 @@ const AnimalQuizScreen = ({ navigation, route }) => {
                 setHasCheckedBadge(false);
                 setRetryCount({ easy: 0, medium: 0, hard: 0 });
                 setSelectedQuestions(questions.easy.sort(() => 0.5 - Math.random()).slice(0, QUESTIONS_PER_LEVEL));
-                progressAnim.setValue(0); // Reset progress for new game
+                progressAnim.setValue(0);
               }}
               accessible
               accessibilityLabel="Play again"
@@ -572,7 +610,7 @@ const AnimalQuizScreen = ({ navigation, route }) => {
             )}
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.navigate('LevelSelection')}
+              onPress={() => navigation.navigate('LevelSelectionScreen')}
               accessible
               accessibilityLabel="Choose level"
               accessibilityRole="button"
@@ -584,10 +622,10 @@ const AnimalQuizScreen = ({ navigation, route }) => {
               onPress={() => {
                 setCurrentQuestionIndex(0);
                 setScore({ ...score, [currentLevel]: 0 });
-                setHasCheckedBadge(false);
+                setHasCheckedBadge(false); // Reset to allow re-checking badges and unlocking
                 setRetryCount({ ...retryCount, [currentLevel]: retryCount[currentLevel] + 1 });
                 setSelectedQuestions(questions[currentLevel].sort(() => 0.5 - Math.random()).slice(0, QUESTIONS_PER_LEVEL));
-                progressAnim.setValue(0); // Reset progress for retry
+                progressAnim.setValue(0);
               }}
               accessible
               accessibilityLabel="Retry level"
@@ -715,7 +753,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   scrollContainer: {
-    flexGrow: 1,
+    flexGrow:1,
     paddingVertical: 20,
   },
   contentWrapper: {
@@ -726,7 +764,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    color: '#8B4513',
+    color: '#333',
     fontFamily: 'Schoolbell',
     textAlign: 'center',
     marginBottom: 15,
@@ -857,25 +895,25 @@ const styles = StyleSheet.create({
   },
   score: {
     fontSize: 24,
-    color: '#FFF',
+    color: '#333',
     fontFamily: 'Poppins',
     marginVertical: 10,
   },
   levelScore: {
     fontSize: 20,
-    color: '#FFF',
+    color: '#333',
     fontFamily: 'Poppins',
     marginVertical: 5,
   },
   badgesText: {
     fontSize: 20,
-    color: '#FFF',
+    color: '#333',
     fontFamily: 'Poppins',
     marginVertical: 10,
   },
   retryMessage: {
     fontSize: 18,
-    color: '#FFF',
+    color: '#333',
     fontFamily: 'Poppins',
     textAlign: 'center',
     marginVertical: 10,

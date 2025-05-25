@@ -16,34 +16,41 @@ const LevelSelectionScreen = ({ navigation }) => {
     };
     lockOrientation();
 
-    // Load scores to determine unlocked levels
-    const loadScores = async () => {
+    // Load unlocked levels from AsyncStorage
+    const loadUnlockedLevels = async () => {
       try {
-        const savedScores = await AsyncStorage.getItem('scores');
-        if (savedScores) {
-          const scores = JSON.parse(savedScores);
+        const savedLevels = await AsyncStorage.getItem('unlockedLevels');
+        if (savedLevels) {
+          const parsedLevels = JSON.parse(savedLevels);
           setUnlockedLevels({
-            easy: true,
-            medium: scores.easy >= 6,
-            hard: scores.medium >= 6,
+            easy: true, // Easy is always unlocked
+            medium: !!parsedLevels.level2, // Check if level2 is unlocked
+            hard: !!parsedLevels.level3, // Check if level3 is unlocked
           });
+          console.log('Loaded unlockedLevels:', { easy: true, medium: !!parsedLevels.level2, hard: !!parsedLevels.level3 });
         }
       } catch (error) {
-        console.error('Error loading scores:', error);
+        console.error('Error loading unlocked levels:', error);
       }
     };
-    loadScores();
+    loadUnlockedLevels();
+
+    // Refresh levels when screen is focused
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadUnlockedLevels();
+    });
 
     return () => {
+      unsubscribe();
       ScreenOrientation.unlockAsync();
     };
-  }, []);
+  }, [navigation]);
 
   const handleLevelSelect = (level) => {
     if (unlockedLevels[level]) {
       navigation.navigate('AnimalQuizScreen', { selectedLevel: level });
     } else {
-      alert(`Complete the previous level with a score of 6/8 to unlock ${level}!`);
+      alert(`Complete the previous level with a score of 8/8 to unlock ${level}!`);
     }
   };
 
@@ -96,7 +103,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 40,
-    color: '#8B4513',
+    color: '#333',
     fontFamily: 'Schoolbell',
     textAlign: 'center',
     marginBottom: 20,
