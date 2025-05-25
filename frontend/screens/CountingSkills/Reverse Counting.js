@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as Speech from 'expo-speech';
+import Svg, { Polygon } from 'react-native-svg';
 
 // Get device screen dimensions for responsive layout
 const { width, height } = Dimensions.get('window');
@@ -106,7 +107,8 @@ const announcePickNumber = async (elements, kidVoiceId, lastAnnouncedRef, isAnno
 };
 
 // Memoized DraggableElement component for performance optimization
-const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest, shape }) => {
+const DraggableElement = memo(
+  ({ id, label, x, y, onDrop, isHighest, shape }) => {
     // Animated values for dragging, opacity, scaling, and shaking effects
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
     const opacity = useRef(new Animated.Value(1)).current;
@@ -179,77 +181,86 @@ const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest, shape }) =>
         })
     ).current;
 
+    // Dynamic style
+    const backgroundColor = shape === 'triangle'
+        ? 'transparent'
+        : COLORS[Math.floor(label) % COLORS.length];
+
+    const borderRadiusStyle =
+        shape === 'square'
+            ? { borderRadius: 12 }
+            : shape === 'circle'
+            ? { borderRadius: ELEMENT_SIZE / 2 }
+            : {};
+
     // Render draggable element with shape-specific styling (square, circle, or triangle)
     return (
-        <Animated.View
-            style={[
-                styles.element,
-                {
-                    transform: [
-                        ...pan.getTranslateTransform(),
-                        { scale: Animated.multiply(scale, pulse) },
-                        { translateX: Animated.multiply(shake, 10) },
-                    ],
-                    opacity,
-                    backgroundColor: shape === 'triangle' ? 'transparent' : COLORS[Math.floor(label) % COLORS.length],
-                    zIndex: 100,
-                    ...(shape === 'square'
-                        ? { borderRadius: 12 }
-                        : shape === 'circle'
-                        ? { borderRadius: ELEMENT_SIZE / 2 }
-                        : {
-                            borderRadius: 0,
-                            borderLeftWidth: ELEMENT_SIZE / 2,
-                            borderRightWidth: ELEMENT_SIZE / 2,
-                            borderBottomWidth: ELEMENT_SIZE,
-                            borderLeftColor: 'transparent',
-                            borderRightColor: 'transparent',
-                            borderBottomColor: COLORS[Math.floor(label) % COLORS.length],
-                            backgroundColor: 'transparent',
-                        }),
-                },
-            ]}
-            {...panResponder.panHandlers}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-            <View
-                style={
-                    shape === 'triangle'
-                        ? {
-                            position: 'absolute',
-                            top: ELEMENT_SIZE * 0.3,
-                            width: 32,
-                            height: 32,
-                            borderRadius: 16,
-                            backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }
-                        : {}
+      <Animated.View
+        style={[
+          styles.element,
+          shape === 'triangle' && styles.elementTriangle,    // removes shadow for triangle
+          {
+            transform: [
+              ...pan.getTranslateTransform(),
+              { scale: Animated.multiply(scale, pulse) },
+              { translateX: Animated.multiply(shake, 10) },
+            ],
+            opacity,
+            backgroundColor,
+            ...borderRadiusStyle,
+          },
+        ]}
+        {...panResponder.panHandlers}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        {shape === 'triangle' && (
+          <Svg
+            width={ELEMENT_SIZE}
+            height={ELEMENT_SIZE}
+            style={{ position: 'absolute', top: 0, left: 0 }}
+          >
+            <Polygon
+              points={`
+                ${ELEMENT_SIZE / 2},0
+                0,${ELEMENT_SIZE}
+                ${ELEMENT_SIZE},${ELEMENT_SIZE}
+              `}
+              fill={COLORS[Math.floor(label) % COLORS.length]}
+            />
+          </Svg>
+        )}
+
+        {/* number in a circle */}
+        <View
+          style={
+            shape === 'triangle'
+              ? {
+                  position: 'absolute',
+                  top: ELEMENT_SIZE * 0.3,
+                  left: (ELEMENT_SIZE - 32) / 2,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: 'rgba(255,255,255,0.5)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }
-            >
-                <Text
-                    style={[
-                        styles.labelText,
-                        {
-                            color: '#FFF',
-                            ...(shape === 'triangle'
-                                ? {
-                                    top: 0,
-                                    fontSize: 28,
-                                    textAlign: 'center',
-                                    lineHeight: 32,
-                                }
-                                : {}),
-                        },
-                    ]}
-                >
-                    {Math.floor(label)}
-                </Text>
-            </View>
-        </Animated.View>
+              : {}
+          }
+        >
+          <Text
+            style={[
+              styles.labelText,
+              shape === 'triangle' && { fontSize: 28, lineHeight: 32 },
+            ]}
+          >
+            {Math.floor(label)}
+          </Text>
+        </View>
+      </Animated.View>
     );
-});
+  }
+);
 
 // Main game component
 const ReverseCountingGame = () => {
@@ -796,17 +807,26 @@ const styles = StyleSheet.create({
     workspace: {
         flex: 1, // Workspace for draggable elements
     },
+    // Base—still includes shadows for square & circle
     element: {
         width: ELEMENT_SIZE,
         height: ELEMENT_SIZE,
         position: 'absolute',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000', // Shadow for depth
+        // default shadow for square & circle shapes
+        shadowColor: '#000',
         shadowOffset: { width: 1, height: 1 },
         shadowOpacity: 0.3,
         shadowRadius: 4,
         elevation: 5,
+    },
+
+    // **Override:** no shadow / no elevation when triangle
+    elementTriangle: {
+        shadowOpacity: 0,
+        shadowRadius: 0,
+        elevation: 0,
     },
     labelText: {
         color: '#FFF',

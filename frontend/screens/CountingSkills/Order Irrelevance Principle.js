@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOpacity, TouchableWithoutFeedback, Image, Vibration } from 'react-native';
 import { Audio } from 'expo-av';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 const ELEMENT_SIZE = 80;
@@ -190,7 +191,8 @@ const SeaBackground = ({ isDarkMode }) => {
 };
 
 // Main Component
-const OrderIrrelevance = ({ navigation }) => { // Added navigation prop
+const OrderIrrelevance = () => {
+    const navigation = useNavigation();
     const [elements, setElements] = useState([]);
     const [targetNumber, setTargetNumber] = useState(null);
     const [toastVisible, setToastVisible] = useState(false);
@@ -201,6 +203,7 @@ const OrderIrrelevance = ({ navigation }) => { // Added navigation prop
     const [isDarkMode, setIsDarkMode] = useState(false);
     const targetAnim = useRef(new Animated.Value(0)).current;
     const soundObject = useRef(null);
+    const timerRef = useRef(null);
 
     useEffect(() => {
         // Initialize audio
@@ -208,11 +211,10 @@ const OrderIrrelevance = ({ navigation }) => { // Added navigation prop
             soundObject.current = new Audio.Sound();
         };
         loadSound();
-
         initializeElements();
-
         return () => {
-            // Unload sound when component unmounts
+            // Unload sound and clear timer when component unmounts
+            clearInterval(timerRef.current);
             if (soundObject.current) {
                 soundObject.current.unloadAsync();
             }
@@ -286,21 +288,20 @@ const OrderIrrelevance = ({ navigation }) => { // Added navigation prop
 
     useEffect(() => {
         if (timeLeft > 0 && !isCorrect) {
-            const timer = setInterval(() => {
+            timerRef.current = setInterval(() => {
                 setTimeLeft((prev) => {
                     if (prev <= 1) {
                         setIsTimeUp(true);
-                        clearInterval(timer);
+                        clearInterval(timerRef.current);
                         setToastMessage(`⏰ Time's up! Tap ${targetNumber} to continue.`);
                         setToastVisible(true);
-                        console.log('Playing time up message');
                         playSound(audioFiles.time_up);
                         return 0;
                     }
                     return prev - 1;
                 });
             }, 1000);
-            return () => clearInterval(timer);
+            return () => clearInterval(timerRef.current);
         }
     }, [timeLeft, isCorrect, targetNumber]);
 
@@ -395,7 +396,16 @@ const OrderIrrelevance = ({ navigation }) => { // Added navigation prop
 
     // Handle back button press to navigate to Smart Counter
     const handleBackPress = () => {
-        navigation.navigate("SmartCounter");
+        // 1. Stop timer
+        clearInterval(timerRef.current);
+        // 2. Stop any vibrations
+        Vibration.cancel();
+        // 3. Unload audio
+        if (soundObject.current) {
+            soundObject.current.unloadAsync();
+        }
+        // 4. Navigate away
+        navigation.navigate('SmartCounter');
     };
 
     return (

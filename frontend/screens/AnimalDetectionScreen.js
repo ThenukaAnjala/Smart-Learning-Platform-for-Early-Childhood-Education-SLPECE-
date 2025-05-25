@@ -242,7 +242,20 @@ const AnimalDetectionScreen = () => {
   }
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>  
+      {/* Back Button - child-friendly */}
+      <TouchableOpacity
+        style={styles.childBackButton}
+        onPress={async () => {
+          // Set orientation to landscape before navigating home
+          await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+          navigation.navigate('Home');
+        }}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.childBackButtonIcon}>⬅️</Text>
+        <Text style={styles.childBackButtonLabel}>Back</Text>
+      </TouchableOpacity>
       {/* Background image layer */}
       <View style={styles.background}>
         <Image source={backgroundImage} style={styles.backgroundImage} />
@@ -514,6 +527,42 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 24,
     fontFamily: 'Poppins',
+  },
+  childBackButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffe082', // Soft yellow
+    borderRadius: 22,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    zIndex: 100,
+    shadowColor: '#fbc02d',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: '#ffd54f',
+  },
+  childBackButtonIcon: {
+    fontSize: 32,
+    marginRight: 10,
+    color: '#f57c00',
+    textShadowColor: '#fffde7',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  childBackButtonLabel: {
+    fontSize: 24,
+    color: '#f57c00',
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    textShadowColor: '#fffde7',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
 });
 

@@ -122,7 +122,7 @@ export default function RabbitBodyScreen() {
       style={styles.background}
       resizeMode="cover"
     >
-      <Text style={styles.title}>Rabbit Full Body</Text>
+      {/* <Text style={styles.title}>Rabbit Full Body</Text> */}
 
       <View style={styles.container}>
         {/* hopping rabbit */}

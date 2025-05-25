@@ -467,9 +467,24 @@ const MidrangeCounting = () => {
         setFlowers(generateFlowers());
     }, []);
 
-    const handleBack = () => {
+    // Clean-up effect to stop all pulses & timeouts
+    useEffect(() => {
+        return () => {
+            // stop any running pulse animations
+            pulseAnim.forEach(anim => anim.stopAnimation());
+            // clear any lingering timeouts
+            animationTimeouts.current.forEach(id => clearTimeout(id));
+        };
+    }, []);
+
+    // Back-button handler
+    const handleBack = useCallback(() => {
+        // ensure all animations stop immediately
+        pulseAnim.forEach(anim => anim.stopAnimation());
+        animationTimeouts.current.forEach(id => clearTimeout(id));
+        // now navigate away
         navigation.navigate('SmartCounter');
-    };
+    }, [navigation]);
 
     return (
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>

@@ -17,7 +17,7 @@ const logoutIcon = require('../assets/images/HomeScreen/logout.png');
 const loadingAnimation = require('../assets/Animations/HomeAnimations/HomeLoading.json');
 
 const api = axios.create({
-  baseURL: 'http://192.168.1.46:5000/api', // Replace with your backend URL
+  baseURL: 'http://192.168.53.47:5000/api', // Replace with your backend URL
 });
 
 api.interceptors.request.use(async (config) => {
@@ -267,7 +267,7 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={styles.buttonContainer}
         />
       </Animated.View>
-      <Button title="Open Story Library" onPress={() => navigation.navigate('StoryTellingHome')} />
+      
     </View>
   );
 };

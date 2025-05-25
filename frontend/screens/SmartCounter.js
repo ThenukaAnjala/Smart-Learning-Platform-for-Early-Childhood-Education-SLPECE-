@@ -108,7 +108,16 @@ export default function SmartCounter() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF' }]}>
+        <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF' }]}>  
+            {/* Back Button */}
+            <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.navigate('Home')}
+                activeOpacity={0.7}
+            >
+                <Text style={styles.backButtonIcon}>←</Text>
+                <Text style={styles.backButtonLabel}>Back</Text>
+            </TouchableOpacity>
             {/* Buttons */}
             {skills.map((skill, index) => {
                 const rotateInterpolate = rotateAnim[index].interpolate({
@@ -179,6 +188,41 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         padding: 20,
         position: 'relative',
+    },
+    backButton: {
+        position: 'absolute',
+        top: 30,
+        left: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4A90E2',
+        borderRadius: 25,
+        paddingVertical: 10,
+        paddingHorizontal: 22,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+        zIndex: 10,
+    },
+    backButtonIcon: {
+        fontSize: 22,
+        color: '#FFF',
+        fontWeight: 'bold',
+        marginRight: 7,
+        textShadowColor: 'rgba(0,0,0,0.2)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+    backButtonLabel: {
+        fontSize: 18,
+        color: '#FFF',
+        fontWeight: '700',
+        letterSpacing: 1,
+        textShadowColor: 'rgba(0,0,0,0.2)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
     buttonContainer: {
         margin: 35,

@@ -42,15 +42,15 @@ export default function DrawingBoard({ navigation }) {
 
   // Network configuration: update COMPUTER_IP with your computer’s LAN IP.
   const IS_ANDROID_EMULATOR = false;
-  const COMPUTER_IP = '172.28.0.164'; // <-- Replace with your actual LAN IP.
+  const COMPUTER_IP = '192.168.53.47'; // <-- Replace with your actual LAN IP.
   const BACKEND_URL =
     Platform.OS === 'android'
       ? IS_ANDROID_EMULATOR
-        ? 'http://10.0.2.2:5000/predict'
-        : `http://${COMPUTER_IP}:5000/predict`
+        ? 'http://10.0.2.2:5001/predict'
+        : `http://${COMPUTER_IP}:5001/predict`
       : Platform.OS === 'ios'
-      ? 'http://127.0.0.1:5000/predict'
-      : `http://${COMPUTER_IP}:5000/predict`;
+      ? 'http://127.0.0.1:5001/predict'
+      : `http://${COMPUTER_IP}:5001/predict`;
 
   // PanResponder to capture drawing strokes.
   const panResponder = useRef(
@@ -573,6 +573,15 @@ export default function DrawingBoard({ navigation }) {
         end={{ x: 1, y: 0 }}
         style={styles.toolbar}
       >
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.childBackButton}
+          onPress={() => navigation.navigate('Home')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.childBackButtonIcon}>⬅️</Text>
+          <Text style={styles.childBackButtonLabel}>Back</Text>
+        </TouchableOpacity>
         {/* <Text style={styles.toolbarTitle}>Windows Paint</Text> */}
         <View style={styles.toolbarButtons}>
           <TouchableOpacity style={[styles.toolbarButton, !isEraser && styles.activeButton]} onPress={() => setIsEraser(false)} activeOpacity={0.7}>
@@ -696,6 +705,40 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     marginBottom: 2,
+  },
+  childBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffe082', // Soft yellow
+    borderRadius: 22,
+    paddingVertical: 7,
+    paddingHorizontal: 18,
+    marginRight: 14,
+    marginLeft: 2,
+    shadowColor: '#fbc02d',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: '#ffd54f',
+  },
+  childBackButtonIcon: {
+    fontSize: 28,
+    marginRight: 7,
+    color: '#f57c00',
+    textShadowColor: '#fffde7',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  childBackButtonLabel: {
+    fontSize: 22,
+    color: '#f57c00',
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    textShadowColor: '#fffde7',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   toolbarButtons: {
     flexDirection: 'row',

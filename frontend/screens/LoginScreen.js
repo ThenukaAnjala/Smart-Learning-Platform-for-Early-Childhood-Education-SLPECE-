@@ -1,35 +1,38 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import { AuthContext } from '../../frontend/App';
+import { useFonts } from 'expo-font';
 
 const api = axios.create({
-  baseURL: 'http://192.168.1.46:5000/api', // Replace with your backend URL
+  baseURL: 'http://192.168.53.47:5000/api',
 });
-
 api.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('jwt_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 const LoginScreen = ({ navigation }) => {
+  const { setIsAuthenticated } = useContext(AuthContext);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { setIsAuthenticated } = useContext(AuthContext);
+
+  const [fontsLoaded] = useFonts({
+    'Schoolbell-Regular': require('../assets/fonts/Schoolbell-Regular.ttf'),
+  });
+  if (!fontsLoaded) return null;
 
   const handleLogin = async () => {
     try {
-      const response = await api.post('/login', { username, password });
-      await SecureStore.setItemAsync('jwt_token', response.data.token);
-      setIsAuthenticated(true); // Triggers switch to authenticated stack
+      const res = await api.post('/login', { username, password });
+      await SecureStore.setItemAsync('jwt_token', res.data.token);
+      setIsAuthenticated(true);
     } catch (err) {
       setError('Login failed. Check your credentials.');
-      console.error('Login error:', err);
+      console.error(err);
     }
   };
 
@@ -39,53 +42,93 @@ const LoginScreen = ({ navigation }) => {
       <TextInput
         style={styles.input}
         placeholder="Username"
+        placeholderTextColor="#888"
         value={username}
         onChangeText={setUsername}
       />
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#888"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title="Login" onPress={handleLogin} />
-      <View style={styles.buttonSpacer} />
-      <Button
-        title="Go to Landing"
+
+      <TouchableOpacity style={styles.buttonPrimary} onPress={handleLogin}>
+        <Text style={styles.buttonText}>Login</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.buttonSecondary}
         onPress={() => navigation.navigate('Landing')}
-      />
+      >
+        <Text style={styles.buttonText}>Back to Home</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
+export default LoginScreen;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFF7ED',
+    padding: 24,
     justifyContent: 'center',
-    padding: 20,
   },
   title: {
-    fontSize: 24,
-    marginBottom: 20,
+    fontFamily: 'Schoolbell-Regular',
+    fontSize: 32,
+    color: '#E94E77',
     textAlign: 'center',
+    marginBottom: 24,
   },
   input: {
+    fontFamily: 'Schoolbell-Regular',
+    fontSize: 18,
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
+    borderColor: '#4F6D7A',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    color: '#333',
   },
   error: {
-    color: 'red',
-    marginBottom: 10,
+    fontFamily: 'Schoolbell-Regular',
+    color: '#D32F2F',
     textAlign: 'center',
+    marginBottom: 16,
   },
-  buttonSpacer: {
-    height: 10,
+  buttonPrimary: {
+    backgroundColor: '#E94E77',
+    paddingVertical: 14,
+    borderRadius: 28,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  buttonSecondary: {
+    backgroundColor: '#4F6D7A',
+    paddingVertical: 14,
+    borderRadius: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  buttonText: {
+    fontFamily: 'Schoolbell-Regular',
+    fontSize: 18,
+    color: '#FFF',
   },
 });
-
-export default LoginScreen;

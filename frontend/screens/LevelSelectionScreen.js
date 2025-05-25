@@ -81,7 +81,10 @@ const LevelSelectionScreen = ({ navigation }) => {
         <Text style={styles.levelButtonText}>Hard (Level 3)</Text>
         {!unlockedLevels.hard && <Text style={styles.lockedText}>Locked</Text>}
       </TouchableOpacity>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
+      <TouchableOpacity style={styles.backButton} onPress={async () => {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+        navigation.navigate('Home');
+      }}>
         <Text style={styles.backButtonText}>Back to Home</Text>
       </TouchableOpacity>
     </View>
