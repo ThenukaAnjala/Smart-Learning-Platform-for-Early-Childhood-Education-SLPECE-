@@ -28,6 +28,7 @@ import AnimalQuizScreen from '../screens/AnimalQuizScreen';
 import LevelSelectionScreen from '../screens/LevelSelectionScreen'
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen'; // Add SignupScreen
+import LandingScreen from '../screens/LandingScreen';
 import { AuthContext } from '../App';
 
 const Stack = createStackNavigator();
