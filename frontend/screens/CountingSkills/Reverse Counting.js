@@ -3,53 +3,43 @@ import { View, Text, StyleSheet, PanResponder, Dimensions, Animated, TouchableOp
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as Speech from 'expo-speech';
 
+// Get device screen dimensions for responsive layout
 const { width, height } = Dimensions.get('window');
-const ELEMENT_SIZE = 70;
-const DUSTBIN_SIZE = 80;
-const DUSTBIN_PADDING = 20;
-const LEFT_MARGIN = 20;
-const GAP = 10;
-const MAX_ELEMENTS = 10;
-const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
+// Constants for element and dustbin sizes, margins, and game settings
+const ELEMENT_SIZE = 70; // Size of draggable elements
+const DUSTBIN_SIZE = 80; // Size of the dustbin
+const DUSTBIN_PADDING = 20; // Padding around dustbin
+const LEFT_MARGIN = 20; // Margin for elements from left edge
+const GAP = 10; // Gap between elements
+const MAX_ELEMENTS = 10; // Maximum number of elements in game
+const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD']; // Colors for elements
 
+// Arrays of success and failure messages for user feedback
 const SUCCESS_MESSAGES = [
-    'Super Job!',
-    'You’re a Star!',
-    'Wow, You Did It!',
-    'Awesome Work!',
-    'High Five!',
-    'You’re Amazing!',
-    'Great Going!',
-    'Way to Shine!',
-    'Fantastic!',
+    'Super Job!', 'You’re a Star!', 'Wow, You Did It!', 'Awesome Work!',
+    'High Five!', 'You’re Amazing!', 'Great Going!', 'Way to Shine!', 'Fantastic!',
 ];
-
 const FAILURE_MESSAGES = [
-    'Try Again!',
-    'You’re So Close!',
-    'Keep Going!',
-    'Almost There!',
-    'Give It Another Go!',
-    'You Can Do It!',
-    'Nice Try!',
-    'Let’s Try Again!',
+    'Try Again!', 'You’re So Close!', 'Keep Going!', 'Almost There!',
+    'Give It Another Go!', 'You Can Do It!', 'Nice Try!', 'Let’s Try Again!',
 ];
 
+// Utility function to pick a random message from an array
 const getRandomMessage = (messages) => {
     return messages[Math.floor(Math.random() * messages.length)];
 };
 
+// Initialize Text-to-Speech (TTS) to find a kid-friendly voice
 const initializeTts = async () => {
     try {
         const voices = await Speech.getAvailableVoicesAsync();
         console.log('Available TTS voices:', voices);
-
+        // Look for a child-like or friendly voice (e.g., 'samantha')
         const kidVoice = voices.find(voice =>
             voice.name.toLowerCase().includes('child') ||
             voice.name.toLowerCase().includes('kid') ||
             voice.name.toLowerCase().includes('samantha')
         );
-
         return kidVoice ? kidVoice.identifier : null;
     } catch (error) {
         console.error('Error initializing TTS:', error);
@@ -57,6 +47,7 @@ const initializeTts = async () => {
     }
 };
 
+// Debounce utility to prevent rapid function calls (used for TTS announcements)
 const debounce = (func, wait) => {
     let timeout;
     return (...args) => {
@@ -65,43 +56,29 @@ const debounce = (func, wait) => {
     };
 };
 
+// Announce the highest number to pick using TTS
 const announcePickNumber = async (elements, kidVoiceId, lastAnnouncedRef, isAnnouncingRef, setSpeechText, setSpeechBubbleColor) => {
     if (elements.length === 0) {
-        console.log('No elements to announce');
         setSpeechText('');
         setSpeechBubbleColor('#FF69B4');
         return;
     }
-
-    if (isAnnouncingRef.current) {
-        console.log('Announcement in progress, skipping');
-        return;
-    }
-
+    if (isAnnouncingRef.current) return; // Prevent overlapping announcements
     const maxLabel = Math.max(...elements.map(el => el.label));
-    if (lastAnnouncedRef.current === maxLabel) {
-        console.log('Skipping redundant announcement for maxLabel:', maxLabel);
-        return;
-    }
-
+    if (lastAnnouncedRef.current === maxLabel) return; // Avoid repeating same announcement
     isAnnouncingRef.current = true;
     try {
+        // Stop any ongoing speech to avoid overlap
         let isSpeaking = await Speech.isSpeakingAsync();
         let attempts = 0;
         const maxAttempts = 3;
         while (isSpeaking && attempts < maxAttempts) {
-            console.log(`Speech in progress, stopping (attempt ${attempts + 1})...`);
             await Speech.stop();
             await new Promise(resolve => setTimeout(resolve, 100));
             isSpeaking = await Speech.isSpeakingAsync();
             attempts++;
         }
-        if (isSpeaking) {
-            console.warn('Failed to stop speech after max attempts');
-        }
-
         const speechText = `Pick number ${maxLabel}`;
-        console.log('Announcing pick number:', maxLabel);
         lastAnnouncedRef.current = maxLabel;
         setSpeechText(speechText);
         setSpeechBubbleColor('#FF69B4');
@@ -117,7 +94,6 @@ const announcePickNumber = async (elements, kidVoiceId, lastAnnouncedRef, isAnno
                 isAnnouncingRef.current = false;
             },
             onDone: () => {
-                console.log('Announcement completed for maxLabel:', maxLabel);
                 isAnnouncingRef.current = false;
             },
         });
@@ -129,7 +105,9 @@ const announcePickNumber = async (elements, kidVoiceId, lastAnnouncedRef, isAnno
     }
 };
 
+// Memoized DraggableElement component for performance optimization
 const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest, shape }) => {
+    // Animated values for dragging, opacity, scaling, and shaking effects
     const pan = useRef(new Animated.ValueXY({ x, y })).current;
     const opacity = useRef(new Animated.Value(1)).current;
     const scale = useRef(new Animated.Value(1)).current;
@@ -137,17 +115,17 @@ const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest, shape }) =>
     const pulse = useRef(new Animated.Value(1)).current;
     const isTouchable = useRef(true);
 
+    // Animate element back to its original position when x or y changes
     useEffect(() => {
-        if (pan && typeof pan.setValue === 'function') {
-            Animated.spring(pan, {
-                toValue: { x, y },
-                useNativeDriver: true,
-                tension: 100,
-                friction: 4,
-            }).start();
-        }
+        Animated.spring(pan, {
+            toValue: { x, y },
+            useNativeDriver: true,
+            tension: 100,
+            friction: 4,
+        }).start();
     }, [x, y]);
 
+    // Pulse animation for the element with the highest label
     useEffect(() => {
         if (isHighest) {
             const pulseAnimation = Animated.loop(
@@ -169,53 +147,39 @@ const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest, shape }) =>
         }
     }, [isHighest]);
 
+    // PanResponder for handling drag gestures
     const panResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => isTouchable.current,
             onPanResponderGrant: () => {
-                if (pan && typeof pan.setOffset === 'function') {
-                    pan.setOffset({ x: pan.x._value, y: pan.y._value });
-                    pan.setValue({ x: 0, y: 0 });
-                    Animated.spring(scale, {
-                        toValue: 1.15,
-                        duration: 30,
-                        useNativeDriver: true,
-                    }).start();
-                    isTouchable.current = false;
-                }
+                pan.setOffset({ x: pan.x._value, y: pan.y._value });
+                pan.setValue({ x: 0, y: 0 });
+                Animated.spring(scale, {
+                    toValue: 1.15,
+                    duration: 30,
+                    useNativeDriver: true,
+                }).start();
+                isTouchable.current = false;
             },
             onPanResponderMove: (evt, gestureState) => {
-                pan.setValue({
-                    x: gestureState.dx,
-                    y: gestureState.dy,
-                });
+                pan.setValue({ x: gestureState.dx, y: gestureState.dy });
             },
             onPanResponderRelease: () => {
-                if (pan && typeof pan.flattenOffset === 'function') {
-                    try {
-                        pan.flattenOffset();
-                        pan.setOffset({ x: 0, y: 0 });
-                        Animated.spring(scale, {
-                            toValue: 1,
-                            duration: 30,
-                            useNativeDriver: true,
-                        }).start();
-                        onDrop(id, pan.x._value, pan.y._value, opacity, shake, { x, y }, () => {
-                            isTouchable.current = true;
-                            console.log('Touch re-enabled for element:', { id, label });
-                        });
-                    } catch (error) {
-                        console.error('Error in onPanResponderRelease:', error);
-                    } finally {
-                        isTouchable.current = true;
-                        console.log('Forced touch re-enabled for element:', { id, label });
-                    }
-                }
+                pan.flattenOffset();
+                pan.setOffset({ x: 0, y: 0 });
+                Animated.spring(scale, {
+                    toValue: 1,
+                    duration: 30,
+                    useNativeDriver: true,
+                }).start();
+                onDrop(id, pan.x._value, pan.y._value, opacity, shake, { x, y }, () => {
+                    isTouchable.current = true;
+                });
             },
         })
     ).current;
 
-    console.log('Rendering DraggableElement:', { shape, label, x: pan.x._value, y: pan.y._value });
+    // Render draggable element with shape-specific styling (square, circle, or triangle)
     return (
         <Animated.View
             style={[
@@ -287,8 +251,10 @@ const DraggableElement = memo(({ id, label, x, y, onDrop, isHighest, shape }) =>
     );
 });
 
+// Main game component
 const ReverseCountingGame = () => {
     const navigation = useNavigation();
+    // State for game elements, dark mode, TTS, speech bubble, and shape
     const [elements, setElements] = useState([]);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [kidVoiceId, setKidVoiceId] = useState(null);
@@ -296,6 +262,7 @@ const ReverseCountingGame = () => {
     const [temporarySpeechText, setTemporarySpeechText] = useState('');
     const [speechBubbleColor, setSpeechBubbleColor] = useState('#FF69B4');
     const [shape, setShape] = useState('triangle');
+    // Refs for managing state and animations
     const keyCounter = useRef(0);
     const elementsRef = useRef([]);
     const animationRef = useRef(null);
@@ -310,6 +277,7 @@ const ReverseCountingGame = () => {
     const isAnnouncingRef = useRef(false);
     const backButtonScale = useRef(new Animated.Value(1)).current;
 
+    // Debounced function to announce the highest number
     const debouncedAnnouncePickNumber = useRef(
         debounce((elements, kidVoiceId) => {
             announcePickNumber(elements, kidVoiceId, lastAnnouncedRef, isAnnouncingRef, setSpeechText, setSpeechBubbleColor);
@@ -318,6 +286,7 @@ const ReverseCountingGame = () => {
 
     const maxLabel = elements.length > 0 ? Math.max(...elements.map(el => el.label)) : 0;
 
+    // Initialize TTS on component mount
     useEffect(() => {
         let isActive = true;
         const setupTts = async () => {
@@ -332,6 +301,7 @@ const ReverseCountingGame = () => {
         };
     }, []);
 
+    // Animate dustbin with a pulsing effect
     useEffect(() => {
         const dustbinAnimation = Animated.loop(
             Animated.sequence([
@@ -351,14 +321,11 @@ const ReverseCountingGame = () => {
         return () => {
             mounted.current = false;
             dustbinAnimation.stop();
-            if (animationRef.current) {
-                animationRef.current.stop();
-                animationRef.current = null;
-            }
             Speech.stop();
         };
     }, []);
 
+    // Animate speech bubble when text changes
     useEffect(() => {
         const displayText = temporarySpeechText || speechText;
         if (displayText && mounted.current) {
@@ -391,12 +358,11 @@ const ReverseCountingGame = () => {
         }
     }, [speechText, temporarySpeechText]);
 
+    // Initialize game elements (numbers 1 to 10)
     const initializeElements = useCallback(() => {
         if (isInitialized.current) return;
         isInitialized.current = true;
-
         elementsRef.current = [];
-
         const rowY = height / 2;
         const newElements = Array.from({ length: MAX_ELEMENTS }, (_, i) => {
             const id = keyCounter.current++;
@@ -416,7 +382,6 @@ const ReverseCountingGame = () => {
         if (mounted.current) {
             setElements(newElements);
             elementsRef.current = newElements;
-            console.log('Initialized elements:', newElements.map(el => ({ id: el.id, label: el.label, x: el.x, y: el.y })));
             setTimeout(() => {
                 if (mounted.current) {
                     debouncedAnnouncePickNumber(newElements, kidVoiceId);
@@ -425,12 +390,14 @@ const ReverseCountingGame = () => {
         }
     }, [kidVoiceId]);
 
+    // Trigger element initialization on mount
     useEffect(() => {
         if (!elements.length && !isInitialized.current) {
             initializeElements();
         }
     }, [elements.length, initializeElements]);
 
+    // Update speech text when elements change
     useEffect(() => {
         elementsRef.current = elements;
         if (elements.length > 0) {
@@ -445,6 +412,7 @@ const ReverseCountingGame = () => {
         }
     }, [elements]);
 
+    // Clean up animations on screen focus change
     useFocusEffect(
         useCallback(() => {
             return () => {
@@ -456,6 +424,7 @@ const ReverseCountingGame = () => {
         }, [])
     );
 
+    // Validate element position to avoid overlaps and out-of-bounds
     const validatePosition = useCallback((x, y) => {
         if (x < 0 || x > width - ELEMENT_SIZE || y < 0 || y > height - ELEMENT_SIZE) {
             return false;
@@ -473,16 +442,12 @@ const ReverseCountingGame = () => {
         return true;
     }, []);
 
+    // Add a new element to the game
     const addElement = useCallback(() => {
-        if (elementsRef.current.length >= MAX_ELEMENTS) {
-            return;
-        }
+        if (elementsRef.current.length >= MAX_ELEMENTS) return;
         const rowY = height / 2;
         let x = LEFT_MARGIN + elementsRef.current.length * (ELEMENT_SIZE + GAP);
-        if (!validatePosition(x, rowY)) {
-            return;
-        }
-
+        if (!validatePosition(x, rowY)) return;
         const id = keyCounter.current++;
         const newElement = {
             id,
@@ -509,10 +474,9 @@ const ReverseCountingGame = () => {
         }
     }, [validatePosition, kidVoiceId]);
 
+    // Shuffle element labels
     const shuffleElements = useCallback(() => {
-        if (!elementsRef.current.length || isDropping.current) {
-            return;
-        }
+        if (!elementsRef.current.length || isDropping.current) return;
         const labels = elementsRef.current.map(el => el.label);
         for (let i = labels.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -533,6 +497,7 @@ const ReverseCountingGame = () => {
         }
     }, [kidVoiceId]);
 
+    // Toggle between square, triangle, and circle shapes
     const toggleShape = useCallback(() => {
         if (mounted.current) {
             setShape(prev => {
@@ -542,45 +507,42 @@ const ReverseCountingGame = () => {
         }
     }, []);
 
+    // Get icon for the next shape
     const getNextShapeIcon = () => {
         if (shape === 'square') return '🔺';
         if (shape === 'triangle') return '⚪';
         return '⬛';
     };
 
+    // Handle element drop (check if dropped in dustbin and validate)
     const handleDrop = useCallback((id, newX, newY, opacity, shake, originalPos, callback) => {
         if (!elementsRef.current.length || isDropping.current) {
             callback?.();
             return;
         }
-
         isDropping.current = true;
         setTimeout(() => {
             isDropping.current = false;
         }, 300);
-
         const dustbinX = width - DUSTBIN_SIZE - DUSTBIN_PADDING;
         const dustbinY = DUSTBIN_PADDING;
         const centerX = newX + ELEMENT_SIZE / 2;
         const centerY = newY + ELEMENT_SIZE / 2;
-
         const isInDustbin =
             centerX >= dustbinX &&
             centerX <= dustbinX + DUSTBIN_SIZE &&
             centerY >= dustbinY &&
             centerY <= dustbinY + DUSTBIN_SIZE;
-
         const element = elementsRef.current.find(el => el.id === id);
         if (!element) {
             isDropping.current = false;
             callback?.();
             return;
         }
-
         const maxLabel = Math.max(...elementsRef.current.map(el => el.label));
         const target = elementsRef.current.find(el => el.label === maxLabel);
-
         if (isInDustbin && (!target || target.id !== id)) {
+            // Wrong number dropped: show failure message and shake element
             const failureMessage = getRandomMessage(FAILURE_MESSAGES);
             setTemporarySpeechText(failureMessage);
             setSpeechBubbleColor('#FF3333');
@@ -644,8 +606,8 @@ const ReverseCountingGame = () => {
             });
             return;
         }
-
         if (isInDustbin && target && target.id === id) {
+            // Correct number dropped: show success message and remove element
             const successMessage = getRandomMessage(SUCCESS_MESSAGES);
             setTemporarySpeechText(successMessage);
             setSpeechBubbleColor('#2E7D32');
@@ -696,6 +658,7 @@ const ReverseCountingGame = () => {
                 callback?.();
             });
         } else if (!isInDustbin) {
+            // Dropped outside dustbin: return to original position
             Animated.spring(element.pan, {
                 toValue: { x: element.originalX, y: element.originalY },
                 duration: 100,
@@ -710,12 +673,14 @@ const ReverseCountingGame = () => {
         }
     }, [kidVoiceId]);
 
+    // Toggle dark mode
     const toggleDarkMode = useCallback(() => {
         if (mounted.current) {
             setIsDarkMode(prev => !prev);
         }
     }, []);
 
+    // Animate button press effect
     const animateButton = useCallback((scale, pressIn) => {
         Animated.spring(scale, {
             toValue: pressIn ? 0.9 : 1,
@@ -725,10 +690,12 @@ const ReverseCountingGame = () => {
         }).start();
     }, []);
 
+    // Navigate back to SmartCounter screen
     const handleBackPress = () => {
         navigation.navigate('SmartCounter');
     };
 
+    // Render game UI
     return (
         <View style={[styles.container, { backgroundColor: isDarkMode ? '#1A1A1A' : '#E6F3FF' }]}>
             <View style={styles.workspace}>
@@ -821,12 +788,13 @@ const ReverseCountingGame = () => {
     );
 };
 
+// Styles for the game UI
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        flex: 1, // Full-screen container
     },
     workspace: {
-        flex: 1,
+        flex: 1, // Workspace for draggable elements
     },
     element: {
         width: ELEMENT_SIZE,
@@ -834,7 +802,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
+        shadowColor: '#000', // Shadow for depth
         shadowOffset: { width: 1, height: 1 },
         shadowOpacity: 0.3,
         shadowRadius: 4,
@@ -844,7 +812,7 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontSize: 26,
         fontWeight: '700',
-        textShadowColor: 'rgba(0,0,0,0.3)',
+        textShadowColor: 'rgba(0,0,0,0.3)', // Text shadow for readability
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
     },
@@ -857,11 +825,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)', // Semi-transparent dustbin
         borderRadius: 12,
     },
     dustbinText: {
-        fontSize: 40,
+        fontSize: 40, // Trash can emoji
     },
     darkModeButton: {
         position: 'absolute',
@@ -887,7 +855,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: DUSTBIN_PADDING,
         left: DUSTBIN_PADDING,
-        backgroundColor: '#4A90E2',
+        backgroundColor: '#4A90E2', // Blue back button
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 25,
