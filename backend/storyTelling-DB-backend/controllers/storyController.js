@@ -49,17 +49,22 @@ const createStory = asyncHandler(async (req, res) => {
 
 // Get a story with populated sections
 const getStoryWithSections = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    try {
+        const { id } = req.params;
 
-    // Fetch the story and populate storySection
-    const story = await Story.findById(id).populate('storySection');
+        // Fetch the story and populate storySection
+        const story = await Story.findById(id).populate('storySection');
 
-    if (!story) {
-        res.status(404);
-        throw new Error("Story not found.");
+        if (!story) {
+            res.status(404);
+            throw new Error("Story not found.");
+        }
+
+        res.status(200).json(story);
+    } catch (error) {
+        console.error("Error fetching story with sections:", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
-
-    res.status(200).json(story);
 });
 
 const getStorySectionById = asyncHandler(async (req, res) => {

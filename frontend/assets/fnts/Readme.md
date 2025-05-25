@@ -11,4 +11,4 @@ This folder contains custom font files used in the application.
 
 ## Notes
 - Add more font files here as needed.
-- Ensure proper licensing for any custom fonts used.
+- Ensure proper licensing for any custom fonts used

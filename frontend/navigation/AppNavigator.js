@@ -5,7 +5,7 @@ import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
 import DrawingBoard from '../screens/DrawingBoard';
 import TextToSpeech from '../screens/storyTellingComponent/TextToSpeech';
-import StoryTellingHome from '../screens/storyTellingComponent/storyTellingHome';
+import StoryHome from '../screens/storyTellingComponent/storyTellingHome';
 import StoryAbout from '../screens/storyTellingComponent/storyAbout';
 import GenerateStory from '../screens/storyTellingComponent/GenerateStory';
 import SingleStory from '../screens/storyTellingComponent/singleStory'; // Ensure the case matches the file name
@@ -21,7 +21,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="DrawingBoard" component={DrawingBoard} />
         <Stack.Screen name="TextToSpeech" component={TextToSpeech} />
-        <Stack.Screen name="StoryTellingHome" component={StoryTellingHome} />
+        <Stack.Screen name="StoryTellingHome" component={StoryHome} />
         <Stack.Screen name="StoryAbout" component={StoryAbout} />
         <Stack.Screen name="GenerateStory" component={GenerateStory} />
         <Stack.Screen name="SingleStory" component={SingleStory} />

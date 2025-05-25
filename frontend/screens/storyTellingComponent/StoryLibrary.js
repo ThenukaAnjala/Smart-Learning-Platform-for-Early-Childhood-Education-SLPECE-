@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet } from "react-native";
-import axios from "axios";
+//import axios from "axios";
+import { api4010, api5000 } from "../storyTellingComponent/axiosInstance";
 import { useNavigation } from '@react-navigation/native';
 
 const StoryLibrary = () => {
@@ -12,8 +13,9 @@ const StoryLibrary = () => {
   useEffect(() => {
     const fetchStories = async () => {
       try {
-        const response = await axios.get(`http://192.168.8.144:4010/story-liabrary/stories/user/${userId}`);
+        const response = await api4010.get(`/story-liabrary/stories/user/${userId}`);
         setStories(response.data);
+        console.log("Fetched stories:", response.data);
       } catch (error) {
         console.error("Error fetching stories:", error);
       } finally {
@@ -52,8 +54,8 @@ const StoryLibrary = () => {
         renderItem={renderStory}
         keyExtractor={(item) => item._id.toString()}
         contentContainerStyle={styles.storyList}
-        numColumns={3}
-        key={3}
+        numColumns={2}
+        key={2}
       />
     </View>
   );
@@ -70,26 +72,36 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   storyList: {
+    
     alignItems: "center",
+    gap: 20,columnGap: 70,
+    borderColor: "#ccc",
+    borderRadius: 10,
+    
+    
+    
   },
   storyCard: {
-    width: 200,
+    width: 190,
     backgroundColor: "#fff",
     borderRadius: 10,
-    margin: 20,
-    alignItems: "center",
-    padding: 15,
+    padding: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 5,
+    gap: 10,
+    marginRight:7,
+    marginLeft: 7,
   },
   storyImage: {
     width: 150,
     height: 150,
     borderRadius: 5,
     marginBottom: 10,
+    
+
   },
   storyTitle: {
     fontSize: 18,

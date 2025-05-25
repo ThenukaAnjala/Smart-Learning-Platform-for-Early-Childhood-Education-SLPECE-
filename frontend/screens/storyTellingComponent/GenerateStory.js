@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api4010, api5000 } from "../storyTellingComponent/axiosInstance";
 
 import {
   View,
@@ -27,15 +28,17 @@ const GenerateStory = () => {
   const [loading, setLoading] = useState(false); // Loader
   const [availableVoices, setAvailableVoices] = useState([]); // List of available voices
   const [selectedVoice, setSelectedVoice] = useState(null); // Selected voice
-  const [fontStyle, setFontStyle] = useState("Poppins"); // Default font style
+  const [fontStyle, setFontStyle] = useState('LoveYaLikeASister'); // Default font style
   const [fontColor, setFontColor] = useState("#000000"); // Default text color
-  const [fontSize, setFontSize] = useState(16); // Default font size
+  const [fontSize, setFontSize] = useState(28); // Default font size
   const [musicURLs, setMusicURLs] = useState([]); // Music URLs
   const [sound, setSound] = useState(null); // Sound object for playing music
+  const [inputHeight, setInputHeight] = useState(50); // Height of the input field
 
   const [storyName, setStoryName] = useState("");
   const [storyDescription, setStoryDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  
 
   // Font styles for selection
   const fontStyles = [
@@ -76,6 +79,16 @@ const GenerateStory = () => {
   // Font sizes for dropdown
   const fontSizes = [12, 14, 16, 18, 20, 22, 24, 26];
 
+  //  useEffect(() => {
+  //   return () => {
+  //     if (soundRef.current) {
+  //       soundRef.current.stopAsync();
+  //       soundRef.current.unloadAsync();
+  //     }
+  //   };
+  // }, []);
+
+
   // Corrected implementation
   useEffect(() => {
     let isMounted = true;
@@ -112,7 +125,8 @@ const GenerateStory = () => {
   // Add this utility function at the top of your component
   const convertS3UrlToPresigned = async (
     s3Uri,
-    baseURL = "http://192.168.8.144:4010"
+    baseURL =  baseURL  // baseURL 
+
   ) => {
     try {
       // Check if the s3Uri already contains a presigned URL
@@ -121,9 +135,10 @@ const GenerateStory = () => {
         return s3Uri;
       }
 
-      const response = await axios.get(`${baseURL}/s3/get-presigned-url`, {
+      const response = await api4010.get("/s3/get-presigned-url", {
         params: { s3Uri },
       });
+
       return response.data.url;
     } catch (error) {
       console.error("Error converting S3 URL:", error);
@@ -136,11 +151,11 @@ const GenerateStory = () => {
     musicmood,
     musicCategory,
     subCategory,
-    baseURL = "http://192.168.8.144:4010"
+    baseURL = api4010.defaults.baseURL // baseURL
   ) => {
     try {
       // Step 1: Get S3 URIs from MongoDB
-      const response = await axios.get(`${baseURL}/story-music/search`, {
+      const response = await api4010.get("/story-music/search", {
         params: { musicmood, musicCategory, subCategory },
         timeout: 10000, // 10 seconds timeout
       });
@@ -212,11 +227,9 @@ const GenerateStory = () => {
     try {
       console.log("Sending request...");
 
-      const response = await axios.post(
-        "http://192.168.8.144:5000/story/generate-story",
-        { story_prompt: storyPrompt },
-        { headers: { "Content-Type": "application/json" } }
-      );
+      const response = await api5000.post("/story/generate-story", {
+        story_prompt: storyPrompt,
+      });
 
       console.log("Response received:", response.data);
       setStoryParts(response.data.segments);
@@ -381,8 +394,8 @@ const GenerateStory = () => {
         user_id: "12345", // Replace with actual user ID from your auth system
         storyName,
         story: storyPrompt,
-        storyTextColor: fontColor,
-        storyTextSize: `${fontSize}px`,
+        storyTextColor: "black",
+        storyTextSize: `${28}px`,
         storyTextStyle: fontStyle,
         backgroundMusicURL: getRandomMusicURL(musicURLs),
         storySections: storyParts.map((part) => ({
@@ -391,11 +404,7 @@ const GenerateStory = () => {
         })),
       };
       console.log("Saving story:", storyData);
-      const response = await axios.post(
-        "http://192.168.8.144:4010/story-liabrary/stories",
-        storyData,
-        { headers: { "Content-Type": "application/json" } }
-      );
+      const response = await api4010.post('/story-liabrary/stories', storyData); 
 
       // Stop music when the story is saved successfully
     await stopMusic();
@@ -444,9 +453,9 @@ const GenerateStory = () => {
     <View style={styles.storyPart}>
       <Text
         style={{
-          fontFamily: fontStyle,
+          fontFamily: 'LoveYaLikeASister',
           color: fontColor,
-          fontSize: fontSize,
+          fontSize: 28, // defauly font size
           marginBottom: 10,
         }}
       >
@@ -488,10 +497,14 @@ const GenerateStory = () => {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Generate Your Story</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { height: inputHeight }]}
         placeholder="Enter a story prompt"
         value={storyPrompt}
         onChangeText={setStoryPrompt}
+        multiline
+        onContentSizeChange={(event) =>
+          setInputHeight(event.nativeEvent.contentSize.height)
+        }
       />
       <Button title="Submit Story" onPress={generateStory} />
       {loading && <ActivityIndicator size="large" color="#0000ff" />}
@@ -500,7 +513,7 @@ const GenerateStory = () => {
       {renderMusicPlayer()}
 
       {/* Settings for font styles, sizes, colors, and voices */}
-      <View style={styles.settings}>
+      {/* <View style={styles.settings}>
         <View style={styles.dropdownContainer}>
           <Text style={styles.dropdownLabel}>Font Style:</Text>
           <Picker
@@ -530,9 +543,9 @@ const GenerateStory = () => {
             ))}
           </Picker>
         </View>
-      </View>
+      </View> */}
 
-      <View style={styles.voiceContainer}>
+      {/* <View style={styles.voiceContainer}>
         <Text style={styles.dropdownLabel}>Select Voice:</Text>
         <Picker
           selectedValue={selectedVoice}
@@ -547,10 +560,10 @@ const GenerateStory = () => {
             />
           ))}
         </Picker>
-      </View>
+      </View> */}
 
       {/* Color Palette */}
-      <View style={styles.paletteContainer}>
+      {/* <View style={styles.paletteContainer}>
         <Text style={styles.paletteLabel}>Text Color:</Text>
         <View style={styles.palette}>
           {colors.map((color) => (
@@ -561,7 +574,7 @@ const GenerateStory = () => {
             />
           ))}
         </View>
-      </View>
+      </View> */}
 
       {/* Render Story Parts */}
       <FlatList
@@ -595,7 +608,8 @@ const GenerateStory = () => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    padding: 20,
+    padding: 
+    0,
     backgroundColor: "#f5f7fa",
     alignItems: "center",
   },
@@ -607,7 +621,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   input: {
-    height: 50,
+    height: 60,
     width: "100%",
     borderColor: "#ccc",
     borderWidth: 1,
@@ -642,7 +656,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   picker: {
-    height: 50,
+    height: 60,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,

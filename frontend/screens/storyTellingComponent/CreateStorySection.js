@@ -1,13 +1,16 @@
 import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import LottieView from "lottie-react-native";
 
 const CreateStorySection = ({ onCreateStory }) => {
   return (
     <View style={styles.container}>
       {/* Interactive Image */}
-      <Image
+      <LottieView
+        source={require("../../assets/storyAnimation/createStory.json")}
+        autoPlay
+        loop
         style={styles.image}
-        source={require("../../assets/storyUI.jpg")} // Replace with your image
       />
       <Text style={styles.description}>
         Start your adventure by creating a story!
@@ -27,27 +30,35 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   image: {
-    width: "100%",
-    height: 250,
-    resizeMode: "cover",
-    borderRadius: 10,
-    marginBottom: 20,
-  },
+  width: 400,      // Set your desired width
+  height: 200,     // Set your desired height
+  alignSelf: "center",
+  
+},
   description: {
-    fontSize: 18,
+    fontSize: 24,
     color: "#555",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 10,
+    fontWeight: "bold",
+    fontFamily: "YourCustomFont",
   },
   button: {
-    backgroundColor: "#4CAF50",
+      backgroundColor: "#E49B0F",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
+    // Shadow for iOS
+    shadowColor: "#DAA520",
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 10,
+    shadowRadius: 10,
+    // Shadow for Android
+    elevation: 10,
   },
   buttonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 24,
     fontWeight: "bold",
   },
 });
