@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
     },
     shapeButtonText: {
         fontSize: 18,
-        fontWeight: '600',
+        fontWeight: '599',
         color: '#FFF',
     },
     speechOverlay: {
