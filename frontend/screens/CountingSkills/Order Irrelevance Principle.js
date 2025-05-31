@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
         top: 20,
         right: 20,
         alignItems: 'center',
-        zIndex: 1500,
+        zIndex: 1499,
     },
     timerText: {
         fontSize: 36,
